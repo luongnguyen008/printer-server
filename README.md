@@ -32,7 +32,9 @@ API v1 routes implemented:
 - `GET /api/v1/printers` — printers granted to the authenticated client only.
 - `POST /api/v1/jobs` — multipart `file`, `printer_id`, `format`, `title`, `copies`, `options`; requires `Idempotency-Key` and `Authorization: Bearer …`.
 - `GET /api/v1/jobs?limit=50`, `GET /api/v1/jobs/{job_id}`, and `POST /api/v1/jobs/{job_id}/cancel` — own client jobs only.
-- The admin UI is `/`; same-origin session routes live under `/admin/api/` (login/session/logout, status, CUPS discovery, printers/import/edit/pause/resume, clients/grants/key rotation/revoke, job list/details/cancel/resume/unknown resolution, and finite admission/retention settings).
+- The admin UI is `/`, split into Tổng quan, Máy in, Clients, Lệnh in and Cấu hình tabs. Arrow keys/Home/End navigate the tabs; `#tab=printers` etc. preserves the selected view on reload.
+- Printer create/edit controls include a local, case/accent-insensitive driver search across model and PPD ID. All words must match; at most 200 options render at once, so type a more specific query for a large catalogue. Selection is explicit: filtering never silently substitutes a different driver. Search does not install missing drivers.
+- Same-origin session routes live under `/admin/api/` (login/session/logout, status, CUPS discovery, printers/import/edit/pause/resume, clients/grants/key rotation/revoke, job list/details/cancel/resume/unknown resolution, and finite admission/retention settings).
 
 API keys are random, stored as SHA-256 hashes and shown once at client creation/rotation. Admin sessions are server-side, expire after eight hours, use `HttpOnly; SameSite=Strict` cookies and CSRF tokens for mutations. `PRINT_APPLIANCE_SECURE_COOKIE=1` enables `Secure` for trusted HTTPS/reverse-proxy deployments. No wildcard CORS or public API docs are enabled. Never expose the default HTTP listener to the Internet.
 
@@ -100,3 +102,16 @@ curl -sS "$PRINT_APPLIANCE_URL/api/v1/jobs" \
 Reuse the same key/form/file for a transport retry; use a new operation ID only for a genuinely new print request. Poll `/api/v1/jobs/JOB_ID` with the same Bearer key. Authentication remains required for duplicate replay. Filename/title/copies are part of request identity; JSON option key order/whitespace is normalized. Do not send a new operation ID to bypass an unknown outcome.
 
 See [docs/verification.md](docs/verification.md) for the measured local checks and outstanding hardware gates.
+
+## Browser regression and Git deployment
+
+`tests/browser/admin-ui.cjs` checks the five tabs and search against a mocked 16k-driver catalogue. It intercepts all admin API calls and refuses non-loopback base URLs. Use an externally available Playwright installation; it is test tooling, not a frontend/CDN dependency:
+
+```sh
+# Serve the local application on loopback with a disposable data directory first.
+PLAYWRIGHT_MODULE=/absolute/path/to/playwright \
+CHROME_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' \
+UI_BASE_URL=http://127.0.0.1:8081 node tests/browser/admin-ui.cjs
+```
+
+The production Mac checkout and EDATEC source must be at the same deployed Git commit. See [docs/git-deployment.md](docs/git-deployment.md). Credentials, backups and runtime data remain outside Git even though the repository is public.

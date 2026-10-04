@@ -25,11 +25,20 @@
       </form>
     </section>
     <div id="dashboard" class="hidden">
-      <section class="overview">
-        <article class="panel"><h2>Hệ thống</h2><div id="system-status" class="loading">Đang tải trạng thái…</div></article>
-        <article class="panel"><h2>Hàng đợi</h2><div id="job-counts" class="loading">Đang tải…</div></article>
+      <nav class="tab-list" role="tablist" aria-label="Các chức năng quản trị">
+        <button id="tab-overview" type="button" role="tab" data-tab="overview" aria-controls="view-overview" aria-selected="true">Tổng quan</button>
+        <button id="tab-printers" type="button" role="tab" data-tab="printers" aria-controls="view-printers" aria-selected="false" tabindex="-1">Máy in</button>
+        <button id="tab-clients" type="button" role="tab" data-tab="clients" aria-controls="view-clients" aria-selected="false" tabindex="-1">Clients</button>
+        <button id="tab-jobs" type="button" role="tab" data-tab="jobs" aria-controls="view-jobs" aria-selected="false" tabindex="-1">Lệnh in</button>
+        <button id="tab-settings" type="button" role="tab" data-tab="settings" aria-controls="view-settings" aria-selected="false" tabindex="-1">Cấu hình</button>
+      </nav>
+      <section id="view-overview" class="tab-panel" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
+        <div class="overview">
+          <article class="panel"><h2>Hệ thống</h2><div id="system-status" class="loading">Đang tải trạng thái…</div></article>
+          <article class="panel"><h2>Hàng đợi</h2><div id="job-counts" class="loading">Đang tải…</div></article>
+        </div>
       </section>
-      <section class="panel">
+      <section id="view-printers" class="panel tab-panel" role="tabpanel" aria-labelledby="tab-printers" tabindex="0" hidden>
         <div class="section-heading"><div><p class="eyebrow">CUPS</p><h2>Máy in</h2></div><button id="discover" class="secondary" type="button">Khám phá thiết bị / driver</button></div>
         <p id="discovery-state" class="muted">Chỉ hiển thị dữ liệu khám phá từ CUPS cục bộ. Không có lệnh giả lập.</p>
         <div id="discovery" class="discovery hidden">
@@ -38,7 +47,10 @@
             <label for="printer-name">Tên hiển thị</label><input id="printer-name" required maxlength="120">
             <label for="device-uri">Thiết bị CUPS đã khám phá</label><select id="device-uri"></select>
             <label for="manual-uri">Hoặc URI máy mạng thủ công</label><input id="manual-uri" placeholder="ipp://192.168.1.20:631/ipp/print" aria-describedby="manual-uri-help"><small id="manual-uri-help">IPP/IPPS/socket/LPD trong LAN. Bỏ trống để dùng thiết bị khám phá phía trên.</small>
-            <label for="driver">Driver / PPD đã khám phá</label><select id="driver" required></select>
+            <label for="driver-search">Tìm driver theo tên / model</label>
+            <input id="driver-search" type="search" placeholder="Ví dụ: Canon, LBP6230, UFRII" autocomplete="off" aria-controls="driver" aria-describedby="driver-results">
+            <label for="driver">Driver / PPD đã khám phá</label><select id="driver" required aria-describedby="driver-results"></select>
+            <small id="driver-results" role="status" aria-live="polite">Khám phá CUPS để nạp danh sách driver.</small>
             <fieldset><legend>Định dạng nhận</legend><label class="check"><input type="checkbox" name="format" value="pdf" checked> PDF</label><label class="check"><input type="checkbox" name="format" value="zpl"> ZPL</label></fieldset>
             <label for="default-options">Tùy chọn mặc định JSON</label><textarea id="default-options" rows="2">{}</textarea>
             <label for="allowed-options">Allowlist tùy chọn JSON (ví dụ {"media":["A4"]})</label><textarea id="allowed-options" rows="3">{}</textarea>
@@ -54,7 +66,7 @@
         </div>
         <div id="printers" class="loading">Đang tải danh sách máy in…</div>
       </section>
-      <section class="panel">
+      <section id="view-clients" class="panel tab-panel" role="tabpanel" aria-labelledby="tab-clients" tabindex="0" hidden>
         <div class="section-heading"><div><p class="eyebrow">QUYỀN API</p><h2>Clients</h2></div></div>
         <form id="client-form" class="inline-form">
           <div><label for="client-name">Tên client</label><input id="client-name" required maxlength="120"></div>
@@ -63,13 +75,13 @@
         </form>
         <div id="clients" class="loading">Đang tải clients…</div>
       </section>
-      <section class="panel">
+      <section id="view-jobs" class="panel tab-panel" role="tabpanel" aria-labelledby="tab-jobs" tabindex="0" hidden>
         <div class="section-heading"><div><p class="eyebrow">THEO DÕI</p><h2>Lệnh in</h2></div><button id="refresh" class="secondary" type="button">Làm mới</button></div>
         <p class="muted">`completed` là trạng thái CUPS báo, không đảm bảo tuyệt đối giấy đã ra. `unknown` không tự in lại.</p>
         <div id="jobs" class="loading">Đang tải lệnh in…</div>
         <aside id="job-details" class="subpanel hidden" aria-live="polite"></aside>
       </section>
-      <section class="panel">
+      <section id="view-settings" class="panel tab-panel" role="tabpanel" aria-labelledby="tab-settings" tabindex="0" hidden>
         <h2>Giới hạn và lưu trữ</h2>
         <form id="settings-form" class="settings-grid">
           <label>Upload tối đa (bytes)<input name="max_upload_bytes" type="number" min="65536" max="536870912" required></label>

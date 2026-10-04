@@ -4,6 +4,7 @@ let csrfToken = "";
 let printerData = [];
 let clientData = [];
 let discoveryData = null;
+let driverIndex = [];
 
 function showNotice(message, kind = "info") {
   notice.textContent = message;
@@ -46,6 +47,65 @@ function selectedValues(select) { return [...select.selectedOptions].map(item =>
 function checkedFormats(form, selector = 'input[name="format"]') {
   return [...form.querySelectorAll(selector)].filter(item => item.checked).map(item => item.value);
 }
+
+function searchText(value) {
+  return String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+function filterDriverOptions(search, select, hint, currentDriver = "") {
+  const selected = select.value;
+  const tokens = searchText(search.value).trim().split(/\s+/).filter(Boolean);
+  const entries = [...driverIndex];
+  if (currentDriver && !entries.some(item => item.id === currentDriver)) {
+    entries.unshift({ id: currentDriver, label: `Driver hiện tại · ${currentDriver}`, text: searchText(currentDriver) });
+  }
+  const matches = entries.filter(item => tokens.every(token => item.text.includes(token)));
+  const visible = matches.slice(0, 200);
+  const selectedItem = matches.find(item => item.id === selected);
+  if (selectedItem && !visible.includes(selectedItem)) visible[visible.length - 1] = selectedItem;
+  const options = document.createDocumentFragment();
+  option(options, "", matches.length ? "Chọn driver phù hợp…" : "Không tìm thấy driver phù hợp");
+  for (const item of visible) option(options, item.id, item.label);
+  select.replaceChildren(options);
+  // Searching is not a configuration change: never silently select another driver.
+  select.value = matches.some(item => item.id === selected) ? selected : "";
+  hint.textContent = matches.length
+    ? `${matches.length.toLocaleString("vi-VN")} / ${entries.length.toLocaleString("vi-VN")} driver.${matches.length > visible.length ? ` Hiển thị ${visible.length}; nhập thêm từ khóa để thu hẹp.` : ""} Chọn đúng model; tìm kiếm không cài thêm driver.`
+    : "Không tìm thấy driver phù hợp. Đổi từ khóa, khám phá lại hoặc cài driver tương thích.";
+}
+function bindDriverSearch(search, select, hint, currentDriver = "") {
+  const update = () => filterDriverOptions(search, select, hint, currentDriver);
+  search.addEventListener("input", update);
+  search.addEventListener("keydown", event => {
+    if (event.key === "Enter") event.preventDefault();
+  });
+  update();
+}
+
+const adminTabs = [...document.querySelectorAll('[role="tab"][data-tab]')];
+function activateTab(name, updateHash = true) {
+  if (!adminTabs.some(tab => tab.dataset.tab === name)) name = "overview";
+  for (const tab of adminTabs) {
+    const active = tab.dataset.tab === name;
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+    document.getElementById(tab.getAttribute("aria-controls")).hidden = !active;
+  }
+  if (updateHash) history.replaceState(null, "", `#tab=${name}`);
+}
+function tabFromHash() { return location.hash.startsWith("#tab=") ? location.hash.slice(5) : "overview"; }
+for (const [index, tab] of adminTabs.entries()) {
+  tab.addEventListener("click", () => activateTab(tab.dataset.tab));
+  tab.addEventListener("keydown", event => {
+    const keys = { ArrowRight: (index + 1) % adminTabs.length, ArrowLeft: (index + adminTabs.length - 1) % adminTabs.length, Home: 0, End: adminTabs.length - 1 };
+    if (!(event.key in keys)) return;
+    event.preventDefault();
+    const next = adminTabs[keys[event.key]];
+    activateTab(next.dataset.tab); next.focus();
+  });
+}
+window.addEventListener("hashchange", () => activateTab(tabFromHash(), false));
+activateTab(tabFromHash(), false);
+bindDriverSearch($("#driver-search"), $("#driver"), $("#driver-results"));
 
 async function checkSession() {
   try {
@@ -143,11 +203,22 @@ function renderPrinterEdit(printer) {
     for (const [key, labelText, current] of [["device_uri", "Thiết bị CUPS", printer.device_uri], ["driver", "Driver", printer.driver]]) {
       const label = node("label", labelText); const select = node("select"); select.dataset.mapping = key;
       option(select, current, current);
-      for (const item of discoveryData?.[key === "device_uri" ? "devices" : "drivers"] || []) {
-        const value = key === "device_uri" ? item.uri : item.id;
-        option(select, value, key === "device_uri" ? `${item.info || value} · ${value}` : `${item.make_model} · ${value}`);
+      if (key === "driver") {
+        const search = node("input"); search.type = "search"; search.id = `driver-search-${printer.id}`;
+        search.placeholder = "Ví dụ: Canon, LBP6230, UFRII"; search.autocomplete = "off";
+        const searchLabel = node("label", "Tìm driver theo tên / model"); searchLabel.htmlFor = search.id;
+        const hint = node("small"); hint.id = `driver-results-${printer.id}`;
+        hint.setAttribute("role", "status"); hint.setAttribute("aria-live", "polite");
+        select.id = `driver-${printer.id}`; select.required = true;
+        search.setAttribute("aria-controls", select.id);
+        search.setAttribute("aria-describedby", hint.id); select.setAttribute("aria-describedby", hint.id);
+        form.append(searchLabel, search);
+        label.append(select); form.append(label, hint);
+        bindDriverSearch(search, select, hint, current);
+      } else {
+        for (const item of discoveryData?.devices || []) option(select, item.uri, `${item.info || item.uri} · ${item.uri}`);
+        label.append(select); form.append(label);
       }
-      label.append(select); form.append(label);
     }
   }
   const save = node("button", "Lưu cấu hình"); save.type = "submit"; form.append(save);
@@ -181,9 +252,10 @@ async function discover() {
   try {
     discoveryData = await api("/admin/api/discovery");
     const device = $("#device-uri"), driver = $("#driver"), queue = $("#existing-queue");
-    device.replaceChildren(); driver.replaceChildren(); queue.replaceChildren();
+    device.replaceChildren(); queue.replaceChildren();
     for (const item of discoveryData.devices) option(device, item.uri, `${item.info || item.make_model || item.uri} · ${item.uri}`);
-    for (const item of discoveryData.drivers) option(driver, item.id, `${item.make_model} · ${item.id}`);
+    driverIndex = discoveryData.drivers.map(item => ({ id: item.id, label: `${item.make_model} · ${item.id}`, text: searchText(`${item.make_model} ${item.id}`) }));
+    filterDriverOptions($("#driver-search"), driver, $("#driver-results"));
     const registered = new Set(printerData.map(printer => printer.queue));
     for (const name of Object.keys(discoveryData.queues).filter(name => !registered.has(name))) option(queue, name, name);
     $("#discovery").classList.remove("hidden");
@@ -319,7 +391,9 @@ $("#login-form").addEventListener("submit", async event => {
 $("#logout").addEventListener("click", async () => {
   try { await api("/admin/api/logout", { method: "POST", body: "{}" }); }
   catch (error) { showNotice(`Đăng xuất chưa được xác nhận: ${error.message}`, "error"); return; }
-  clearNotice(); printerData = []; clientData = []; discoveryData = null;
+  clearNotice(); printerData = []; clientData = []; discoveryData = null; driverIndex = [];
+  $("#driver-search").value = ""; filterDriverOptions($("#driver-search"), $("#driver"), $("#driver-results"));
+  activateTab("overview");
   $("#job-details").replaceChildren();
   csrfToken = ""; $("#dashboard").classList.add("hidden"); $("#logout").classList.add("hidden"); $("#login-panel").classList.remove("hidden");
 });
