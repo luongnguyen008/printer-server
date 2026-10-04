@@ -46,6 +46,7 @@
     const format=$('#client-format'); const previous=format.value;
     format.replaceChildren(...(printer?.formats || []).map(value=>{const item=text('option',value.toUpperCase());item.value=value;return item;}));
     if(printer?.formats.includes(previous)) format.value=previous;
+    if(!printer) { $('#printer-state').textContent=''; $('#permitted-options').textContent=''; return; }
     $('#printer-state').textContent=printer?.status==='paused'?'Máy đang tạm dừng. Lệnh sẽ được giữ đến khi quản trị cho tiếp tục.':'Được phép xử lý; trạng thái này không xác nhận máy đã in.';
     $('#permitted-options').textContent=`Giá trị được phép: ${JSON.stringify(printer?.allowed_options || {})}`;
   }

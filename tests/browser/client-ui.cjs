@@ -53,7 +53,7 @@ const credential=crypto.randomBytes(32).toString('hex');
   await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   if(process.env.UI_ARTIFACT_DIR)await page.screenshot({path:path.join(process.env.UI_ARTIFACT_DIR,'client-mobile.png'),fullPage:true});
   await page.locator('#disconnect').click();assert.equal(await page.locator('#client-workspace').isVisible(),false);
-  printers=[];await connect();assert.equal(await page.locator('#no-printers').isVisible(),true);assert.equal(await page.locator('#send-print').isDisabled(),true);
+  printers=[];await connect();assert.equal(await page.locator('#no-printers').isVisible(),true);assert.equal(await page.locator('#send-print').isDisabled(),true);assert.equal(await page.locator('#printer-state').textContent(),'');assert.equal(await page.locator('#permitted-options').textContent(),'');
   await page.reload();assert.equal(await page.locator('#api-key').inputValue(),'');assert.equal(await page.locator('#key-panel').isVisible(),true);
   assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
   console.log('PASS: client key authentication/memory-only/reset; scoped empty/printer states; PDF/ZPL; slow/duplicate submit guard; lost reply immutable same-ID replay (one job); 422 editing; JSON validation; safe text; desktop/mobile; no external requests. APIs mocked; no printing.');
