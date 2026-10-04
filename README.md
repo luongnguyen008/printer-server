@@ -124,9 +124,9 @@ The production Mac checkout and EDATEC source must be at the same deployed Git c
 - Requests display a pending state and disable competing controls to prevent duplicate submissions. Failures keep form values; mutations are never automatically retried.
 - Printer **Gỡ đăng ký** removes only the application's registration and grants, never the CUPS queue. Client **Sửa client / Xóa client** supports rename, grants and deletion. Both deletions require confirmation and are rejected while nonterminal or unknown jobs exist. Historical jobs and deduplication records remain; a deleted client's key stops working.
 
-### Client test page (0.1.3)
+### Client test page (0.1.5)
 
-Open `/client` on the appliance, enter the API key issued from the admin Clients tab, select an assigned printer and upload PDF/ZPL. The page uses only existing scoped client APIs, never the admin password/session. It submits real print jobs; do not send to a physical printer until its driver is verified. Key/file state is memory-only; reload/disconnect clears it. Printer-specific controls reflect only schema choices and client grants; see [docs/print-options.md](docs/print-options.md).
+Open `/client` on the appliance, enter the API key issued from the admin Clients tab, select an assigned printer and upload PDF/ZPL. The page uses only existing scoped client APIs, never the admin password/session. It submits real print jobs; do not send to a physical printer until its driver is verified. The key is saved only in tab-scoped sessionStorage: reload reconnects automatically; disconnect or API 401 clears it. Never stored in localStorage or URLs. Files/pending requests remain memory-only and are not restored or automatically resubmitted. Printer-specific controls reflect only schema choices and client grants; see [docs/print-options.md](docs/print-options.md).
 
 A lost/5xx submission response freezes the original request and offers explicit same-ID replay. It never automatically resubmits. Unique IDs use `crypto.getRandomValues`, including on LAN HTTP. History updates every four seconds while jobs are active; unknown outcomes need operator investigation. See [client guide](docs/client-guide.md).
 

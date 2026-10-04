@@ -1,5 +1,9 @@
 # Verification history
 
+## Tab-scoped client session — 0.1.5
+
+Client key now uses sessionStorage, replacing the earlier reset-on-reload behavior. Browser coverage: same-key auto-connect on reload/back-forward lifecycle, no automatic POST/file restoration, disconnect/401 removal, revoked stored key, transient 503 preserving the saved key, corrupt key removal and storage-denied memory-only fallback. Existing immutable same-ID retry, scoped options and admin browser cases still apply. API/server authentication and database schema are unchanged.
+
 ## Options and modal UX — 0.1.4
 
 Local: 93 pytest tests, Ruff lint/format, JS syntax, wheel/sdist build and both browser suites against the final isolated installed wheel passed. Browser cases cover modal/dirty-close, 16k driver choices, multi-grant search/chips/keyboard, unchanged-grant revocation race, busy/duplicate/errors, persistent key modal, toast, default/override forms, constrained combinations, empty option rights, stale schema responses, immutable lost-response replay and fresh mobile screenshots. Actual FastAPI/SQLite + explicit FakeCups browser replay discarded an accepted 202 then replayed: exactly one durable job.

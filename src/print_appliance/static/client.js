@@ -1,10 +1,21 @@
-// Same-origin client API only. Credentials and pending files never enter storage or URLs.
+// Same-origin client API only. Tab-scoped credentials survive reload; files/requests stay in memory.
 (() => {
   const $ = selector => document.querySelector(selector);
   const toasts=createToasts($('#client-notice'));
   const labels = {queued:'Đang chờ',held:'Đang giữ',submitting:'Đang giao',submitted:'Đã giao CUPS',completed:'Hoàn thành (CUPS)',failed:'Thất bại',canceled:'Đã hủy',unknown:'Chưa rõ kết quả'};
   const active = new Set(['queued','held','submitting','submitted']);
-  let apiKey = '', printers = [], pending = null, busy = false, epoch = 0, timer = null, reading = false, schemaEpoch = 0, currentSchema = null, optionEditor = null;
+  let apiKey = '', printers = [], pending = null, busy = false, epoch = 0, timer = null, reading = false, schemaEpoch = 0, currentSchema = null, optionEditor = null, actionGeneration = 0;
+  const keyStorage = 'print-appliance.client.api-key';
+  function forgetKey() { try { sessionStorage.removeItem(keyStorage); } catch {} }
+  function rememberedKey() {
+    try {
+      const key=sessionStorage.getItem(keyStorage);
+      if(key && key.length<=256 && !/[\s\x00-\x1f\x7f]/.test(key)) return key;
+      forgetKey();
+    } catch {}
+    return '';
+  }
+  function rememberKey(key) { try { sessionStorage.setItem(keyStorage,key); return true; } catch { return false; } }
   function text(tag, content, className) { const el=document.createElement(tag); el.textContent=String(content ?? ''); if(className) el.className=className; return el; }
   function notice(message,error=false){toasts.show(message,error?'error':'success');}
   function stopPolling() { clearTimeout(timer); timer=null; }
@@ -19,9 +30,9 @@
   }
   async function action(fn) {
     if(busy) return;
-    busy=true; stopPolling(); updateControls();
-    try { await fn(); } catch(error) { notice(error.message,true); }
-    finally { busy=false; updateControls(); }
+    const generation=++actionGeneration;busy=true; stopPolling(); updateControls();
+    try { await fn(); } catch(error) { if(generation===actionGeneration) notice(error.message,true); }
+    finally { if(generation===actionGeneration) { busy=false; updateControls(); } }
   }
   async function request(path, options={}, key=apiKey) {
     const currentEpoch=epoch;
@@ -32,7 +43,9 @@
       if(currentEpoch!==epoch) throw new Error('Kết nối đã thay đổi.');
       if(!response.ok) {
         const detail=typeof data?.detail==='string'?data.detail:`API trả lỗi ${response.status}`;
-        const error=new Error(response.status===401?'API key không hợp lệ hoặc đã bị thu hồi.':detail); error.status=response.status; throw error;
+        const message=response.status===401?'API key không hợp lệ hoặc đã bị thu hồi.':detail;
+        if(response.status===401 && key===apiKey) { resetConnection(); notice(message,true); }
+        const error=new Error(message); error.status=response.status; throw error;
       }
       if(data===null) throw new Error('Server trả dữ liệu không hợp lệ.');
       return data;
@@ -121,14 +134,27 @@
       notice(`${error.message}${pending?' Chưa xác nhận kết quả. Chỉ gửi lại cùng yêu cầu bên dưới.':''}`,true);
     }
   }
-  $('#key-form').addEventListener('submit',event=>{event.preventDefault();action(async()=>{
-    const candidate=$('#api-key').value.trim();if(!candidate) throw new Error('Nhập API key.');
-    apiKey=candidate;epoch+=1;
-    try { await loadPrinters(candidate); } catch(error) { apiKey='';epoch+=1;throw error; }
-    $('#api-key').value='';
-    $('#key-panel').hidden=true;$('#client-workspace').hidden=false;
-    notice('Đã kết nối. Chọn file và kiểm tra máy trước khi gửi.');await loadJobs();
-  });});
+  function resetConnection(clearSaved=true) {
+    if(clearSaved) forgetKey();
+    epoch+=1;schemaEpoch+=1;currentSchema=null;optionEditor=null;stopPolling();apiKey='';printers=[];pending=null;reading=false;
+    $('#client-options').replaceChildren();$('#printer-state').textContent='';$('#options-state').textContent='';
+    $('#print-form').reset();$('#key-form').reset();$('#client-jobs').replaceChildren();$('#history-state').textContent='';toasts.clear();
+    $('#client-workspace').hidden=true;$('#key-panel').hidden=false;updateControls();
+  }
+  async function connect(candidate,restoring=false) {
+    if(!candidate) throw new Error('Nhập API key.');
+    if(!restoring) forgetKey();
+    apiKey=candidate;const connectionEpoch=++epoch;
+    try { await loadPrinters(candidate); }
+    catch(error) { resetConnection(!restoring || error.status===401); if(restoring && error.status!==401) $('#api-key').value=candidate; throw error; }
+    if(epoch!==connectionEpoch || apiKey!==candidate) return;
+    const saved=rememberKey(candidate);
+    $('#api-key').value='';$('#key-panel').hidden=true;$('#client-workspace').hidden=false;
+    notice(saved?'Đã kết nối. Tải lại trang vẫn giữ client; không tự gửi lệnh in.':'Đã kết nối, nhưng trình duyệt chặn lưu theo tab; tải lại cần nhập key.',!saved);
+    await loadJobs();
+  }
+  function restoreConnection() { const key=rememberedKey(); if(key) action(()=>connect(key,true)); }
+  $('#key-form').addEventListener('submit',event=>{event.preventDefault();action(()=>connect($('#api-key').value.trim()));});
   $('#print-form').addEventListener('submit',event=>{event.preventDefault();action(async()=>{if(!pending) pending=capture();updateControls();await send();});});
   $('#retry-print').addEventListener('click',()=>action(async()=>{if(pending) await send();}));
   $('#refresh-client').addEventListener('click',()=>action(async()=>{if(!pending) await loadPrinters();await loadJobs();}));
@@ -138,12 +164,10 @@
   $('#disconnect').addEventListener('click',()=>{
     if(busy) return;
     if(pending && !confirm(`Lệnh ${pending.id} có thể đã được nhận. Ngắt kết nối sẽ mất file/mã đang giữ; không gửi lại bằng mã mới khi chưa kiểm tra lịch sử. Vẫn ngắt?`)) return;
-    epoch+=1;schemaEpoch+=1;currentSchema=null;optionEditor=null;stopPolling();apiKey='';printers=[];pending=null;toasts.clear();$('#client-options').replaceChildren();$('#printer-state').textContent='';$('#options-state').textContent='';
-    $('#print-form').reset();$('#key-form').reset();$('#client-jobs').replaceChildren();$('#history-state').textContent='';toasts.clear();
-    $('#client-workspace').hidden=true;$('#key-panel').hidden=false;updateControls();$('#api-key').focus();
+    resetConnection();$('#api-key').focus();
   });
   window.addEventListener('beforeunload',event=>{if(pending){event.preventDefault();event.returnValue='';}});
-  window.addEventListener('pagehide',()=>{stopPolling();apiKey='';});
-  window.addEventListener('pageshow',event=>{if(event.persisted){epoch+=1;schemaEpoch+=1;currentSchema=null;optionEditor=null;printers=[];pending=null;$('#print-form').reset();$('#key-form').reset();$('#client-jobs').replaceChildren();toasts.clear();$('#client-workspace').hidden=true;$('#key-panel').hidden=false;updateControls();}});
-  updateControls();
+  window.addEventListener('pagehide',()=>{stopPolling();apiKey='';epoch+=1;schemaEpoch+=1;actionGeneration+=1;});
+  window.addEventListener('pageshow',event=>{if(event.persisted){busy=false;resetConnection(false);restoreConnection();}});
+  updateControls();restoreConnection();
 })();

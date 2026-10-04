@@ -17,6 +17,6 @@
 
 ## Bảo mật
 
-API key chỉ nằm trong bộ nhớ của tab; tải lại hoặc ngắt kết nối phải nhập lại. Không dán key vào URL, issue công khai hay ảnh chụp. Trình duyệt có thể đề nghị lưu mật khẩu: không lưu API key trên máy dùng chung. HTTP không mã hóa key; chỉ dùng LAN đáng tin cậy, không mở cổng ra Internet.
+API key lưu trong **sessionStorage theo tab** sau khi kết nối: tải lại tự kết nối đúng client, không tự gửi lệnh in. **Ngắt kết nối** hoặc API báo key không hợp lệ/thu hồi sẽ xóa key đã lưu. Không lưu trong localStorage hay URL; file/tham số/mã yêu cầu đang gửi không được khôi phục khi tải lại. Trình duyệt có thể giữ session khi khôi phục/nhân đôi tab, nên bấm Ngắt kết nối khi dùng xong trên máy dùng chung. Nếu trình duyệt chặn storage, vẫn kết nối được nhưng tải lại cần nhập key. Không dán key vào URL, issue công khai hay ảnh chụp. Trình duyệt có thể đề nghị lưu mật khẩu: không lưu API key trên máy dùng chung. HTTP không mã hóa key; chỉ dùng LAN đáng tin cậy, không mở cổng ra Internet.
 
 Trang client không thay thế tích hợp API của ứng dụng nghiệp vụ. Nó giúp kiểm tra nhanh quyền, file và trạng thái trước khi tích hợp Odoo/PDA.

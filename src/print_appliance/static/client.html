@@ -17,7 +17,7 @@
       <h2>Kết nối client</h2>
       <form id="key-form" autocomplete="off">
         <label for="api-key">API key</label><input id="api-key" type="password" required autocomplete="off" maxlength="256" spellcheck="false">
-        <p class="muted">Dùng key được cấp ở tab Clients, không phải mật khẩu quản trị. Key chỉ giữ trong tab này; tải lại trang phải nhập lại.</p>
+        <p class="muted">Dùng key được cấp ở tab Clients, không phải mật khẩu quản trị. Key lưu theo tab bằng sessionStorage; tải lại tự kết nối. Ngắt kết nối sẽ xóa key. Không dùng trên trình duyệt dùng chung.</p>
         <button type="submit">Kết nối</button>
       </form>
     </section>
@@ -26,6 +26,7 @@
       <section class="panel">
         <h2>Gửi file</h2>
         <p class="bad">Gửi lệnh sẽ in thật nếu máy được phép xử lý. Kiểm tra máy và số bản trước khi gửi.</p>
+        <p class="muted">Tải lại chỉ giữ kết nối client, không khôi phục file hay yêu cầu đang gửi. Nếu mất phản hồi, kiểm tra lịch sử trước khi tạo lệnh mới.</p>
         <p id="no-printers" class="muted" hidden>Client chưa được cấp máy in. Nhờ quản trị cấp quyền trong tab Clients.</p>
         <form id="print-form">
           <label for="client-printer">Máy in</label><select id="client-printer" required></select>
