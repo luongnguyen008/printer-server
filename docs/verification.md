@@ -6,6 +6,8 @@ Local validation on 2026-10-04: **79 tests passed**, Ruff lint/format and JS syn
 
 The installed-wheel browser regression passed against a mocked 16k-driver catalogue with actual FastAPI asset/CSP routes: integrated explicit-selection combobox, keyboard/clear/Escape/refresh, safe text labels, help popovers, single add/import flow, 409/503 recovery, slow-request disabling/duplicate prevention, printer/client CRUD, unsaved edits, settings, logout and 390px mobile layout. Desktop/mobile screenshots were inspected. All four offline assets are packaged; installed-wheel protected endpoints reject unauthenticated requests.
 
+A fresh read-only review found stale grant resubmission on client rename; the UI now omits unchanged `printer_ids`, with a browser regression for concurrent grant revocation plus explicit grant changes. No backend deletion blocker was found.
+
 Target rollout and independent review are separate gates; local mocked evidence is not proof of physical printing. Follow docs/git-deployment.md for exact-commit parity, backup and soft-delete rollback cautions.
 
 ## Initial implementation record (0.1.0)

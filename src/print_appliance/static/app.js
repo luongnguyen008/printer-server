@@ -308,7 +308,10 @@ function renderClient(client) {
   bindAction(form, "submit", async event => {
     event.preventDefault();
     try {
-      await api(`/admin/api/clients/${encodeURIComponent(client.id)}`, { method: "PUT", body: JSON.stringify({ name:name.value, printer_ids: selectedValues(select) }) });
+      const payload = {name: name.value};
+      const grants = selectedValues(select);
+      if (JSON.stringify([...grants].sort()) !== JSON.stringify([...client.printer_ids].sort())) payload.printer_ids = grants;
+      await api(`/admin/api/clients/${encodeURIComponent(client.id)}`, { method: "PUT", body: JSON.stringify(payload) });
       closeEditor(form); showNotice("Đã lưu client.", "success"); await loadClients();
     } catch (error) { showNotice(error.message, "error"); }
   });

@@ -101,8 +101,15 @@ async function fixture(page) {
   await remove.click();await idle();assert.equal(await page.locator('#printers article[data-id="created"]').count(),0);
   await page.getByRole('tab',{name:'Clients',exact:true}).click();await page.locator('#client-name').fill('Odoo kiểm thử');await page.locator('#client-printers').selectOption(current.id);
   await page.locator('#client-form button[type="submit"]').click();await idle();assert.ok((await page.locator('#notice').textContent()).includes(fixtureKey));
-  const client=page.locator('#clients article');await client.locator('summary').click();await client.locator('input').fill('Client đã sửa');await client.getByRole('button',{name:'Lưu client',exact:true}).click();await idle();
+  const client=page.locator('#clients article');await client.locator('summary').click();
+  // Concurrent revocation must survive a name-only save from this stale editor.
+  state.clients[0].printer_ids=[];
+  await client.locator('input').fill('Client đã sửa');await client.getByRole('button',{name:'Lưu client',exact:true}).click();await idle();
   assert.equal(state.mutations.at(-1).method,'PUT');assert.equal(state.mutations.at(-1).data.name,'Client đã sửa');
+  assert.ok(!Object.hasOwn(state.mutations.at(-1).data,'printer_ids'));assert.deepEqual(state.clients[0].printer_ids,[]);
+  await client.locator('summary').click();await client.locator('select').selectOption(current.id);
+  await client.getByRole('button',{name:'Lưu client',exact:true}).click();await idle();
+  assert.deepEqual(state.mutations.at(-1).data.printer_ids,[current.id]);
   state.fail=409;await client.getByRole('button',{name:'Xóa client'}).click();await idle();assert.equal(await client.count(),1);
   await client.getByRole('button',{name:'Xóa client'}).click();await idle();assert.equal(await page.locator('#clients article').count(),0);
   await page.getByRole('tab',{name:'Cấu hình',exact:true}).click();await page.locator('[name="max_pending_jobs"]').fill('111');
