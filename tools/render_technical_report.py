@@ -6,6 +6,9 @@ Run: uv run --no-project --with markdown==3.7 python tools/render_technical_repo
 from __future__ import annotations
 
 import argparse
+import re
+import xml.etree.ElementTree as ET
+from html import escape, unescape
 from pathlib import Path
 
 CSS = """
@@ -21,10 +24,67 @@ blockquote{margin:20px 0;padding:8px 20px;border-left:4px solid #b88728;backgrou
 table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14px;table-layout:fixed}th,td{text-align:left;vertical-align:top;border:1px solid var(--line);padding:10px 12px;overflow-wrap:anywhere}th{background:#edf2f5;font-weight:650}tr:nth-child(even){background:#fafcfd}td code,th code{font-size:12px}
 .toc{margin:30px 0;padding:16px 22px;background:#edf4f7;border:1px solid var(--line);border-radius:8px}.toc::before{content:"Mục lục";display:block;font-weight:650;font-size:20px;margin-bottom:12px}.toc>ul{columns:2;column-gap:36px;padding-left:22px}.toc li{break-inside:avoid}.toc li li{font-size:13px}.toc a{text-decoration:none}.toc a:hover{text-decoration:underline}
 .report-end{border-top:1px solid var(--line);margin-top:44px;padding-top:16px;color:var(--muted);font-size:13px}
-@media(max-width:720px){.shell{padding:24px 18px 40px}body{font-size:15px}h1{font-size:27px}h2{font-size:22px}.toc>ul{columns:1}th,td{padding:7px;font-size:12px}pre{padding:12px}}
+.report-diagram{margin:28px 0;break-inside:avoid;break-after:avoid}.diagram-viewport{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:white}.diagram-viewport:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.diagram-viewport svg{display:block;width:100%;min-width:720px;max-width:920px;height:auto;margin:auto}.diagram-hint{display:none;margin-top:7px;color:var(--muted);font-size:12px}figure+p:has(>em:only-child){margin-top:-16px;color:var(--muted);font-size:14px}
+@media(max-width:720px){.diagram-hint{display:block}.shell{padding:24px 18px 40px}body{font-size:15px}h1{font-size:27px}h2{font-size:22px}.toc>ul{columns:1}th,td{padding:7px;font-size:12px}pre{padding:12px}}
 @page{size:A4;margin:16mm 14mm 18mm}
-@media print{body{background:white;font-size:10pt;line-height:1.45}.shell{padding:0;max-width:none}.report-bar{font-size:8pt}h1{font-size:24pt}h2{font-size:17pt;margin-top:26pt;padding-top:12pt}h3{font-size:13pt}h1,h2,h3,h4{break-after:avoid}p,li{orphans:3;widows:3}pre{font-size:8pt;padding:8pt;overflow:visible;break-inside:auto}pre code{font-size:8pt;white-space:pre-wrap;overflow-wrap:anywhere}table{font-size:8.5pt;table-layout:fixed}thead{display:table-header-group}tr{break-inside:avoid}th,td{padding:5pt}td code,th code{font-size:8pt}a{color:inherit}.toc{background:white}.toc>ul{columns:2}.toc li li{font-size:8pt}.report-end{font-size:8pt}blockquote{background:white}html{scroll-behavior:auto}}
+@media print{.diagram-viewport{overflow:visible;border:none}.diagram-viewport svg{min-width:0;max-width:100%}.diagram-hint{display:none}figure+p:has(>em:only-child){font-size:9pt}body{background:white;font-size:10pt;line-height:1.45}.shell{padding:0;max-width:none}.report-bar{font-size:8pt}h1{font-size:24pt}h2{font-size:17pt;margin-top:26pt;padding-top:12pt}h3{font-size:13pt}h1,h2,h3,h4{break-after:avoid}p,li{orphans:3;widows:3}pre{font-size:8pt;padding:8pt;overflow:visible;break-inside:auto}pre code{font-size:8pt;white-space:pre-wrap;overflow-wrap:anywhere}table{font-size:8.5pt;table-layout:fixed}thead{display:table-header-group}tr{break-inside:avoid}th,td{padding:5pt}td code,th code{font-size:8pt}a{color:inherit}.toc{background:white}.toc>ul{columns:2}.toc li li{font-size:8pt}.report-end{font-size:8pt}blockquote{background:white}html{scroll-behavior:auto}}
 """
+
+
+def embed_diagrams(body: str, source: Path) -> str:
+    """Inline trusted, local SVGs so downloaded HTML needs no sibling image files."""
+    namespace = "http://www.w3.org/2000/svg"
+    ET.register_namespace("", namespace)
+    permitted = {
+        "svg",
+        "g",
+        "rect",
+        "text",
+        "tspan",
+        "polygon",
+        "polyline",
+        "line",
+        "title",
+        "desc",
+        "defs",
+        "marker",
+        "path",
+        "circle",
+    }
+
+    def replace(match: re.Match[str]) -> str:
+        attrs = {key: unescape(value) for key, value in re.findall(r'(\w+)="([^"]*)"', match[1])}
+        src = attrs.get("src", "")
+        if not src.endswith(".svg"):
+            raise ValueError(f"Report images must be local SVGs: {src}")
+        root = source.resolve().parent
+        path = (root / src).resolve()
+        if not path.is_relative_to(root) or not path.is_file():
+            raise ValueError(f"Diagram is not a local report asset: {src}")
+        svg = ET.fromstring(path.read_text(encoding="utf-8"))
+        if svg.tag != f"{{{namespace}}}svg":
+            raise ValueError(f"Not an SVG: {src}")
+        for node in svg.iter():
+            if node.tag.removeprefix(f"{{{namespace}}}") not in permitted:
+                raise ValueError(f"Unsupported SVG element: {node.tag}")
+            for key, value in node.attrib.items():
+                if (
+                    key.lower().startswith("on")
+                    or "href" in key
+                    or "url(" in value
+                    and not value.startswith("url(#")
+                ):
+                    raise ValueError(f"Active/external SVG attribute: {key}")
+        label = escape(attrs.get("alt", "Sơ đồ"), quote=True)
+        embedded = ET.tostring(svg, encoding="unicode")
+        return (
+            '<figure class="report-diagram">'
+            f'<div class="diagram-viewport" tabindex="0" aria-label="{label}">{embedded}</div>'
+            '<span class="diagram-hint">Màn hình nhỏ: vuốt ngang trong sơ đồ; dùng phím mũi tên khi vùng sơ đồ có focus.</span>'
+            "</figure>"
+        )
+
+    return re.sub(r"<p><img\s+([^>]+?)/></p>", replace, body)
 
 
 def main() -> None:
@@ -44,6 +104,7 @@ def main() -> None:
         extensions=["tables", "fenced_code", "toc", "sane_lists"],
         extension_configs={"toc": {"toc_depth": "2-3"}},
     )
+    body = embed_diagrams(body, args.source)
     document = f"""<!doctype html>
 <html lang="vi">
 <head>

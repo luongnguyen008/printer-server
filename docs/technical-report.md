@@ -58,24 +58,11 @@ macOS có một số cơ chế POSIX nhưng socket mặc định `/run/cups/cups
 
 ## 3. Kiến trúc và trách nhiệm
 
-```text
-Odoo / PDA / ứng dụng / trang /client
-                |
-       Bearer API key + Idempotency-Key
-                |
-             FastAPI <------- Web admin: cookie + CSRF
-                |
-       SQLite + file spool trên đĩa
-                |
-       Bộ điều phối một process
-       FIFO riêng cho từng printer_id
-                |
-       pycups -> Unix socket CUPS
-                |
-       CUPS queue + driver/filter
-                |
-        USB / máy in trong LAN
-```
+![Kiến trúc appliance: client, quản trị, lưu trữ, worker, CUPS và máy in](diagrams/01-architecture.svg)
+
+_Hình 1 — Hai đường truy cập dùng cơ chế xác thực riêng; driver và việc truyền tới máy nằm ở phía CUPS._
+
+Các hình trong báo cáo là SVG, có thể phóng to mà không vỡ chữ. Trên GitHub có thể mở riêng từng hình; HTML đã nhúng hình để đọc offline. Màn hình nhỏ có thể cuộn ngang bên trong sơ đồ.
 
 CUPS chịu trách nhiệm driver, filter, hàng đợi hệ thống và truyền dữ liệu tới máy. Appliance chịu trách nhiệm quyền client, tiếp nhận bền vững, chống trùng, cấu hình đăng ký, chính sách điều phối và lịch sử. Không thay CUPS bằng một spooler tự viết.
 
@@ -112,6 +99,10 @@ SQLite dùng WAL, `synchronous=FULL`, foreign keys và transaction. Các bảng 
 - Request digest dùng trường gốc, tên file và SHA-256 nội dung. Cấu hình thay đổi sau đó không làm một retry biến thành lệnh khác.
 - Worker giữ khóa độc quyền `worker.lock`. Hai instance dùng cùng data directory sẽ bị chặn. Không tăng `--workers`, không chạy thêm coordinator trên cùng dữ liệu.
 
+![Luồng nhận job mới, replay cùng request ID và từ chối xung đột](diagrams/02-admission.svg)
+
+_Hình 2 — Request ID chống tạo lệnh trùng trong phạm vi client. Chỉ job mới được lưu bền vững mới trả 202; replay không tạo một lần giao mới._
+
 Các bảo đảm phụ thuộc ổ đĩa, filesystem và hệ điều hành thực hiện đồng bộ đúng. Mất điện vật lý cần kiểm thử riêng; SQLite transaction không tạo được transaction chung với máy in.
 
 ## 4. Trạng thái lệnh và giới hạn bảo đảm
@@ -129,6 +120,10 @@ Các bảo đảm phụ thuộc ổ đĩa, filesystem và hệ điều hành th�
 
 Ba status terminal là `completed`, `failed`, `canceled`. `unknown` không phải terminal và vẫn giữ payload.
 
+![Vòng đời queued, held, submitting, submitted, unknown và các kết quả terminal](diagrams/03-job-lifecycle.svg)
+
+_Hình 3 — Vòng đời nghiệp vụ rút gọn, không liệt kê mọi chuyển trạng thái nội bộ. Unknown cần đối soát, không phải một trạng thái được tự retry._
+
 ### 4.1 Vì sao không hứa exactly-once vật lý
 
 CUPS có thể nhận nội dung rồi mạng/process mất trước khi appliance lưu phản hồi. Máy in có thể ra giấy rồi CUPS mất lịch sử. Không thể kết luận “không thấy job = chưa in”.
@@ -141,11 +136,19 @@ CUPS có thể nhận nội dung rồi mạng/process mất trước khi applian
 4. Release đúng job bằng `setJobHoldUntil(id, 'no-hold')` khi được phép.
 5. Theo dõi bằng CUPS ID và correlation; đối soát khi restart.
 
+![Trình tự giao CUPS: lưu ý định, submit held, lưu CUPS ID, release và poll](diagrams/04-cups-handoff.svg)
+
+_Hình 4 — Thứ tự giao bình thường. 202 xác nhận tiếp nhận của appliance; release xuống CUPS là một bước sau đó, có điều kiện._
+
 Khi không xác minh được danh tính hoặc kết quả, chuyển `unknown`, giữ file và chờ người vận hành. Không tự resend để “thử lại”. Job tìm lại ở trạng thái held sau restart cần resume thủ công.
 
 ### 4.2 Một máy vật lý, một đường điều phối
 
 FIFO được bảo đảm theo **máy đăng ký**, không theo địa chỉ vật lý chung. Nếu hai `printer_id` hoặc hai queue cùng trỏ tới một Canon, chúng có thể xử lý song song và làm mất giả định “một lệnh tại một thời điểm” trên máy vật lý đó. Nên đăng ký một đích cho một máy và tránh nhiều sender ngoài appliance dùng cùng queue.
+
+![FIFO riêng theo từng máy đăng ký và xử lý độc lập giữa các máy](diagrams/05-printer-fifo.svg)
+
+_Hình 5 — Máy C có unknown không làm máy A/B dừng theo. Mỗi đích đăng ký có FIFO riêng; nhiều ID cùng trỏ một máy vật lý không tạo FIFO chung._
 
 ## 5. Quy ước lệnh và dữ liệu mẫu
 
@@ -826,6 +829,10 @@ Ba lớp riêng biệt:
 2. **Mặc định appliance:** lựa chọn quản trị muốn áp cho PDF.
 3. **Quyền ghi đè:** giá trị client được phép chọn; driver hỗ trợ không tự cấp quyền.
 
+![Từ capability driver tới mặc định, quyền client, validation và snapshot](diagrams/06-option-permissions.svg)
+
+_Hình 6 — Driver hỗ trợ một lựa chọn chưa có nghĩa client được dùng nó. Server vẫn kiểm quyền và constraints, không chỉ dựa vào form._
+
 Vào **Máy in → Sửa cấu hình** để chọn trường phổ biến và mở nâng cao khi cần. Mặc định appliance phải nằm trong allowlist tương ứng. UI tự tích mặc định; muốn cố định thì không cấp thêm lựa chọn khác. Không đặt mặc định riêng sẽ dùng default driver đã đọc.
 
 Client chọn **Dùng mặc định** thì bỏ khóa đó khỏi `options`. `options:{}` là hợp lệ khi không có quyền override, nếu schema vẫn đọc được. ZPL gửi nguyên bản và dùng `{}`; PDF driver options không áp lên nội dung ZPL.
@@ -869,6 +876,10 @@ lpoptions -p QUEUE -l
 5. Đóng modal sẽ không xem lại key. Mất key thì rotate và cập nhật client; không tìm plaintext trong DB.
 
 Không có printer grants thì key vẫn xác thực nhưng `/client` không có máy để gửi. Sửa client và cấp máy; không cần rotate key chỉ để đổi quyền. Revoke dừng request mới; không mặc nhiên hủy job đã được nhận. Delete còn bị chặn bởi job nonterminal.
+
+![Luồng cấp key, kết nối client, gửi file, theo dõi và xử lý mất phản hồi](diagrams/07-client-workflow.svg)
+
+_Hình 7 — Kết nối được không đồng nghĩa đã được cấp máy. Retry sau mất phản hồi dùng request gốc; reload chỉ phục hồi kết nối, không phục hồi giao dịch in._
 
 ### 12.2 Sử dụng `/client`
 
@@ -1205,6 +1216,10 @@ IPP state: `7=canceled`, `8=aborted`, `9=completed`. Không đọc state 9 thàn
 
 Khi CUPS còn nonterminal phải cancel/xác minh trước. Khi không còn lịch sử, cần bằng chứng vận hành đáng tin và reason; thiếu lịch sử không phải bằng chứng chưa in. Admin resolve ghi kết quả terminal và lý do, không in lại nội dung. Một job từng bị unknown đã được đối soát completed bằng correlation/state khớp trên EDATEC, không resend.
 
+![Đối soát unknown bằng CUPS ID, correlation, state và quyết định có lý do](diagrams/08-unknown-resolution.svg)
+
+_Hình 8 — Không gán kết quả của một CUPS job khác cho lệnh đang đối soát. Resolve là ghi nhận có bằng chứng, không in lại._
+
 ### 17.4 Bảng lỗi nhanh
 
 | Hiện tượng | Kiểm tra | Tránh |
@@ -1225,6 +1240,10 @@ Khi CUPS còn nonterminal phải cancel/xác minh trước. Khi không còn lị
 | Toast/UI cũ | Hard reload, asset hash, wheel/source parity | Patch riêng JS trên EDATEC |
 
 ## 18. Sao lưu và phục hồi
+
+![Hai luồng backup đầy đủ và restore có kiểm soát, với điều kiện trước activation](diagrams/09-backup-restore.svg)
+
+_Hình 9 — Backup và restore không đối xứng: restore phải đối soát lệnh mới sau backup và kiểm dữ liệu trước khi cho worker chạy._
 
 ### 18.1 Backup SQLite online
 
@@ -1338,6 +1357,10 @@ Không xóa thư mục before-restore cho tới khi đã xác minh. Restore app 
 ## 19. Cập nhật bằng Git, checksum và rollback
 
 Quy trình bắt buộc: **sửa/test trên máy phát triển → commit/push → checkout đúng commit trên Linux → cài wheel cùng commit → kiểm source/package/served assets**. Không sửa riêng Python/JS trên thiết bị.
+
+![Luồng release cùng commit từ Mac hoặc WSL tới Linux, kiểm tra và rollback](diagrams/10-git-rollout.svg)
+
+_Hình 10 — Checkout source không đủ chứng minh package đang chạy đúng. Chỉ ghi SOURCE_COMMIT sau xác minh; rollback phụ thuộc tính tương thích dữ liệu._
 
 ### 19.1 Chuẩn bị release mới
 
@@ -1486,6 +1509,12 @@ Repo ở mốc này chưa có file `LICENSE` riêng cho mã ứng dụng; public
 ## 24. Đọc và tái tạo bản HTML
 
 Bản Markdown là nguồn nội dung; `docs/technical-report.html` là bản HTML self-contained để đọc offline hoặc in. Không tải font/script/CDN ngoài. Mở file tải về bằng trình duyệt; GitHub thường hiển thị mã HTML thay vì render trang.
+
+Sơ đồ nguồn nằm trong `docs/diagrams/`. Muốn sửa sơ đồ, sửa `tools/render_report_diagrams.py`, tạo lại SVG rồi render lại HTML. SVG dùng font hệ thống và không có thư viện/ảnh từ Internet:
+
+```bash
+python3 tools/render_report_diagrams.py
+```
 
 Có thể tái tạo từ checkout có cả báo cáo và tool renderer (commit tài liệu sau mốc runtime 0.1.5; checkout chỉ mốc runtime nêu đầu báo cáo chưa có hai file này):
 
