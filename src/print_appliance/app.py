@@ -275,7 +275,7 @@ def create_app(
 
     @app.get("/assets/{asset}", include_in_schema=False)
     def assets(asset: str) -> FileResponse:
-        if asset not in {"app.js", "style.css"}:
+        if asset not in {"app.js", "controls.js", "style.css"}:
             raise HTTPException(404, "Not found")
         return FileResponse(Path(__file__).parent / "static" / asset)
 
@@ -480,6 +480,27 @@ def create_app(
     def admin_printers(_: dict[str, str] = Depends(admin_session)) -> list[dict[str, Any]]:
         return appliance.admin_printers()
 
+    @app.get("/admin/api/printers/{printer_id}")
+    def admin_printer(
+        printer_id: str, _: dict[str, str] = Depends(admin_session)
+    ) -> dict[str, Any]:
+        printer = appliance.admin_printer(printer_id)
+        if printer is None:
+            raise HTTPException(404, "Printer not found")
+        return printer
+
+    @app.delete("/admin/api/printers/{printer_id}")
+    def delete_printer(
+        printer_id: str, _: dict[str, str] = Depends(admin_mutation)
+    ) -> dict[str, Any]:
+        try:
+            deleted = appliance.delete_printer(printer_id)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        if not deleted:
+            raise HTTPException(404, "Printer not found")
+        return {"id": printer_id, "deleted": True}
+
     @app.get("/admin/api/discovery")
     def discovery(_: dict[str, str] = Depends(admin_session)) -> dict[str, Any]:
         found = safe_backend(appliance.backend.discover)
@@ -569,31 +590,60 @@ def create_app(
             raise HTTPException(404, "Printer not found")
         return result
 
+    def client_record(db: Any, row: Any) -> dict[str, Any]:
+        return {
+            "id": row["id"],
+            "name": row["name"],
+            "revoked": bool(row["revoked"]),
+            "created_at": row["created_at"],
+            "printer_ids": [
+                item[0]
+                for item in db.execute(
+                    "SELECT cp.printer_id FROM client_printers cp "
+                    "JOIN printers p ON p.id=cp.printer_id "
+                    "WHERE cp.client_id=? AND p.deleted_at IS NULL ORDER BY cp.printer_id",
+                    (row["id"],),
+                )
+            ],
+        }
+
     @app.get("/admin/api/clients")
     def list_clients(_: dict[str, str] = Depends(admin_session)) -> list[dict[str, Any]]:
         db = appliance.db()
         try:
             rows = db.execute(
-                "SELECT id,name,revoked,created_at FROM clients ORDER BY name"
+                "SELECT id,name,revoked,created_at FROM clients "
+                "WHERE deleted_at IS NULL ORDER BY name"
             ).fetchall()
-            return [
-                {
-                    "id": row["id"],
-                    "name": row["name"],
-                    "revoked": bool(row["revoked"]),
-                    "created_at": row["created_at"],
-                    "printer_ids": [
-                        x[0]
-                        for x in db.execute(
-                            "SELECT printer_id FROM client_printers WHERE client_id=? ORDER BY printer_id",
-                            (row["id"],),
-                        )
-                    ],
-                }
-                for row in rows
-            ]
+            return [client_record(db, row) for row in rows]
         finally:
             db.close()
+
+    @app.get("/admin/api/clients/{client_id}")
+    def get_client(client_id: str, _: dict[str, str] = Depends(admin_session)) -> dict[str, Any]:
+        db = appliance.db()
+        try:
+            row = db.execute(
+                "SELECT id,name,revoked,created_at FROM clients WHERE id=? AND deleted_at IS NULL",
+                (client_id,),
+            ).fetchone()
+            if row is None:
+                raise HTTPException(404, "Client not found")
+            return client_record(db, row)
+        finally:
+            db.close()
+
+    @app.delete("/admin/api/clients/{client_id}")
+    def delete_client(
+        client_id: str, _: dict[str, str] = Depends(admin_mutation)
+    ) -> dict[str, Any]:
+        try:
+            deleted = appliance.delete_client(client_id)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        if not deleted:
+            raise HTTPException(404, "Client not found")
+        return {"id": client_id, "deleted": True}
 
     @app.post("/admin/api/clients")
     def create_client(
@@ -618,7 +668,9 @@ def create_app(
         try:
             db.execute("BEGIN IMMEDIATE")
             for printer_id in set(printer_ids):
-                if not db.execute("SELECT 1 FROM printers WHERE id=?", (printer_id,)).fetchone():
+                if not db.execute(
+                    "SELECT 1 FROM printers WHERE id=? AND deleted_at IS NULL", (printer_id,)
+                ).fetchone():
                     raise HTTPException(422, "Unknown printer ID")
             db.execute(
                 "INSERT INTO clients(id,name,key_hash,created_at) VALUES(?,?,?,?)",
@@ -642,6 +694,56 @@ def create_app(
             db.close()
         return {"id": client_id, "name": name.strip(), "api_key": key, "shown_once": True}
 
+    @app.put("/admin/api/clients/{client_id}")
+    def update_client(
+        client_id: str, data: dict[str, Any], _: dict[str, str] = Depends(admin_mutation)
+    ) -> dict[str, Any]:
+        if not data or set(data) - {"name", "printer_ids"}:
+            raise HTTPException(422, "Provide name and/or printer_ids")
+        name = data.get("name")
+        if "name" in data and (not isinstance(name, str) or not name.strip() or len(name) > 120):
+            raise HTTPException(422, "Invalid client name")
+        ids = data.get("printer_ids")
+        if "printer_ids" in data and (
+            not isinstance(ids, list)
+            or len(ids) > 1000
+            or any(not isinstance(item, str) or len(item) > 128 for item in ids)
+        ):
+            raise HTTPException(422, "printer_ids must be an array")
+        db = appliance.db()
+        try:
+            db.execute("BEGIN IMMEDIATE")
+            client = db.execute(
+                "SELECT id FROM clients WHERE id=? AND deleted_at IS NULL", (client_id,)
+            ).fetchone()
+            if not client:
+                raise HTTPException(404, "Client not found")
+            if "printer_ids" in data:
+                for printer_id in set(ids):
+                    if not db.execute(
+                        "SELECT 1 FROM printers WHERE id=? AND deleted_at IS NULL", (printer_id,)
+                    ).fetchone():
+                        raise HTTPException(422, "Unknown printer ID")
+                db.execute("DELETE FROM client_printers WHERE client_id=?", (client_id,))
+                db.executemany(
+                    "INSERT INTO client_printers(client_id,printer_id) VALUES(?,?)",
+                    [(client_id, printer_id) for printer_id in set(ids)],
+                )
+            if name is not None:
+                db.execute("UPDATE clients SET name=? WHERE id=?", (name.strip(), client_id))
+            row = db.execute(
+                "SELECT id,name,revoked,created_at FROM clients WHERE id=?", (client_id,)
+            ).fetchone()
+            result = client_record(db, row)
+            db.execute("COMMIT")
+            return result
+        except Exception:
+            if db.in_transaction:
+                db.execute("ROLLBACK")
+            raise
+        finally:
+            db.close()
+
     @app.put("/admin/api/clients/{client_id}/printers")
     def grant_printers(
         client_id: str, data: dict[str, Any], _: dict[str, str] = Depends(admin_mutation)
@@ -656,11 +758,15 @@ def create_app(
         db = appliance.db()
         try:
             db.execute("BEGIN IMMEDIATE")
-            client = db.execute("SELECT id FROM clients WHERE id=?", (client_id,)).fetchone()
+            client = db.execute(
+                "SELECT id FROM clients WHERE id=? AND deleted_at IS NULL", (client_id,)
+            ).fetchone()
             if not client:
                 raise HTTPException(404, "Client not found")
             for printer_id in set(ids):
-                if not db.execute("SELECT 1 FROM printers WHERE id=?", (printer_id,)).fetchone():
+                if not db.execute(
+                    "SELECT 1 FROM printers WHERE id=? AND deleted_at IS NULL", (printer_id,)
+                ).fetchone():
                     raise HTTPException(422, "Unknown printer ID")
             db.execute("DELETE FROM client_printers WHERE client_id=?", (client_id,))
             db.executemany(
@@ -677,20 +783,29 @@ def create_app(
             db.close()
 
     def rotate_client_key(client_id: str, revoke: bool) -> dict[str, Any]:
-        key = "pa_" + secrets.token_urlsafe(32)
         db = appliance.db()
         try:
-            row = db.execute("SELECT id FROM clients WHERE id=?", (client_id,)).fetchone()
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT id FROM clients WHERE id=? AND deleted_at IS NULL", (client_id,)
+            ).fetchone()
             if not row:
                 raise HTTPException(404, "Client not found")
             if revoke:
                 db.execute("UPDATE clients SET revoked=1 WHERE id=?", (client_id,))
-                return {"id": client_id, "revoked": True}
-            db.execute(
-                "UPDATE clients SET key_hash=?,revoked=0 WHERE id=?", (hash_api_key(key), client_id)
-            )
-            return {"id": client_id, "api_key": key, "shown_once": True}
+                result = {"id": client_id, "revoked": True}
+            else:
+                key = "pa_" + secrets.token_urlsafe(32)
+                db.execute(
+                    "UPDATE clients SET key_hash=?,revoked=0 WHERE id=? AND deleted_at IS NULL",
+                    (hash_api_key(key), client_id),
+                )
+                result = {"id": client_id, "api_key": key, "shown_once": True}
+            db.execute("COMMIT")
+            return result
         finally:
+            if db.in_transaction:
+                db.execute("ROLLBACK")
             db.close()
 
     @app.post("/admin/api/clients/{client_id}/rotate-key")

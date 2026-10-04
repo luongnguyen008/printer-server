@@ -105,7 +105,7 @@ See [docs/verification.md](docs/verification.md) for the measured local checks a
 
 ## Browser regression and Git deployment
 
-`tests/browser/admin-ui.cjs` checks the five tabs and search against a mocked 16k-driver catalogue. It intercepts all admin API calls and refuses non-loopback base URLs. Use an externally available Playwright installation; it is test tooling, not a frontend/CDN dependency:
+`tests/browser/admin-ui.cjs` checks the five tabs, integrated driver combobox against a mocked 16k-driver catalogue, field-help popovers, printer/client CRUD, delayed requests, duplicate prevention and 409/503 recovery. It intercepts all admin API calls and refuses non-loopback base URLs. Use an externally available Playwright installation; it is test tooling, not a frontend/CDN dependency:
 
 ```sh
 # Serve the local application on loopback with a disposable data directory first.
@@ -115,3 +115,11 @@ UI_BASE_URL=http://127.0.0.1:8081 node tests/browser/admin-ui.cjs
 ```
 
 The production Mac checkout and EDATEC source must be at the same deployed Git commit. See [docs/git-deployment.md](docs/git-deployment.md). Credentials, backups and runtime data remain outside Git even though the repository is public.
+
+### Admin workflow (0.1.2)
+
+- **Máy in → Thêm máy in** shows one form at a time: configure a new queue, or register an existing CUPS queue.
+- **Driver** is one searchable combobox. Type a model/PPD ID and explicitly choose a result; unmatched text cannot be submitted. Escape restores the previous selection, while the clear button removes it. Only installed drivers are listed; this does not install Canon drivers.
+- The **?** beside each field explains its purpose and examples. Open by click/touch/keyboard; close with Escape, the close button or an outside click. Advanced URI/JSON settings are collapsed.
+- Requests display a pending state and disable competing controls to prevent duplicate submissions. Failures keep form values; mutations are never automatically retried.
+- Printer **Gỡ đăng ký** removes only the application's registration and grants, never the CUPS queue. Client **Sửa client / Xóa client** supports rename, grants and deletion. Both deletions require confirmation and are rejected while nonterminal or unknown jobs exist. Historical jobs and deduplication records remain; a deleted client's key stops working.

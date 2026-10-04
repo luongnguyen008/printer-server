@@ -1,4 +1,16 @@
-# Local implementation verification
+# Verification history
+
+## CRUD and admin UX — 0.1.2
+
+Local validation on 2026-10-04: **79 tests passed**, Ruff lint/format and JS syntax checks passed; one existing Starlette/httpx deprecation warning remains. New tests cover soft-delete migration, all nonterminal-job deletion blocks, history/idempotency preservation, revoked-key/deleted-resource access, concurrent acceptance/deletion, CUPS non-mutation and the new controls asset route.
+
+The installed-wheel browser regression passed against a mocked 16k-driver catalogue with actual FastAPI asset/CSP routes: integrated explicit-selection combobox, keyboard/clear/Escape/refresh, safe text labels, help popovers, single add/import flow, 409/503 recovery, slow-request disabling/duplicate prevention, printer/client CRUD, unsaved edits, settings, logout and 390px mobile layout. Desktop/mobile screenshots were inspected. All four offline assets are packaged; installed-wheel protected endpoints reject unauthenticated requests.
+
+Target rollout and independent review are separate gates; local mocked evidence is not proof of physical printing. Follow docs/git-deployment.md for exact-commit parity, backup and soft-delete rollback cautions.
+
+## Initial implementation record (0.1.0)
+
+The sections below describe the original local-only checkpoint, not the current deployment status. EDATEC was subsequently staged, and the legacy gateway was removed with explicit authorization and off-device backup.
 
 ## Implementation present
 

@@ -220,7 +220,8 @@ class Appliance:
         db = self.db()
         try:
             return db.execute(
-                "SELECT id,name FROM clients WHERE key_hash=? AND revoked=0", (hash_api_key(key),)
+                "SELECT id,name FROM clients WHERE key_hash=? AND revoked=0 AND deleted_at IS NULL",
+                (hash_api_key(key),),
             ).fetchone()
         finally:
             db.close()
@@ -230,7 +231,9 @@ class Appliance:
         try:
             rows = db.execute(
                 "SELECT p.* FROM printers p JOIN client_printers cp ON cp.printer_id=p.id "
-                "WHERE cp.client_id=? ORDER BY p.name",
+                "JOIN clients c ON c.id=cp.client_id "
+                "WHERE cp.client_id=? AND p.deleted_at IS NULL AND c.deleted_at IS NULL "
+                "ORDER BY p.name",
                 (client_id,),
             ).fetchall()
             return [
@@ -373,7 +376,9 @@ class Appliance:
                     raise ValueError("invalid_format_signature")
             if not isinstance(parsed_options, dict):
                 raise ValueError("invalid_options")
-            printer = db.execute("SELECT * FROM printers WHERE id=?", (printer_id,)).fetchone()
+            printer = db.execute(
+                "SELECT * FROM printers WHERE id=? AND deleted_at IS NULL", (printer_id,)
+            ).fetchone()
             grant = db.execute(
                 "SELECT 1 FROM client_printers WHERE client_id=? AND printer_id=?",
                 (client_id, printer_id),
@@ -426,10 +431,12 @@ class Appliance:
                     return raced, 200
                 if (
                     not db.execute(
-                        "SELECT 1 FROM clients WHERE id=? AND revoked=0", (client_id,)
+                        "SELECT 1 FROM clients WHERE id=? AND revoked=0 AND deleted_at IS NULL",
+                        (client_id,),
                     ).fetchone()
                     or not db.execute(
-                        "SELECT 1 FROM client_printers WHERE client_id=? AND printer_id=?",
+                        "SELECT 1 FROM client_printers cp JOIN printers p ON p.id=cp.printer_id "
+                        "WHERE cp.client_id=? AND cp.printer_id=? AND p.deleted_at IS NULL",
                         (client_id, printer_id),
                     ).fetchone()
                 ):
@@ -703,7 +710,7 @@ class Appliance:
     def tick(self) -> None:
         db = self.db()
         try:
-            ids = [row[0] for row in db.execute("SELECT id FROM printers")]
+            ids = [row[0] for row in db.execute("SELECT id FROM printers WHERE deleted_at IS NULL")]
         finally:
             db.close()
         if ids:
@@ -715,7 +722,9 @@ class Appliance:
         with self.printer_lock(printer_id):
             db = self.db()
             try:
-                printer = db.execute("SELECT * FROM printers WHERE id=?", (printer_id,)).fetchone()
+                printer = db.execute(
+                    "SELECT * FROM printers WHERE id=? AND deleted_at IS NULL", (printer_id,)
+                ).fetchone()
             finally:
                 db.close()
             if printer is not None:
@@ -1069,7 +1078,9 @@ class Appliance:
         with self.printer_lock(printer_id):
             db = self.db()
             try:
-                printer = db.execute("SELECT * FROM printers WHERE id=?", (printer_id,)).fetchone()
+                printer = db.execute(
+                    "SELECT * FROM printers WHERE id=? AND deleted_at IS NULL", (printer_id,)
+                ).fetchone()
                 if printer is None:
                     return None
                 if db.execute(
@@ -1124,7 +1135,9 @@ class Appliance:
         with self.printer_lock(printer_id):
             db = self.db()
             try:
-                printer = db.execute("SELECT * FROM printers WHERE id=?", (printer_id,)).fetchone()
+                printer = db.execute(
+                    "SELECT * FROM printers WHERE id=? AND deleted_at IS NULL", (printer_id,)
+                ).fetchone()
                 if printer is None:
                     return None
                 # Revoke any prior single-job permission even if the physical pause is unconfirmed.
@@ -1151,8 +1164,10 @@ class Appliance:
                 if row is None:
                     return None
                 printer = db.execute(
-                    "SELECT * FROM printers WHERE id=?", (row["printer_id"],)
+                    "SELECT * FROM printers WHERE id=? AND deleted_at IS NULL", (row["printer_id"],)
                 ).fetchone()
+                if printer is None:
+                    return None
                 if row["status"] not in {"queued", "held", "submitted"}:
                     raise ValueError("Job is not resumable; unknown outcomes require evidence")
                 predecessor = db.execute(
@@ -1229,9 +1244,89 @@ class Appliance:
         try:
             return [
                 self._printer_record(row)
-                for row in db.execute("SELECT * FROM printers ORDER BY name")
+                for row in db.execute(
+                    "SELECT * FROM printers WHERE deleted_at IS NULL ORDER BY name"
+                )
             ]
         finally:
+            db.close()
+
+    def admin_printer(self, printer_id: str) -> dict[str, Any] | None:
+        db = self.db()
+        try:
+            row = db.execute(
+                "SELECT * FROM printers WHERE id=? AND deleted_at IS NULL", (printer_id,)
+            ).fetchone()
+            return self._printer_record(row) if row else None
+        finally:
+            db.close()
+
+    def delete_printer(self, printer_id: str) -> bool:
+        with self.printer_lock(printer_id):
+            db = self.db()
+            try:
+                db.execute("BEGIN IMMEDIATE")
+                printer = db.execute(
+                    "SELECT id FROM printers WHERE id=? AND deleted_at IS NULL", (printer_id,)
+                ).fetchone()
+                if printer is None:
+                    db.execute("ROLLBACK")
+                    return False
+                active = db.execute(
+                    "SELECT 1 FROM jobs WHERE printer_id=? "
+                    "AND status IN ('queued','held','submitting','submitted','unknown') LIMIT 1",
+                    (printer_id,),
+                ).fetchone()
+                if active:
+                    raise ValueError("Printer has nonterminal jobs")
+                retired_queue = f"__deleted__{uuid.uuid4().hex}"
+                while db.execute(
+                    "SELECT 1 FROM printers WHERE queue=?", (retired_queue,)
+                ).fetchone():
+                    retired_queue = f"__deleted__{uuid.uuid4().hex}"
+                db.execute("DELETE FROM client_printers WHERE printer_id=?", (printer_id,))
+                # Free the unique queue value for later registration without touching CUPS.
+                deleted_at = now_iso()
+                db.execute(
+                    "UPDATE printers SET deleted_at=?,queue=?,updated_at=? "
+                    "WHERE id=? AND deleted_at IS NULL",
+                    (deleted_at, retired_queue, deleted_at, printer_id),
+                )
+                db.execute("COMMIT")
+                return True
+            finally:
+                if db.in_transaction:
+                    db.execute("ROLLBACK")
+                db.close()
+
+    def delete_client(self, client_id: str) -> bool:
+        db = self.db()
+        try:
+            db.execute("BEGIN IMMEDIATE")
+            client = db.execute(
+                "SELECT id FROM clients WHERE id=? AND deleted_at IS NULL", (client_id,)
+            ).fetchone()
+            if client is None:
+                db.execute("ROLLBACK")
+                return False
+            active = db.execute(
+                "SELECT 1 FROM jobs WHERE client_id=? "
+                "AND status IN ('queued','held','submitting','submitted','unknown') LIMIT 1",
+                (client_id,),
+            ).fetchone()
+            if active:
+                raise ValueError("Client has nonterminal jobs")
+            deleted_at = now_iso()
+            db.execute("DELETE FROM client_printers WHERE client_id=?", (client_id,))
+            db.execute(
+                "UPDATE clients SET deleted_at=?,revoked=1 WHERE id=? AND deleted_at IS NULL",
+                (deleted_at, client_id),
+            )
+            db.execute("COMMIT")
+            return True
+        finally:
+            if db.in_transaction:
+                db.execute("ROLLBACK")
             db.close()
 
     def create_managed_printer(
@@ -1344,7 +1439,9 @@ class Appliance:
     def _edit_printer(self, printer_id: str, body: dict[str, Any]) -> dict[str, Any] | None:
         db = self.db()
         try:
-            current = db.execute("SELECT * FROM printers WHERE id=?", (printer_id,)).fetchone()
+            current = db.execute(
+                "SELECT * FROM printers WHERE id=? AND deleted_at IS NULL", (printer_id,)
+            ).fetchone()
         finally:
             db.close()
         if current is None:
@@ -1388,7 +1485,7 @@ class Appliance:
         try:
             db.execute(
                 "UPDATE printers SET name=?,device_uri=?,driver=?,mapping_signature=?,formats_json=?,defaults_json=?,allowed_json=?,"
-                "updated_at=? WHERE id=?",
+                "updated_at=? WHERE id=? AND deleted_at IS NULL",
                 (
                     name.strip(),
                     uri,

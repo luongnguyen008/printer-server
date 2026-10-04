@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="light">
   <title>Print appliance · Quản trị</title>
   <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/controls.js" defer></script>
   <script src="/assets/app.js" defer></script>
 </head>
 <body>
@@ -14,12 +15,13 @@
     <button id="logout" class="quiet hidden" type="button">Đăng xuất</button>
   </header>
   <main>
+    <p id="busy-status" class="busy-status" role="status" hidden>Đang xử lý…</p>
     <section id="notice" class="notice" role="status" aria-live="polite" hidden></section>
     <section id="login-panel" class="panel narrow">
       <h2>Đăng nhập quản trị</h2>
-      <p>Mật khẩu quản trị được thiết lập qua CLI trên thiết bị.</p>
+
       <form id="login-form">
-        <label for="password">Mật khẩu quản trị</label>
+        <label for="password" data-help="Mật khẩu quản trị web được thiết lập trên thiết bị. Đây không phải mật khẩu SSH pi hay API key của client. Chỉ đăng nhập trên mạng nội bộ đáng tin cậy.">Mật khẩu quản trị</label>
         <input id="password" name="password" type="password" autocomplete="current-password" required>
         <button type="submit">Đăng nhập</button>
       </form>
@@ -39,29 +41,34 @@
         </div>
       </section>
       <section id="view-printers" class="panel tab-panel" role="tabpanel" aria-labelledby="tab-printers" tabindex="0" hidden>
-        <div class="section-heading"><div><p class="eyebrow">CUPS</p><h2>Máy in</h2></div><button id="discover" class="secondary" type="button">Khám phá thiết bị / driver</button></div>
-        <p id="discovery-state" class="muted">Chỉ hiển thị dữ liệu khám phá từ CUPS cục bộ. Không có lệnh giả lập.</p>
+        <div class="section-heading"><div><p class="eyebrow">CUPS</p><h2>Máy in</h2></div><button id="discover" class="secondary" type="button">Thêm máy in</button></div>
+        <p id="discovery-state" class="muted"></p>
         <div id="discovery" class="discovery hidden">
+          <div class="button-row add-mode" role="group" aria-label="Cách thêm máy in">
+            <button id="new-printer-mode" type="button" aria-pressed="true">Cấu hình máy mới</button>
+            <button id="import-printer-mode" class="secondary" type="button" aria-pressed="false">Dùng cấu hình có sẵn</button>
+            <button id="close-add" type="button" class="quiet">Đóng</button>
+          </div>
           <form id="managed-printer-form" class="subpanel">
-            <h3>Tạo hàng đợi được quản lý</h3>
-            <label for="printer-name">Tên hiển thị</label><input id="printer-name" required maxlength="120">
-            <label for="device-uri">Thiết bị CUPS đã khám phá</label><select id="device-uri"></select>
-            <label for="manual-uri">Hoặc URI máy mạng thủ công</label><input id="manual-uri" placeholder="ipp://192.168.1.20:631/ipp/print" aria-describedby="manual-uri-help"><small id="manual-uri-help">IPP/IPPS/socket/LPD trong LAN. Bỏ trống để dùng thiết bị khám phá phía trên.</small>
-            <label for="driver-search">Tìm driver theo tên / model</label>
-            <input id="driver-search" type="search" placeholder="Ví dụ: Canon, LBP6230, UFRII" autocomplete="off" aria-controls="driver" aria-describedby="driver-results">
-            <label for="driver">Driver / PPD đã khám phá</label><select id="driver" required aria-describedby="driver-results"></select>
-            <small id="driver-results" role="status" aria-live="polite">Khám phá CUPS để nạp danh sách driver.</small>
-            <fieldset><legend>Định dạng nhận</legend><label class="check"><input type="checkbox" name="format" value="pdf" checked> PDF</label><label class="check"><input type="checkbox" name="format" value="zpl"> ZPL</label></fieldset>
-            <label for="default-options">Tùy chọn mặc định JSON</label><textarea id="default-options" rows="2">{}</textarea>
-            <label for="allowed-options">Allowlist tùy chọn JSON (ví dụ {"media":["A4"]})</label><textarea id="allowed-options" rows="3">{}</textarea>
+            <h3>Cấu hình máy mới</h3>
+            <label for="printer-name" data-help-key="name">Tên hiển thị</label><input id="printer-name" required maxlength="120">
+            <label for="device-uri" data-help-key="uri">Thiết bị</label><select id="device-uri"></select>
+            <label for="driver-search" data-help-key="driver">Driver</label>
+            <div id="driver-picker"></div>
+            <fieldset><legend data-help-key="formats">Định dạng nhận</legend><label class="check"><input type="checkbox" name="format" value="pdf" checked> PDF</label><label class="check"><input type="checkbox" name="format" value="zpl"> ZPL</label></fieldset>
+            <details class="advanced"><summary>Nâng cao</summary>
+            <label for="manual-uri" data-help-key="uri">Địa chỉ mạng thủ công</label><input id="manual-uri" placeholder="ipp://192.168.1.20:631/ipp/print">
+            <label for="default-options" data-help-key="defaults">Tùy chọn mặc định (JSON)</label><textarea id="default-options" rows="2">{}</textarea>
+            <label for="allowed-options" data-help-key="allowed">Tùy chọn client được đổi (JSON)</label><textarea id="allowed-options" rows="3">{}</textarea>
+            </details>
             <button type="submit">Tạo máy in</button>
           </form>
-          <form id="import-form" class="subpanel">
-            <h3>Nhập queue hiện có (bắt đầu ở trạng thái giữ)</h3>
-            <label for="existing-queue">Queue CUPS</label><select id="existing-queue" required></select>
-            <label for="import-name">Tên hiển thị</label><input id="import-name" required maxlength="120">
-            <fieldset><legend>Định dạng nhận</legend><label class="check"><input type="checkbox" name="import-format" value="pdf" checked> PDF</label><label class="check"><input type="checkbox" name="import-format" value="zpl"> ZPL</label></fieldset>
-            <p>Chỉ import queue riêng cho thiết bị này; kiểm tra policy stop-printer trước khi tiếp tục. Pause/resume sẽ điều khiển queue này.</p><button type="submit">Nhập nguyên trạng</button>
+          <form id="import-form" class="subpanel" hidden>
+            <h3>Dùng cấu hình có sẵn</h3>
+            <label for="existing-queue" data-help-key="queue">Hàng đợi hệ thống</label><select id="existing-queue" required></select>
+            <label for="import-name" data-help-key="name">Tên hiển thị</label><input id="import-name" required maxlength="120">
+            <fieldset><legend data-help-key="formats">Định dạng nhận</legend><label class="check"><input type="checkbox" name="import-format" value="pdf" checked> PDF</label><label class="check"><input type="checkbox" name="import-format" value="zpl"> ZPL</label></fieldset>
+            <p>Máy bắt đầu tạm dừng. Sau khi đăng ký, nút tạm dừng/tiếp tục sẽ điều khiển hàng đợi CUPS này.</p><button type="submit">Đăng ký máy in</button>
           </form>
         </div>
         <div id="printers" class="loading">Đang tải danh sách máy in…</div>
@@ -69,25 +76,25 @@
       <section id="view-clients" class="panel tab-panel" role="tabpanel" aria-labelledby="tab-clients" tabindex="0" hidden>
         <div class="section-heading"><div><p class="eyebrow">QUYỀN API</p><h2>Clients</h2></div></div>
         <form id="client-form" class="inline-form">
-          <div><label for="client-name">Tên client</label><input id="client-name" required maxlength="120"></div>
-          <div><label for="client-printers">Máy được cấp</label><select id="client-printers" multiple size="3" aria-describedby="client-help"></select><small id="client-help">Dùng Ctrl/Command để chọn nhiều máy.</small></div>
+          <div><label for="client-name" data-help-key="client">Tên client</label><input id="client-name" required maxlength="120"></div>
+          <div><label for="client-printers" data-help-key="grants">Máy được cấp</label><select id="client-printers" multiple size="3"></select></div>
           <button type="submit">Tạo client + key</button>
         </form>
         <div id="clients" class="loading">Đang tải clients…</div>
       </section>
       <section id="view-jobs" class="panel tab-panel" role="tabpanel" aria-labelledby="tab-jobs" tabindex="0" hidden>
         <div class="section-heading"><div><p class="eyebrow">THEO DÕI</p><h2>Lệnh in</h2></div><button id="refresh" class="secondary" type="button">Làm mới</button></div>
-        <p class="muted">`completed` là trạng thái CUPS báo, không đảm bảo tuyệt đối giấy đã ra. `unknown` không tự in lại.</p>
+        <p class="muted">Hoàn thành là trạng thái hệ thống in báo, không phải xác nhận giấy đã ra. Lệnh chưa rõ kết quả không tự gửi lại.</p>
         <div id="jobs" class="loading">Đang tải lệnh in…</div>
         <aside id="job-details" class="subpanel hidden" aria-live="polite"></aside>
       </section>
       <section id="view-settings" class="panel tab-panel" role="tabpanel" aria-labelledby="tab-settings" tabindex="0" hidden>
         <h2>Giới hạn và lưu trữ</h2>
         <form id="settings-form" class="settings-grid">
-          <label>Upload tối đa (bytes)<input name="max_upload_bytes" type="number" min="65536" max="536870912" required></label>
-          <label>Số lệnh chưa kết thúc tối đa<input name="max_pending_jobs" type="number" min="1" max="10000" required></label>
-          <label>Dung lượng trống dự phòng (bytes)<input name="min_free_bytes" type="number" min="0" required></label>
-          <label>Giữ lịch sử (ngày)<input name="history_retention_days" type="number" min="1" max="3650" required></label>
+          <label data-help="Kích thước tối đa của một tệp PDF/ZPL, tính bằng byte. Ví dụ 10485760 tương đương 10 MiB. Tệp lớn hơn bị từ chối trước khi nhận lệnh.">Tệp tối đa (byte)<input name="max_upload_bytes" type="number" min="65536" max="536870912" required></label>
+          <label data-help="Tổng số lệnh đang chờ, đang giữ, đã giao hoặc chưa rõ kết quả được phép tồn tại. Đạt giới hạn thì từ chối lệnh mới; không xóa lệnh đã nhận.">Số lệnh đang xử lý tối đa<input name="max_pending_jobs" type="number" min="1" max="10000" required></label>
+          <label data-help="Dung lượng đĩa phải để trống sau khi nhận tệp, tính bằng byte. Ví dụ 104857600 là 100 MiB. Không đặt quá thấp vì thiết bị cần chỗ cho hệ điều hành và CUPS.">Đĩa trống dự phòng (byte)<input name="min_free_bytes" type="number" min="0" required></label>
+          <label data-help="Số ngày giữ chi tiết lệnh đã kết thúc, mặc định 30. Dấu chống trùng vẫn được giữ; không xóa lệnh đang chờ hoặc chưa rõ kết quả. Tệp đã kết thúc được dọn riêng. Thiết lập này không thay đổi lưu trữ của CUPS.">Giữ lịch sử (ngày)<input name="history_retention_days" type="number" min="1" max="3650" required></label>
           <button type="submit">Lưu giới hạn</button>
         </form>
       </section>

@@ -30,14 +30,16 @@ CREATE TABLE IF NOT EXISTS printers (
     paused INTEGER NOT NULL DEFAULT 0,
     pause_reason TEXT,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT
 );
 CREATE TABLE IF NOT EXISTS clients (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     key_hash TEXT NOT NULL,
     revoked INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    deleted_at TEXT
 );
 CREATE TABLE IF NOT EXISTS client_printers (
     client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
@@ -139,6 +141,11 @@ def initialize(path: Path) -> None:
         columns = {row[1] for row in db.execute("PRAGMA table_info(printers)")}
         if "mapping_signature" not in columns:
             db.execute("ALTER TABLE printers ADD COLUMN mapping_signature TEXT NOT NULL DEFAULT ''")
+        if "deleted_at" not in columns:
+            db.execute("ALTER TABLE printers ADD COLUMN deleted_at TEXT")
+        client_columns = {row[1] for row in db.execute("PRAGMA table_info(clients)")}
+        if "deleted_at" not in client_columns:
+            db.execute("ALTER TABLE clients ADD COLUMN deleted_at TEXT")
         job_columns = {row[1] for row in db.execute("PRAGMA table_info(jobs)")}
         if "sequence" not in job_columns:
             db.execute("ALTER TABLE jobs ADD COLUMN sequence INTEGER")
