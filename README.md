@@ -1,5 +1,7 @@
 # Print appliance (v1 implementation)
 
+**Hướng dẫn đầy đủ bằng tiếng Việt:** [Báo cáo kỹ thuật](docs/technical-report.md) · [Bản HTML đọc offline/in](docs/technical-report.html). Bao gồm macOS, Windows/WSL, cài Linux/EDATEC, API, driver, cập nhật và backup/restore. Báo cáo phân biệt giới hạn nền tảng và trạng thái đã kiểm thử.
+
 A local, single-node print appliance using FastAPI, SQLite, a durable file spool and the system's **real CUPS service**. It is a new service on port 8081 by default; it does not interact with or replace `pi-print-gateway` on 8080. Odoo and other applications are clients, not dependencies of this service.
 
 ## Development: local-only, no printer connection
@@ -83,7 +85,7 @@ Install `deploy/print-appliance.service` only after checking user/group and CUPS
 
 ## Verification limits
 
-The fake backend tests cover API/auth/CSRF, validation/admission/idempotency, coordinator sequencing/recovery/cancel evidence, and the single-worker lock. They are not proof of pycups availability, CUPS authorization or real printing. No Linux target, EDATEC, Canon/other printer, offline paper-out behavior, or physical PDF/ZPL output was tested. Before production, test on a disposable/test queue: URI/driver support on ARM, local UNIX socket permissions, held submission/release, stop-printer behavior, queue pause/resume, offline/error, cancellation, CUPS history purge/restart, disk-full handling and rollback. Never use a real production queue for first validation.
+The fake backend tests cover API/auth/CSRF, validation/admission/idempotency, coordinator sequencing/recovery/cancel evidence, and the single-worker lock. They are not proof of pycups availability, CUPS authorization or real printing. Subsequent EDATEC rollout verified real discovery/schema/private job metadata and LAN interfaces; the user reports Canon PDF paper output. Offline/paper-out, duplex/copies/cancel and physical ZPL acceptance remain separate hardware gates. See the technical report for current evidence. Before production, test on a disposable/test queue: URI/driver support on ARM, local UNIX socket permissions, held submission/release, stop-printer behavior, queue pause/resume, offline/error, cancellation, CUPS history purge/restart, disk-full handling and rollback. Never use a real production queue for first validation.
 
 ## Minimal client example
 

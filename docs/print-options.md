@@ -42,7 +42,7 @@ Thay `QUEUE` bằng tên hàng đợi CUPS thực tế. Lệnh này xem danh sá
 
 `options` trong API là object chỉ chứa các lựa chọn client được phép thay đổi; `{}` dùng cấu hình mặc định. Mỗi thao tác in mới có `Idempotency-Key` mới. Nếu mất phản hồi hoặc gặp lỗi 5xx, `/client` giữ nguyên file, máy, định dạng, tùy chọn, nội dung biểu mẫu và mã yêu cầu trong bộ nhớ rồi chỉ cung cấp nút **Gửi lại cùng yêu cầu**. Bấm nút đó gửi lại chính xác cùng mã/nội dung để nhận kết quả ban đầu nếu server đã lưu; không sửa tùy chọn hay tạo mã mới để vượt qua kết quả chưa rõ. Sau khi đóng/tải lại tab, kiểm tra lịch sử hoặc nhờ quản trị xác minh trước khi gửi lệnh khác. Lệnh `unknown` không được tự gửi lại.
 
-Lệnh đã nhận lưu ảnh chụp cấu hình của thời điểm nhận; sửa defaults/allowlist sau này không đổi lệnh cũ. API key client chỉ nằm trong bộ nhớ tab, không ghi vào localStorage, URL hoặc tài liệu/ảnh chụp.
+Lệnh đã nhận lưu ảnh chụp cấu hình của thời điểm nhận; sửa defaults/allowlist sau này không đổi lệnh cũ. Từ 0.1.5, API key lưu trong sessionStorage theo tab để reload tự kết nối; Ngắt kết nối hoặc API 401 xóa key. Không ghi vào localStorage, URL hoặc tài liệu/ảnh chụp. File và request chưa xác nhận vẫn chỉ trong bộ nhớ, không được phục hồi khi reload.
 
 ## Ví dụ Canon LBP6230/6240
 
