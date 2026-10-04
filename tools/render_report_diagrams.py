@@ -123,60 +123,58 @@ def diagrams() -> list[Diagram]:
     result = []
     d = Diagram(
         "01-architecture",
-        "Kiến trúc và hai đường truy cập",
-        "Client gọi API bằng Bearer key. Admin quản lý bằng session và CSRF. FastAPI lưu SQLite và spool, worker giao CUPS qua Unix socket; CUPS dùng driver để in USB hoặc LAN. Hai cách xác thực không thay thế nhau.",
+        "Kiến trúc tổng thể",
+        "Ứng dụng gửi yêu cầu. Quản trị dùng phiên đăng nhập. Thiết bị lưu dữ liệu và điều phối; CUPS dùng driver gửi tới máy.",
         650,
     )
-    d.box(40, 24, 390, 92, "Client: Odoo / PDA / /client", ["Bearer key + Idempotency-Key"], "blue")
-    d.box(490, 24, 390, 92, "Web admin", ["Session cookie + CSRF"], "blue")
+    d.box(40, 24, 390, 92, "Ứng dụng gửi yêu cầu", ["Khóa truy cập + mã yêu cầu"], "blue")
+    d.box(490, 24, 390, 92, "Trang quản trị", ["Phiên đăng nhập + bảo vệ thao tác"], "blue")
     d.box(
         230,
         178,
         460,
         85,
-        "FastAPI trên appliance Linux",
+        "Thiết bị quản lý in trên Linux",
         ["Xác thực • quyền • tiếp nhận • quản trị"],
     )
     d.arrow([(235, 116), (235, 145), (350, 145), (350, 178)])
     d.arrow([(685, 116), (685, 145), (570, 145), (570, 178)])
-    d.box(40, 310, 340, 92, "SQLite + file spool", ["Job • snapshot • hash • lịch sử"], "green")
-    d.box(480, 310, 400, 92, "Worker một process", ["FIFO theo từng printer_id"])
+    d.box(40, 310, 340, 92, "Kho dữ liệu bền vững", ["Lệnh • file • cấu hình • lịch sử"], "green")
+    d.box(480, 310, 400, 92, "Điều phối hàng đợi", ["Theo từng máy in đăng ký"])
     d.arrow([(350, 263), (350, 286), (210, 286), (210, 310)])
     d.arrow([(570, 263), (570, 286), (680, 286), (680, 310)])
     d.arrow([(380, 356), (480, 356)], "Đọc / ghi", (430, 337), bidirectional=True)
-    d.box(480, 459, 400, 86, "CUPS + driver / filter", ["pycups → Unix socket"], "blue")
+    d.box(480, 459, 400, 86, "Hệ thống in CUPS + driver", ["Xử lý nội dung gửi tới máy"], "blue")
     d.arrow([(680, 402), (680, 459)])
     d.box(40, 459, 340, 86, "Máy in vật lý", ["USB hoặc mạng LAN"], "green")
     d.arrow([(480, 502), (380, 502)], "Truyền nội dung", (430, 573))
-    d.note(460, 612, ["Appliance quản lý yêu cầu; CUPS quản lý driver và truyền tới máy."])
+    d.note(460, 612, ["Thiết bị quản lý yêu cầu; CUPS quản lý driver và truyền tới máy."])
     result.append(d)
 
     d = Diagram(
         "02-admission",
         "Tiếp nhận và chống gửi trùng",
-        "Sau xác thực và kiểm tra đầu vào, server tính digest và tra request ID trong scope client. Cùng digest trả kết quả cũ, khác digest trả 409. Request mới kiểm quyền, cấu hình, tùy chọn và sức chứa; ghi file và transaction job, snapshot, idempotency trước khi trả 202.",
+        "Cùng mã và nội dung trả lệnh cũ; khác nội dung báo xung đột. Yêu cầu mới phải hợp lệ và được lưu an toàn trước khi báo đã nhận.",
         760,
     )
-    d.box(
-        255, 20, 410, 78, "Nhận POST /api/v1/jobs", ["API key + request ID + file + fields"], "blue"
-    )
-    d.box(255, 132, 410, 80, "Xác thực và kiểm đầu vào", ["Digest từ fields gốc + hash file"])
+    d.box(255, 20, 410, 78, "Nhận yêu cầu in mới", ["Khóa truy cập + mã yêu cầu + file"], "blue")
+    d.box(255, 132, 410, 80, "Xác thực và kiểm đầu vào", ["Tạo dấu nhận dạng của yêu cầu"])
     d.arrow([(460, 98), (460, 132)])
-    d.diamond(310, 245, 300, 120, ["Request ID đã có?", "Trong phạm vi client"])
+    d.diamond(310, 245, 300, 120, ["Mã yêu cầu đã có?", "Trong phạm vi ứng dụng gửi"])
     d.arrow([(460, 212), (460, 245)])
-    d.box(30, 250, 220, 112, "Đã có", ["Cùng digest → 200", "Khác digest → 409"], "amber")
+    d.box(30, 250, 220, 112, "Đã có", ["Dấu khớp → lệnh cũ", "Dấu khác → lỗi 409"], "amber")
     d.arrow([(310, 305), (250, 305)], "Có", (278, 283))
     d.box(
         255,
         408,
         410,
         100,
-        "Kiểm tra request mới",
-        ["Grants • mapping • capability", "Constraints • capacity"],
+        "Kiểm tra yêu cầu mới",
+        ["Được cấp máy • đúng cấu hình", "Lựa chọn hợp lệ • còn sức chứa"],
         "blue",
     )
     d.arrow([(460, 365), (460, 408)], "Chưa có", (530, 390))
-    d.box(710, 408, 185, 100, "Không hợp lệ", ["Trả mã lỗi", "Không nhận job"], "red")
+    d.box(710, 408, 185, 100, "Không hợp lệ", ["Trả mã lỗi", "Không nhận lệnh"], "red")
     d.arrow([(665, 458), (710, 458)])
     d.box(
         255,
@@ -184,33 +182,33 @@ def diagrams() -> list[Diagram]:
         410,
         95,
         "Lưu bền vững",
-        ["File + fsync; transaction SQLite", "Job • snapshot • sequence • dedup"],
+        ["Lưu file và lệnh trước phản hồi", "Giữ cấu hình tại thời điểm nhận"],
         "green",
     )
     d.arrow([(460, 508), (460, 552)], "Đạt", (500, 536))
-    d.box(255, 685, 410, 55, "202 + job_id: đã nhận, chưa phải đã in", tone="green")
+    d.box(255, 685, 410, 55, "202 + mã lệnh: đã nhận, chưa phải đã in", tone="green")
     d.arrow([(460, 647), (460, 685)])
-    d.note(783, 610, ["Grant/revocation được", "kiểm lại trong transaction."])
+    d.note(783, 610, ["Quyền được kiểm lại", "khi ghi nhận lệnh."])
     result.append(d)
 
     d = Diagram(
         "03-job-lifecycle",
         "Vòng đời lệnh in",
-        "Luồng chính queued tới submitting tới submitted và một trạng thái terminal. Held cần sửa nguyên nhân và resume thủ công. Không đủ bằng chứng giao hoặc tracking chuyển unknown, chặn máy và yêu cầu đối soát; resolve ghi kết quả, không gửi lại. Đây là sơ đồ nghiệp vụ rút gọn, không liệt kê mọi chuyển trạng thái nội bộ.",
+        "Chờ, giao, theo dõi rồi ghi kết quả. Lệnh giữ cần quản trị cho tiếp tục. Unknown cần đối soát, không tự gửi lại. Sơ đồ rút gọn.",
         640,
     )
     d.box(35, 50, 230, 86, "queued", ["Đã nhận, chờ FIFO"], "blue")
     d.box(345, 50, 230, 86, "submitting", ["Ý định giao đã lưu"], "blue")
-    d.box(655, 50, 230, 86, "submitted", ["Có CUPS ID; theo dõi"], "blue")
+    d.box(655, 50, 230, 86, "submitted", ["Có mã CUPS; theo dõi"], "blue")
     d.arrow([(265, 93), (345, 93)])
     d.arrow([(575, 93), (655, 93)])
-    d.box(35, 225, 230, 108, "held", ["Pause / offline / drift", "Resume do admin"], "amber")
+    d.box(35, 225, 230, 108, "held", ["Giữ do lỗi hoặc cấu hình", "Quản trị cho tiếp tục"], "amber")
     d.arrow([(150, 136), (150, 225)], "Giữ trước giao", (235, 184))
     d.arrow([(65, 225), (65, 172), (55, 172), (55, 136)])
     d.box(345, 225, 230, 108, "unknown", ["Chưa rõ kết quả", "Chặn tiến trình máy"], "red")
     d.arrow([(460, 136), (460, 225)])
     d.arrow([(770, 136), (770, 180), (530, 180), (530, 225)])
-    d.box(655, 225, 230, 108, "Kết quả terminal", ["completed / failed", "canceled"], "green")
+    d.box(655, 225, 230, 108, "Kết quả cuối", ["completed / failed", "canceled"], "green")
     d.arrow([(840, 136), (905, 136), (905, 279), (885, 279)])
     d.arrow([(575, 279), (655, 279)], "Đối soát", (615, 260))
     d.box(
@@ -230,39 +228,37 @@ def diagrams() -> list[Diagram]:
         730,
         78,
         "Giới hạn bảo đảm",
-        ["completed là CUPS báo hoàn thành, không phải proof-of-paper."],
+        ["completed là CUPS báo hoàn thành, không phải chứng minh đã ra giấy."],
         "amber",
     )
     result.append(d)
 
     d = Diagram(
         "04-cups-handoff",
-        "Giao CUPS theo hold → lưu ID → release",
-        "Client nhận 202 sau durable acceptance. Worker ghi submitting và correlation, gửi CUPS ở trạng thái held, lưu CUPS ID rồi mới release. Poll xác thực trên cùng connection và đối chiếu ID với correlation. Nếu đứt giữa các bước thì đối soát, không tự gửi bản sao.",
+        "Giao CUPS có kiểm soát",
+        "Lưu lệnh trước phản hồi. Giao có giữ, lưu mã CUPS rồi mới cho in. Kiểm mã và dấu nhận diện để theo dõi; sự cố cần đối soát.",
         705,
     )
-    for x, label in ((115, "Client"), (345, "App + worker"), (575, "SQLite"), (805, "CUPS")):
+    for x, label in ((115, "Ứng dụng"), (345, "Điều phối"), (575, "Kho dữ liệu"), (805, "CUPS")):
         d.box(x - 90, 20, 180, 60, label, tone="blue")
         d.line(x, 90, 610)
-    d.arrow([(115, 123), (345, 123)], "POST file + request ID", (230, 109))
+    d.arrow([(115, 123), (345, 123)], "Gửi file + mã yêu cầu", (230, 109))
     d.arrow([(345, 174), (575, 174)], "Lưu bền vững", (460, 160))
-    d.arrow([(345, 225), (115, 225)], "202 + job_id", (230, 211))
-    d.arrow([(345, 280), (575, 280)], "submitting + correlation", (460, 266))
-    d.arrow([(345, 335), (805, 335)], "submit_held: chưa cho in", (575, 321))
-    d.arrow([(805, 390), (345, 390)], "CUPS job ID", (575, 376))
-    d.arrow([(345, 445), (575, 445)], "Lưu ID + submitted", (460, 431))
-    d.arrow([(345, 500), (805, 500)], "Release khi được phép", (575, 486))
-    d.arrow([(345, 555), (805, 555)], "Auth + poll ID / correlation", (575, 541))
-    d.arrow([(805, 605), (345, 605)], "State → lưu kết quả", (575, 591))
-    d.box(
-        75, 637, 770, 52, "Đứt giữa các bước → đối soát; không tự submit lại nội dung", tone="amber"
-    )
+    d.arrow([(345, 225), (115, 225)], "202 + mã lệnh", (230, 211))
+    d.arrow([(345, 280), (575, 280)], "submitting + dấu nhận diện", (460, 266))
+    d.arrow([(345, 335), (805, 335)], "Giao lệnh nhưng giữ chưa in", (575, 321))
+    d.arrow([(805, 390), (345, 390)], "Mã lệnh CUPS", (575, 376))
+    d.arrow([(345, 445), (575, 445)], "Lưu mã CUPS + submitted", (460, 431))
+    d.arrow([(345, 500), (805, 500)], "Cho phép in khi đủ điều kiện", (575, 486))
+    d.arrow([(345, 555), (805, 555)], "Kiểm mã CUPS + dấu nhận diện", (575, 541))
+    d.arrow([(805, 605), (345, 605)], "Trạng thái → lưu kết quả", (575, 591))
+    d.box(75, 637, 770, 52, "Đứt giữa các bước → đối soát; không tự gửi lại nội dung", tone="amber")
     result.append(d)
 
     d = Diagram(
         "05-printer-fifo",
-        "FIFO riêng và xử lý song song",
-        "Mỗi printer_id có FIFO theo sequence và một công việc CUPS đang được theo dõi. Các máy đăng ký khác có thể xử lý độc lập, tối đa bốn tác vụ máy mỗi vòng. Unknown chặn máy tương ứng, không chặn tất cả máy. Nhiều ID cùng trỏ một máy vật lý không tạo FIFO chung.",
+        "Hàng đợi theo máy",
+        "Mỗi máy đăng ký có thứ tự riêng. Các máy khác xử lý độc lập. Unknown chặn máy liên quan; nhiều đăng ký một máy thật không tạo thứ tự chung.",
         485,
     )
     for y, label, jobs, tone in (
@@ -270,14 +266,14 @@ def diagrams() -> list[Diagram]:
         (175, "Máy đăng ký B", "B1 → B2 → B3", "blue"),
         (310, "Máy đăng ký C", "C1 unknown • C2 chờ", "amber"),
     ):
-        d.box(25, y, 235, 90, label, ["FIFO theo sequence"])
+        d.box(25, y, 235, 90, label, ["Thứ tự tiếp nhận: FIFO"])
         d.box(
             315,
             y,
             270,
             90,
             jobs,
-            ["Một lệnh đang giao / theo dõi" if label[-1] != "C" else "Chặn máy C; không resend"],
+            ["Một lệnh đang giao / theo dõi" if label[-1] != "C" else "Chặn máy C; không gửi lại"],
             tone,
         )
         d.box(
@@ -295,14 +291,14 @@ def diagrams() -> list[Diagram]:
     d.note(
         460,
         448,
-        ["Tối đa 4 tác vụ máy mỗi vòng. Hai printer_id cùng một máy vật lý không có FIFO chung."],
+        ["Tối đa 4 máy mỗi vòng. Hai đăng ký cùng một máy vật lý không có FIFO chung."],
     )
     result.append(d)
 
     d = Diagram(
         "06-option-permissions",
-        "Khả năng máy không đồng nghĩa quyền client",
-        "CUPS và driver cung cấp capability. Admin chọn defaults và các giá trị override. Client chỉ thấy quyền được cấp; dùng mặc định bỏ khóa đó. Server kiểm enum, constraints và fingerprint, lưu effective options trong snapshot. ZPL không dùng PDF options.",
+        "Lựa chọn và quyền sử dụng",
+        "Khả năng máy được kết hợp với mặc định và quyền. Ứng dụng chỉ chọn giá trị được cấp; thiết bị kiểm tổ hợp và giữ cấu hình cho lệnh.",
         605,
     )
     d.box(
@@ -310,8 +306,8 @@ def diagrams() -> list[Diagram]:
         25,
         340,
         96,
-        "CUPS / driver",
-        ["Choices • defaults • constraints", "PPD + thuộc tính IPP"],
+        "CUPS và driver",
+        ["Lựa chọn • mặc định • ràng buộc", "Khả năng máy được công bố"],
         "blue",
     )
     d.box(
@@ -320,7 +316,7 @@ def diagrams() -> list[Diagram]:
         340,
         96,
         "Quản trị máy",
-        ["Mặc định appliance", "Các giá trị client được chọn"],
+        ["Mặc định trên thiết bị", "Các giá trị ứng dụng được chọn"],
         "blue",
     )
     d.box(
@@ -328,8 +324,8 @@ def diagrams() -> list[Diagram]:
         181,
         440,
         96,
-        "Schema theo printer_id",
-        ["Capability ∩ quyền được cấp", "Fingerprint để phát hiện thay đổi"],
+        "Bộ lựa chọn theo máy",
+        ["Chỉ lựa chọn phù hợp và được cấp", "Dấu cấu hình để nhận biết thay đổi"],
     )
     d.arrow([(230, 121), (230, 150), (350, 150), (350, 181)])
     d.arrow([(690, 121), (690, 150), (570, 150), (570, 181)])
@@ -338,16 +334,16 @@ def diagrams() -> list[Diagram]:
         337,
         340,
         94,
-        "Client chọn",
-        ["Dùng mặc định → bỏ khóa", "Override → chọn giá trị được cấp"],
+        "Ứng dụng chọn",
+        ["Dùng mặc định → không ghi đè", "Chọn khác → phải được cấp quyền"],
     )
     d.box(
         520,
         337,
         340,
         94,
-        "Server kiểm tra",
-        ["Enum • constraints • mapping", "Không tin form client"],
+        "Thiết bị kiểm tra",
+        ["Đúng giá trị • tổ hợp • cấu hình", "Không chỉ dựa vào biểu mẫu"],
         "green",
     )
     d.arrow([(350, 277), (350, 303), (230, 303), (230, 337)])
@@ -357,34 +353,42 @@ def diagrams() -> list[Diagram]:
         491,
         440,
         85,
-        "Snapshot của job mới",
-        ["Tùy chọn hiệu lực không tự đổi về sau"],
+        "Cấu hình giữ cho lệnh",
+        ["Lựa chọn không tự đổi sau khi nhận"],
         "green",
     )
     d.arrow([(690, 431), (690, 461), (570, 461), (570, 491)])
-    d.note(150, 520, ["ZPL: options = {}", "Không áp PDF defaults."])
+    d.note(150, 520, ["ZPL: gửi nguyên nội dung", "Không áp mặc định PDF."])
     result.append(d)
 
     d = Diagram(
         "07-client-workflow",
-        "Từ cấp quyền tới theo dõi lệnh",
-        "Admin tạo client, cấp máy và cung cấp one-time key. Trang client xác thực, lấy máy được cấp, chọn file và gửi. Nhận job_id rồi poll. Nếu mất phản hồi, chỉ retry request gốc khi còn trong tab; nếu reload làm mất request state thì xem history và đối soát. Reload chỉ tự kết nối lại, không tự in.",
+        "Cấp quyền và gửi lệnh",
+        "Quản trị cấp máy và chuyển khóa. Client chọn file, gửi rồi xem kết quả. Mất phản hồi cần giữ yêu cầu gốc; tải lại không tự gửi.",
         650,
     )
-    d.box(245, 20, 430, 80, "Admin tạo client và cấp máy", ["Sao chép API key một lần"], "blue")
-    d.box(245, 138, 430, 80, "Client kết nối bằng key", ["Tải máy được cấp + lịch sử"])
+    d.box(
+        245,
+        20,
+        430,
+        80,
+        "Quản trị tạo client và cấp máy",
+        ["Sao chép khóa truy cập một lần"],
+        "blue",
+    )
+    d.box(245, 138, 430, 80, "Ứng dụng kết nối bằng khóa", ["Tải máy được cấp + lịch sử"])
     d.arrow([(460, 100), (460, 138)])
     d.box(
         245,
         258,
         430,
         82,
-        "Chọn máy • file • copies • options",
+        "Chọn máy • file • số bản • lựa chọn",
         ["Bấm gửi = yêu cầu in thật"],
         "amber",
     )
     d.arrow([(460, 218), (460, 258)])
-    d.box(720, 250, 175, 102, "Lỗi xác định", ["401 / 403 / 422", "Không tự đổi ID"], "red")
+    d.box(720, 250, 175, 102, "Lỗi xác định", ["Đọc thông báo lỗi", "Không tự đổi mã"], "red")
     d.arrow([(675, 300), (720, 300)], "Lỗi", (697, 282))
     d.diamond(335, 382, 250, 102, ["Có phản hồi nhận?"])
     d.arrow([(460, 340), (460, 382)])
@@ -393,8 +397,8 @@ def diagrams() -> list[Diagram]:
         527,
         385,
         96,
-        "Có job_id",
-        ["GET status / history", "Không tạo thêm job để kiểm tra"],
+        "Có mã lệnh",
+        ["Xem trạng thái / lịch sử", "Không tạo lệnh mới để kiểm tra"],
         "green",
     )
     d.arrow([(335, 433), (225, 433), (225, 527)], "Có", (265, 412))
@@ -404,17 +408,17 @@ def diagrams() -> list[Diagram]:
         385,
         96,
         "Mất phản hồi",
-        ["Còn tab → retry nguyên request", "Mất state → lịch sử + đối soát"],
+        ["Còn tab → gửi lại yêu cầu gốc", "Mất dữ liệu → lịch sử + đối soát"],
         "amber",
     )
     d.arrow([(585, 433), (690, 433), (690, 527)], "Chưa rõ", (658, 412))
-    d.note(125, 384, ["sessionStorage lưu key.", "Reload không tự POST."])
+    d.note(125, 384, ["Tab ghi nhớ khóa truy cập.", "Tải lại không tự gửi lệnh."])
     result.append(d)
 
     d = Diagram(
         "08-unknown-resolution",
-        "Đối soát unknown: không tự in lại",
-        "Giữ payload và chặn máy. Xác thực connection CUPS rồi kiểm ID, correlation và state. Matching terminal evidence có thể được admin dùng để resolve có lý do; nonterminal cần xử lý và xác minh trước; thiếu hoặc sai danh tính giữ unknown và cần bằng chứng vận hành. Resolve không gửi nội dung.",
+        "Đối soát chưa rõ kết quả",
+        "Giữ file và chặn máy; kiểm mã CUPS, dấu nhận diện và trạng thái. Bằng chứng đủ thì quản trị ghi kết quả có lý do. Không tự gửi lại file.",
         655,
     )
     d.box(
@@ -423,12 +427,14 @@ def diagrams() -> list[Diagram]:
         410,
         85,
         "unknown: giữ file, chặn máy",
-        ["Không coi thiếu history là chưa in"],
+        ["Thiếu lịch sử không phải là chưa in"],
         "red",
     )
-    d.box(255, 147, 410, 85, "Đọc CUPS có xác thực", ["CUPS ID + correlation + state"], "blue")
+    d.box(
+        255, 147, 410, 85, "Đọc CUPS có xác thực", ["Mã CUPS + dấu nhận diện + trạng thái"], "blue"
+    )
     d.arrow([(460, 105), (460, 147)])
-    d.diamond(305, 275, 310, 120, ["Danh tính khớp", "và terminal?"])
+    d.diamond(305, 275, 310, 120, ["Đúng lệnh cần đối soát", "và đã kết thúc?"])
     d.arrow([(460, 232), (460, 275)])
     d.box(
         35,
@@ -436,7 +442,7 @@ def diagrams() -> list[Diagram]:
         390,
         108,
         "Bằng chứng đủ",
-        ["Admin resolve + reason", "Ghi completed / failed / canceled"],
+        ["Quản trị ghi kết quả + lý do", "Hoàn thành / lỗi / đã hủy"],
         "green",
     )
     d.arrow([(305, 335), (230, 335), (230, 442)], "Có", (258, 314))
@@ -446,7 +452,7 @@ def diagrams() -> list[Diagram]:
         390,
         108,
         "Chưa đủ bằng chứng",
-        ["Nonterminal: xử lý / xác minh trước", "Thiếu history: đối soát vận hành"],
+        ["Chưa kết thúc: xử lý và kiểm lại", "Thiếu lịch sử: đối soát thực tế"],
         "amber",
     )
     d.arrow([(615, 335), (690, 335), (690, 442)], "Không", (662, 314))
@@ -454,45 +460,48 @@ def diagrams() -> list[Diagram]:
         460,
         602,
         [
-            "Thiếu / sai correlation: giữ unknown, không gán kết quả từ một job CUPS khác.",
-            "Resolve chỉ sửa lịch sử có bằng chứng, không resend payload.",
+            "Sai dấu nhận diện: giữ unknown, không lấy kết quả từ một lệnh CUPS khác.",
+            "Ghi kết quả có bằng chứng, không tự gửi lại file.",
         ],
     )
     result.append(d)
 
     d = Diagram(
         "09-backup-restore",
-        "Backup và restore là hai quy trình có điều kiện",
-        "Backup maintenance kiểm nonterminal jobs và CUPS, dừng service và kiểm lại rồi lưu full data cùng cấu hình/artifacts, checksum và bản ngoài thiết bị. Restore phải đối soát jobs mới sau backup, lưu trạng thái hiện tại, dùng package tương thích, kiểm integrity/snapshot/nonterminal rồi mới start. DB-only không đủ phục hồi payload.",
+        "Sao lưu và phục hồi",
+        "Backup khi được phép; kiểm lệnh, dừng, bảo vệ bản sao và lưu ngoài thiết bị. Restore cần đối soát, giữ dừng và kiểm trước khi cho chạy.",
         715,
     )
     d.box(35, 20, 395, 62, "BACKUP ĐẦY ĐỦ", tone="blue")
     d.box(490, 20, 395, 62, "RESTORE CÓ KIỂM SOÁT", tone="amber")
     left = [
-        ("Maintenance được phép", ["Không còn app nonterminal", "CUPS không có job chờ"]),
-        ("Stop service và kiểm lại", ["Tránh job vừa được nhận", "Không backup bằng copy DB sống"]),
+        ("Maintenance được phép", ["App không còn lệnh chưa kết thúc", "CUPS không có lệnh chờ"]),
         (
-            "Archive được bảo vệ",
-            ["DB + spool + cấu hình + artifacts", "Checksum • kiểm archive • off-device"],
+            "Stop service và kiểm lại",
+            ["Tránh bỏ sót lệnh vừa nhận", "Sao lưu nhất quán, không chép rời file"],
+        ),
+        (
+            "Bản sao được bảo vệ",
+            ["Lệnh + file + cấu hình + phiên bản", "Kiểm bản sao • lưu ngoài thiết bị"],
         ),
         (
             "Start service sau backup",
-            ["Kiểm readiness / service", "Backup driver có kế hoạch riêng"],
+            ["Kiểm dịch vụ sẵn sàng", "Driver có kế hoạch sao lưu riêng"],
         ),
     ]
     right = [
         (
             "Duyệt quyết định restore",
-            ["Đối soát jobs nhận sau backup", "Backup trạng thái hiện tại"],
+            ["Đối soát lệnh nhận sau backup", "Backup trạng thái hiện tại"],
         ),
-        ("Giữ service dừng", ["Restore app data đúng phạm vi", "Dùng package/schema tương thích"]),
+        ("Giữ service dừng", ["Phục hồi dữ liệu đúng phạm vi", "Dùng phiên bản tương thích"]),
         (
-            "Kiểm trước activation",
-            ["Integrity • snapshot • nonterminal", "Chưa đạt → giữ dừng, đối soát"],
+            "Kiểm trước khi cho chạy",
+            ["Toàn vẹn • cấu hình • lệnh chờ", "Chưa đạt → giữ dừng, đối soát"],
         ),
         (
             "Start chỉ khi đủ điều kiện",
-            ["Không coi backup cũ là chưa in", "Giữ bản before-restore"],
+            ["Không coi backup cũ là chưa in", "Giữ bản trước phục hồi"],
         ),
     ]
     for x, blocks in ((35, left), (490, right)):
@@ -504,14 +513,14 @@ def diagrams() -> list[Diagram]:
     d.note(
         460,
         691,
-        ["Backup SQLite online chỉ có DB. Full restore cần payload và đối soát kết quả in."],
+        ["Bản sao chỉ có thông tin lệnh không đủ phục hồi file. Cần đối soát kết quả in."],
     )
     result.append(d)
 
     d = Diagram(
         "10-git-rollout",
-        "Release theo một commit và rollback có điều kiện",
-        "Sửa, test, build trên Mac hoặc WSL rồi commit push và tạo artifacts cùng commit. Thiết bị kiểm maintenance, backup, checkout đúng commit và install matching wheel; kiểm hash/readiness trước ghi SOURCE_COMMIT. Khi thất bại chỉ rollback wheel nếu dữ liệu tương thích; migration cần backup và đối soát, không restore mù.",
+        "Cập nhật và rollback",
+        "Chọn bản đã kiểm tra, chuẩn bị cài. Kiểm dung lượng, lệnh và backup. Cài rồi kiểm dịch vụ/cấu hình trước khi chốt. Rollback phụ thuộc dữ liệu tương thích.",
         670,
     )
     d.box(
@@ -519,8 +528,8 @@ def diagrams() -> list[Diagram]:
         25,
         360,
         92,
-        "Mac / WSL",
-        ["Sửa → test → build", "Commit / push; artifacts cùng commit"],
+        "Chọn phiên bản cần cài",
+        ["Bản đã được kiểm tra", "Ghi lại bản mới và bản hiện tại"],
         "blue",
     )
     d.box(
@@ -528,8 +537,8 @@ def diagrams() -> list[Diagram]:
         25,
         360,
         92,
-        "GitHub + bộ release",
-        ["Commit cố định", "Wheel • dependencies • checksums"],
+        "Chuẩn bị cài đặt",
+        ["Cùng phiên bản đã chọn", "Nguồn đáng tin • kiểm gói cài"],
     )
     d.arrow([(400, 71), (520, 71)])
     d.box(
@@ -538,15 +547,15 @@ def diagrams() -> list[Diagram]:
         450,
         82,
         "Linux: kiểm trước update",
-        ["Disk • job/CUPS • maintenance • backup"],
+        ["Dung lượng • lệnh chờ • bảo trì • backup"],
         "amber",
     )
     d.arrow([(700, 117), (700, 144), (570, 144), (570, 171)])
-    d.box(235, 296, 450, 82, "Checkout + install", ["Đúng commit; stop service; matching wheel"])
+    d.box(235, 296, 450, 82, "Cài bản được phép", ["Đúng phiên bản; giữ service dừng"])
     d.arrow([(460, 253), (460, 296)])
-    d.diamond(315, 421, 290, 110, ["Kiểm tra activation đạt?", "Hash • UI • readiness"])
+    d.diamond(315, 421, 290, 110, ["Kiểm tra sau cài đạt?", "Dịch vụ • đăng nhập • cấu hình"])
     d.arrow([(460, 378), (460, 421)])
-    d.box(35, 572, 390, 78, "Ghi SOURCE_COMMIT", ["Giữ previous release; cleanup key tạm"], "green")
+    d.box(35, 572, 390, 78, "Ghi phiên bản đã chạy", ["Giữ bản trước; dọn khóa tạm"], "green")
     d.arrow([(315, 476), (230, 476), (230, 572)], "Đạt", (270, 455))
     d.box(
         495,

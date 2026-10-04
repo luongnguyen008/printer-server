@@ -29,7 +29,7 @@ def test_report_diagrams_are_reproducible_and_referenced():
 
 def test_generated_html_embeds_all_diagrams_with_unique_ids():
     html = (ROOT / "docs/technical-report.html").read_text()
-    assert html.count('<figure class="report-diagram">') == 10
+    assert html.count('<figure class="report-diagram"') == 10
     assert html.count("<svg ") == 10
     assert "<img " not in html
     assert "<script" not in html

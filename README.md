@@ -1,6 +1,6 @@
 # Print appliance (v1 implementation)
 
-**Hướng dẫn đầy đủ bằng tiếng Việt:** [Báo cáo kỹ thuật](docs/technical-report.md) · [Bản HTML đọc offline/in](docs/technical-report.html). Bao gồm macOS, Windows/WSL, cài Linux/EDATEC, API, driver, cập nhật và backup/restore. Báo cáo phân biệt giới hạn nền tảng và trạng thái đã kiểm thử.
+**Hướng dẫn cài đặt, sử dụng và vận hành (tiếng Việt):** [Markdown](docs/technical-report.md) · [HTML offline](docs/technical-report.html) · [PDF có mục lục/số trang](docs/technical-report.pdf). Phần chính giải thích hệ thống và luồng sử dụng; phụ lục giữ lệnh cài Linux/EDATEC, cấu hình driver, API và bảo trì. Phần lấy source chỉ cần cài Git rồi clone. Phiên bản tài liệu 1.2; sản phẩm được mô tả 0.1.5.
 
 A local, single-node print appliance using FastAPI, SQLite, a durable file spool and the system's **real CUPS service**. It is a new service on port 8081 by default; it does not interact with or replace `pi-print-gateway` on 8080. Odoo and other applications are clients, not dependencies of this service.
 

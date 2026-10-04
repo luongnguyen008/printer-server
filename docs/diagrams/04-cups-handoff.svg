@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 705" width="920" height="705" role="img" aria-labelledby="04-cups-handoff-title 04-cups-handoff-desc" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
-<title id="04-cups-handoff-title">Giao CUPS theo hold → lưu ID → release</title>
-<desc id="04-cups-handoff-desc">Client nhận 202 sau durable acceptance. Worker ghi submitting và correlation, gửi CUPS ở trạng thái held, lưu CUPS ID rồi mới release. Poll xác thực trên cùng connection và đối chiếu ID với correlation. Nếu đứt giữa các bước thì đối soát, không tự gửi bản sao.</desc>
+<title id="04-cups-handoff-title">Giao CUPS có kiểm soát</title>
+<desc id="04-cups-handoff-desc">Lưu lệnh trước phản hồi. Giao có giữ, lưu mã CUPS rồi mới cho in. Kiểm mã và dấu nhận diện để theo dõi; sự cố cần đối soát.</desc>
 <defs><marker id="04-cups-handoff-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#617687"/></marker></defs>
 <rect width="920" height="100%" rx="16" fill="#fff"/>
 <line x1="115" y1="90" x2="115" y2="610" stroke="#b3c3cf" stroke-width="1.5" stroke-dasharray="5 5"/>
@@ -17,19 +17,19 @@
 <polyline points="345,500 805,500" fill="none" stroke="#617687" stroke-width="1.8" marker-end="url(#04-cups-handoff-arrow)"/>
 <polyline points="345,555 805,555" fill="none" stroke="#617687" stroke-width="1.8" marker-end="url(#04-cups-handoff-arrow)"/>
 <polyline points="805,605 345,605" fill="none" stroke="#617687" stroke-width="1.8" marker-end="url(#04-cups-handoff-arrow)"/>
-<g data-box="true"><rect x="25" y="20" width="180" height="60" rx="12" fill="#edf5fb" stroke="#8cb6d2" stroke-width="1.5"/><text x="115" y="56" fill="#174d71" font-size="17" font-weight="650" text-anchor="middle"><tspan x="115" dy="0">Client</tspan></text></g>
-<g data-box="true"><rect x="255" y="20" width="180" height="60" rx="12" fill="#edf5fb" stroke="#8cb6d2" stroke-width="1.5"/><text x="345" y="56" fill="#174d71" font-size="17" font-weight="650" text-anchor="middle"><tspan x="345" dy="0">App + worker</tspan></text></g>
-<g data-box="true"><rect x="485" y="20" width="180" height="60" rx="12" fill="#edf5fb" stroke="#8cb6d2" stroke-width="1.5"/><text x="575" y="56" fill="#174d71" font-size="17" font-weight="650" text-anchor="middle"><tspan x="575" dy="0">SQLite</tspan></text></g>
+<g data-box="true"><rect x="25" y="20" width="180" height="60" rx="12" fill="#edf5fb" stroke="#8cb6d2" stroke-width="1.5"/><text x="115" y="56" fill="#174d71" font-size="17" font-weight="650" text-anchor="middle"><tspan x="115" dy="0">Ứng dụng</tspan></text></g>
+<g data-box="true"><rect x="255" y="20" width="180" height="60" rx="12" fill="#edf5fb" stroke="#8cb6d2" stroke-width="1.5"/><text x="345" y="56" fill="#174d71" font-size="17" font-weight="650" text-anchor="middle"><tspan x="345" dy="0">Điều phối</tspan></text></g>
+<g data-box="true"><rect x="485" y="20" width="180" height="60" rx="12" fill="#edf5fb" stroke="#8cb6d2" stroke-width="1.5"/><text x="575" y="56" fill="#174d71" font-size="17" font-weight="650" text-anchor="middle"><tspan x="575" dy="0">Kho dữ liệu</tspan></text></g>
 <g data-box="true"><rect x="715" y="20" width="180" height="60" rx="12" fill="#edf5fb" stroke="#8cb6d2" stroke-width="1.5"/><text x="805" y="56" fill="#174d71" font-size="17" font-weight="650" text-anchor="middle"><tspan x="805" dy="0">CUPS</tspan></text></g>
-<text x="230" y="109" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="230" dy="0">POST file + request ID</tspan></text>
+<text x="230" y="109" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="230" dy="0">Gửi file + mã yêu cầu</tspan></text>
 <text x="460" y="160" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="460" dy="0">Lưu bền vững</tspan></text>
-<text x="230" y="211" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="230" dy="0">202 + job_id</tspan></text>
-<text x="460" y="266" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="460" dy="0">submitting + correlation</tspan></text>
-<text x="575" y="321" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="575" dy="0">submit_held: chưa cho in</tspan></text>
-<text x="575" y="376" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="575" dy="0">CUPS job ID</tspan></text>
-<text x="460" y="431" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="460" dy="0">Lưu ID + submitted</tspan></text>
-<text x="575" y="486" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="575" dy="0">Release khi được phép</tspan></text>
-<text x="575" y="541" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="575" dy="0">Auth + poll ID / correlation</tspan></text>
-<text x="575" y="591" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="575" dy="0">State → lưu kết quả</tspan></text>
-<g data-box="true"><rect x="75" y="637" width="770" height="52" rx="12" fill="#fff7e6" stroke="#d8b56e" stroke-width="1.5"/><text x="460" y="669" fill="#785715" font-size="17" font-weight="650" text-anchor="middle"><tspan x="460" dy="0">Đứt giữa các bước → đối soát; không tự submit lại nội dung</tspan></text></g>
+<text x="230" y="211" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="230" dy="0">202 + mã lệnh</tspan></text>
+<text x="460" y="266" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="460" dy="0">submitting + dấu nhận diện</tspan></text>
+<text x="575" y="321" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="575" dy="0">Giao lệnh nhưng giữ chưa in</tspan></text>
+<text x="575" y="376" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="575" dy="0">Mã lệnh CUPS</tspan></text>
+<text x="460" y="431" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="460" dy="0">Lưu mã CUPS + submitted</tspan></text>
+<text x="575" y="486" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="575" dy="0">Cho phép in khi đủ điều kiện</tspan></text>
+<text x="575" y="541" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="575" dy="0">Kiểm mã CUPS + dấu nhận diện</tspan></text>
+<text x="575" y="591" fill="#243849" font-size="15" font-weight="400" text-anchor="middle"><tspan x="575" dy="0">Trạng thái → lưu kết quả</tspan></text>
+<g data-box="true"><rect x="75" y="637" width="770" height="52" rx="12" fill="#fff7e6" stroke="#d8b56e" stroke-width="1.5"/><text x="460" y="669" fill="#785715" font-size="17" font-weight="650" text-anchor="middle"><tspan x="460" dy="0">Đứt giữa các bước → đối soát; không tự gửi lại nội dung</tspan></text></g>
 </svg>

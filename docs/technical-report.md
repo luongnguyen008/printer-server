@@ -1,436 +1,704 @@
-# Báo cáo kỹ thuật — Print Appliance
+# Hướng dẫn cài đặt, sử dụng và vận hành — Print Appliance
 
-Thiết bị quản lý in tại chỗ, API đa client và giao diện quản trị
+**Thiết bị tiếp nhận, điều phối và quản lý in trong mạng nội bộ**
 
-- **Mã nguồn:** https://github.com/luongnguyen008/printer-server
-- **Phiên bản phần mềm được mô tả:** 0.1.5.
-- **Mốc mã nguồn:** `056e2e7823d8e4579a02aab027d6a2dad678549f`.
-- **Ngôn ngữ tài liệu:** tiếng Việt. Lệnh có nhãn hệ điều hành và nơi thực thi.
-- **Đối tượng đọc:** người triển khai, người vận hành, lập trình viên tích hợp và người tiếp nhận bảo trì.
+- **Mã tài liệu:** PA-TECH-VI.
+- **Phiên bản tài liệu:** 1.2.
+- **Ngày phát hành:** 04/10/2026.
+- **Tác giả / đơn vị biên soạn:** Luong Nguyen · Print Appliance.
+- **Phiên bản sản phẩm được mô tả:** 0.1.5.
+- **Ngôn ngữ:** Tiếng Việt.
+- **Kho mã nguồn:** https://github.com/luongnguyen008/printer-server.
 
-Báo cáo này đủ để lấy mã nguồn, chạy môi trường local, cài một thiết bị Linux mới và gửi lệnh qua API. Các ví dụ dùng dữ liệu mẫu; người đọc tự chọn IP, máy in, API key và mật khẩu. Không có mật khẩu mặc định hoặc thông tin bí mật trong tài liệu.
+Tài liệu dành cho người tiếp nhận hệ thống, người quản trị và đơn vị muốn kết nối ứng dụng của mình với thiết bị in. Phần chính giải thích tổng thể theo luồng; các lệnh cài đặt và ví dụ kỹ thuật nằm ở phụ lục.
 
-> **Quy tắc an toàn:** lệnh `POST /api/v1/jobs` yêu cầu in thật. Các lệnh cài driver, thay queue, pause/resume và restore dữ liệu có thể ảnh hưởng máy đang dùng. Đọc điều kiện trước từng phần; không chạy cả tài liệu như một script.
+> Việc gửi yêu cầu in có thể làm máy in ra giấy thật. Chỉ thử khi đã được phép. Thao tác thay cấu hình, cài driver hoặc phục hồi dữ liệu cần kế hoạch và sao lưu phù hợp.
 
-[TOC]
+<!-- COVER-END -->
 
-## 1. Tóm tắt ứng dụng
+<h2 id="revision-history" class="front-title">Kiểm soát phiên bản tài liệu</h2>
 
-Print Appliance biến một máy Linux, chẳng hạn EDATEC dùng Raspberry Pi Compute Module 4, thành đầu mối tiếp nhận và quản lý in. Nhiều ứng dụng gửi PDF hoặc ZPL qua API. Thiết bị xác thực người gửi, lưu lệnh, điều phối hàng đợi, giao nội dung cho CUPS và ghi nhận kết quả hệ thống in.
+<a id="table-1"></a>
 
-Odoo, PDA, phần mềm kho và ứng dụng desktop đều có thể là client. Lõi in không phụ thuộc Odoo. PDA không phải cài driver của từng máy in nếu gửi nội dung qua appliance; driver chạy ở thiết bị Linux.
+**Bảng 1 — Lịch sử phiên bản tài liệu**
 
-Các chức năng hiện có:
+| Phiên bản tài liệu | Ngày | Người biên soạn | Nội dung thay đổi |
+| --- | --- | --- | --- |
+| 1.0 | 04/10/2026 | Luong Nguyen | Hướng dẫn đầu tiên: tổng thể, cài đặt, API và vận hành. Mốc tài liệu: bdb1c2b. |
+| 1.1 | 04/10/2026 | Luong Nguyen | Bổ sung 10 sơ đồ luồng và hình SVG đọc offline. Mốc tài liệu: 4e37b18. |
+| 1.2 | 04/10/2026 | Luong Nguyen | Chuẩn hóa cấu trúc tài liệu; viết hướng dẫn theo luồng; giới thiệu khái niệm trước khi sử dụng; bỏ hướng dẫn lập trình/test/build; chuyển lệnh cài đặt và vận hành sang phụ lục; bổ sung PDF và tra cứu số trang. |
 
-- API key riêng cho từng client; chỉ dùng máy được cấp và xem lệnh của chính mình.
-- Nhận file PDF/ZPL; lưu bền vững trước khi trả kết quả tiếp nhận.
-- Chống gửi trùng bằng `Idempotency-Key`, tồn tại qua restart và dọn lịch sử.
-- FIFO theo máy đăng ký; xử lý độc lập tối đa bốn máy trong một vòng điều phối.
-- Dừng khi có lỗi/offline, tiếp tục thủ công, hủy có đối soát và xử lý kết quả chưa rõ.
-- Quản trị máy in/client bằng modal; tìm driver, chọn nhiều máy bằng checkbox, xem chi tiết lệnh và chỉnh giới hạn lưu trữ.
-- Đọc khả năng driver/CUPS để tạo form khổ giấy, duplex và tùy chọn nâng cao.
-- Trang `/client` để gửi thử bằng API key, tải file và xem lịch sử. Tải lại giữ kết nối theo tab; không tự gửi lại nội dung.
-- Chạy một service systemd, SQLite và spool trên đĩa; không cần Redis, Docker hoặc cơ sở dữ liệu ngoài.
+Phiên bản tài liệu và phiên bản phần mềm là hai thông tin khác nhau. Bản 1.2 thay cách giải thích và trình bày; không nâng phần mềm trên thiết bị. Tài liệu được biên soạn có hỗ trợ công cụ trí tuệ nhân tạo (AI) và đối chiếu với mã nguồn, tài liệu dự án cùng các kết quả kiểm tra đã ghi nhận.
 
-Bản này dành cho một thiết bị trong LAN. Nó không phải hệ thống kho, phần mềm thiết kế nhãn, driver máy in, dịch vụ cloud hoặc nền tảng nhiều node. Chưa có webhook, bộ tích hợp Odoo đóng gói sẵn, trình cài driver qua web hoặc chuyển PDF thành ZPL.
+<h2 id="table-of-contents" class="front-title">Mục lục</h2>
 
-## 2. Chọn cách chạy theo hệ điều hành
+<!-- BEGIN MAIN TOC -->
+- [1. Mục đích, phạm vi và cách đọc](#1-muc-ich-pham-vi-va-cach-oc)
+    - [1.1 Bài toán hệ thống giải quyết](#11-bai-toan-he-thong-giai-quyet)
+    - [1.2 Phạm vi và đối tượng](#12-pham-vi-va-oi-tuong)
+    - [1.3 Thứ tự đọc](#13-thu-tu-oc)
+- [2. Những thành phần và khái niệm nền tảng](#2-nhung-thanh-phan-va-khai-niem-nen-tang)
+    - [2.1 Người gửi, người quản trị và máy in](#21-nguoi-gui-nguoi-quan-tri-va-may-in)
+    - [2.2 Lệnh in và cấu hình giữ cho lệnh](#22-lenh-in-va-cau-hinh-giu-cho-lenh)
+    - [2.3 Khóa truy cập và hai loại mã](#23-khoa-truy-cap-va-hai-loai-ma)
+    - [2.4 Bảng thuật ngữ cốt lõi](#24-bang-thuat-ngu-cot-loi)
+- [3. Hệ thống liên lạc và phân chia trách nhiệm](#3-he-thong-lien-lac-va-phan-chia-trach-nhiem)
+    - [3.1 Ứng dụng gửi yêu cầu qua đâu?](#31-ung-dung-gui-yeu-cau-qua-au)
+    - [3.2 Phần mềm nào nói chuyện với máy in?](#32-phan-mem-nao-noi-chuyen-voi-may-in)
+    - [3.3 Dữ liệu và hai đường truy cập](#33-du-lieu-va-hai-uong-truy-cap)
+    - [3.4 File PDF và nội dung ZPL](#34-file-pdf-va-noi-dung-zpl)
+- [4. Điều kiện cần chuẩn bị trước khi cài và sử dụng](#4-ieu-kien-can-chuan-bi-truoc-khi-cai-va-su-dung)
+    - [4.1 Phân biệt nơi dùng với nơi chạy hệ thống in](#41-phan-biet-noi-dung-voi-noi-chay-he-thong-in)
+    - [4.2 Kiểm tra trước khi triển khai](#42-kiem-tra-truoc-khi-trien-khai)
+- [5. Một lệnh in đi qua hệ thống như thế nào?](#5-mot-lenh-in-i-qua-he-thong-nhu-the-nao)
+    - [5.1 Tiếp nhận và chống gửi trùng](#51-tiep-nhan-va-chong-gui-trung)
+    - [5.2 Các trạng thái cần phân biệt](#52-cac-trang-thai-can-phan-biet)
+    - [5.3 Giao xuống CUPS và theo dõi](#53-giao-xuong-cups-va-theo-doi)
+    - [5.4 Thứ tự xử lý giữa các máy](#54-thu-tu-xu-ly-giua-cac-may)
+- [6. Đăng ký máy và lựa chọn in](#6-ang-ky-may-va-lua-chon-in)
+    - [6.1 Hai cách đưa máy vào hệ thống](#61-hai-cach-ua-may-vao-he-thong)
+    - [6.2 Khả năng, mặc định và quyền lựa chọn](#62-kha-nang-mac-inh-va-quyen-lua-chon)
+    - [6.3 Khổ giấy và cách đặt nội dung PDF](#63-kho-giay-va-cach-at-noi-dung-pdf)
+    - [6.4 Sửa hoặc gỡ đăng ký](#64-sua-hoac-go-ang-ky)
+- [7. Cấp quyền và gửi lệnh từ client](#7-cap-quyen-va-gui-lenh-tu-client)
+    - [7.1 Chuẩn bị quyền trước khi gửi](#71-chuan-bi-quyen-truoc-khi-gui)
+    - [7.2 Dùng trang gửi thử](#72-dung-trang-gui-thu)
+    - [7.3 Nếu mất phản hồi hoặc tải lại trang](#73-neu-mat-phan-hoi-hoac-tai-lai-trang)
+- [8. Vận hành và xử lý tình huống bất thường](#8-van-hanh-va-xu-ly-tinh-huong-bat-thuong)
+    - [8.1 Kiểm tra hàng ngày](#81-kiem-tra-hang-ngay)
+    - [8.2 Dừng, tiếp tục và hủy](#82-dung-tiep-tuc-va-huy)
+    - [8.3 Đối soát chưa rõ kết quả](#83-oi-soat-chua-ro-ket-qua)
+    - [8.4 Tra cứu lỗi theo nhóm](#84-tra-cuu-loi-theo-nhom)
+- [9. Sao lưu, cập nhật và phục hồi](#9-sao-luu-cap-nhat-va-phuc-hoi)
+    - [9.1 Trước mọi thay đổi bảo trì](#91-truoc-moi-thay-oi-bao-tri)
+    - [9.2 Bản sao nào đủ cho việc phục hồi?](#92-ban-sao-nao-u-cho-viec-phuc-hoi)
+    - [9.3 Cập nhật một phiên bản thống nhất](#93-cap-nhat-mot-phien-ban-thong-nhat)
+- [10. An toàn, giới hạn và điều kiện nghiệm thu](#10-an-toan-gioi-han-va-ieu-kien-nghiem-thu)
+    - [10.1 Những bảo đảm cần hiểu đúng](#101-nhung-bao-am-can-hieu-ung)
+    - [10.2 Bảo vệ quyền và dữ liệu](#102-bao-ve-quyen-va-du-lieu)
+    - [10.3 Những gì đã kiểm và việc còn phải nghiệm thu](#103-nhung-gi-a-kiem-va-viec-con-phai-nghiem-thu)
+- [Phụ lục A — Lấy mã nguồn và cài thiết bị](#phu-luc-a-lay-ma-nguon-va-cai-thiet-bi)
+    - [A.1 Cài Git và clone project](#a1-cai-git-va-clone-project)
+    - [A.2 Cài mới trên Linux/EDATEC](#a2-cai-moi-tren-linuxedatec)
+        - [A.2.1 Chuẩn bị mạng và SSH](#a21-chuan-bi-mang-va-ssh)
+        - [A.2.2 Ghi nhận hiện trạng trên Linux (chỉ đọc)](#a22-ghi-nhan-hien-trang-tren-linux-chi-oc)
+        - [A.2.3 Cài dependency hệ thống](#a23-cai-dependency-he-thong)
+        - [A.2.4 Tạo user và thư mục mới](#a24-tao-user-va-thu-muc-moi)
+        - [A.2.5 Cài phần mềm từ project trên thiết bị](#a25-cai-phan-mem-tu-project-tren-thiet-bi)
+        - [A.2.6 Kiểm tra cài đặt trước khi chạy](#a26-kiem-tra-cai-at-truoc-khi-chay)
+        - [A.2.7 Đặt mật khẩu, cài service loopback](#a27-at-mat-khau-cai-service-loopback)
+        - [A.2.8 Truy cập an toàn từ máy cá nhân](#a28-truy-cap-an-toan-tu-may-ca-nhan)
+        - [A.2.9 Chốt cài đặt](#a29-chot-cai-at)
+- [Phụ lục B — Driver, cấu hình máy và giới hạn](#phu-luc-b-driver-cau-hinh-may-va-gioi-han)
+    - [B.1 — Cấu hình máy in và driver](#b1-cau-hinh-may-in-va-driver)
+        - [B.1.1 Kiểm tra kết nối trước](#b11-kiem-tra-ket-noi-truoc)
+        - [B.1.2 Driver Canon LBP6230dw trên ARM64](#b12-driver-canon-lbp6230dw-tren-arm64)
+        - [B.1.3 Thêm máy trong UI](#b13-them-may-trong-ui)
+        - [B.1.4 Sửa và xóa](#b14-sua-va-xoa)
+    - [B.2 — Tùy chọn in theo capability](#b2-tuy-chon-in-theo-capability)
+        - [B.2.1 Khổ giấy, duplex và căn PDF](#b21-kho-giay-duplex-va-can-pdf)
+        - [B.2.2 Schema unavailable hoặc stale](#b22-schema-unavailable-hoac-stale)
+    - [B.3 — Cấu hình runtime và giới hạn](#b3-cau-hinh-runtime-va-gioi-han)
+        - [B.3.1 Biến môi trường/CLI](#b31-bien-moi-truongcli)
+        - [B.3.2 Giới hạn qua web](#b32-gioi-han-qua-web)
+- [Phụ lục C — API và ví dụ tích hợp](#phu-luc-c-api-va-vi-du-tich-hop)
+    - [C.1 — API client: hợp đồng và kết quả](#c1-api-client-hop-ong-va-ket-qua)
+        - [C.1.1 Multipart của job mới](#c11-multipart-cua-job-moi)
+        - [C.1.2 Mã lỗi](#c12-ma-loi)
+    - [C.2 — Gọi API từ macOS và Windows](#c2-goi-api-tu-macos-va-windows)
+        - [C.2.1 macOS: biến, key và danh sách](#c21-macos-bien-key-va-danh-sach)
+        - [C.2.2 Windows PowerShell: gọi bằng curl.exe](#c22-windows-powershell-goi-bang-curlexe)
+        - [C.2.3 PDF options và ZPL](#c23-pdf-options-va-zpl)
+    - [C.3 — API quản trị và tích hợp Odoo/PDA](#c3-api-quan-tri-va-tich-hop-odoopda)
+        - [C.3.1 Quản trị](#c31-quan-tri)
+        - [C.3.2 Mẫu luồng tích hợp](#c32-mau-luong-tich-hop)
+- [Phụ lục D — Runbook vận hành và bảo trì](#phu-luc-d-runbook-van-hanh-va-bao-tri)
+    - [D.1 — Vận hành hàng ngày và xử lý sự cố](#d1-van-hanh-hang-ngay-va-xu-ly-su-co)
+        - [D.1.1 Các kiểm tra thường dùng trên Linux](#d11-cac-kiem-tra-thuong-dung-tren-linux)
+        - [D.1.2 Pause, resume, cancel](#d12-pause-resume-cancel)
+        - [D.1.3 Unknown và job identity](#d13-unknown-va-job-identity)
+        - [D.1.4 Bảng lỗi nhanh](#d14-bang-loi-nhanh)
+    - [D.2 — Sao lưu và phục hồi](#d2-sao-luu-va-phuc-hoi)
+        - [D.2.1 Backup SQLite online](#d21-backup-sqlite-online)
+        - [D.2.2 Backup đầy đủ khi đã maintenance](#d22-backup-ay-u-khi-a-maintenance)
+        - [D.2.3 Restore có kiểm soát](#d23-restore-co-kiem-soat)
+    - [D.3 Cập nhật và quay lại phiên bản trước](#d3-cap-nhat-va-quay-lai-phien-ban-truoc)
+- [Phụ lục E — Thuật ngữ và viết tắt bổ sung](#phu-luc-e-thuat-ngu-va-viet-tat-bo-sung)
+- [Phụ lục F — Checklist bàn giao và sử dụng tài liệu](#phu-luc-f-checklist-ban-giao-va-su-dung-tai-lieu)
+    - [F.1 — Checklist chạy từ đầu](#f1-checklist-chay-tu-au)
+    - [F.2 Đọc và tra cứu tài liệu](#f2-oc-va-tra-cuu-tai-lieu)
+- [Tài liệu tham khảo](#tai-lieu-tham-khao)
+- [Chỉ mục tra cứu](#chi-muc-tra-cuu)
+<!-- END MAIN TOC -->
 
-| Môi trường | Vai trò phù hợp | In thật trong phạm vi báo cáo |
+Số trang trong HTML tham chiếu bản PDF chuẩn đi kèm. Markdown dùng liên kết đến từng mục. Nếu tự in HTML với cỡ giấy, font hoặc thiết lập khác, số trang có thể thay đổi.
+
+<h2 id="list-of-figures" class="front-title">Danh mục hình</h2>
+
+<!-- BEGIN FIGURE LIST -->
+- [Hình 1 — Kiến trúc tổng thể](#figure-1)
+- [Hình 2 — Tiếp nhận và chống gửi trùng](#figure-2)
+- [Hình 3 — Vòng đời lệnh in](#figure-3)
+- [Hình 4 — Giao CUPS có kiểm soát](#figure-4)
+- [Hình 5 — Hàng đợi theo máy](#figure-5)
+- [Hình 6 — Lựa chọn và quyền sử dụng](#figure-6)
+- [Hình 7 — Cấp quyền và gửi lệnh](#figure-7)
+- [Hình 8 — Đối soát chưa rõ kết quả](#figure-8)
+- [Hình 9 — Sao lưu và phục hồi](#figure-9)
+- [Hình 10 — Cập nhật và rollback](#figure-10)
+<!-- END FIGURE LIST -->
+
+<h2 id="list-of-tables" class="front-title">Danh mục bảng</h2>
+
+<!-- BEGIN TABLE LIST -->
+- [Bảng 1 — Lịch sử phiên bản tài liệu](#table-1)
+- [Bảng 2 — Thuật ngữ cốt lõi](#table-2)
+- [Bảng 3 — Môi trường và vai trò triển khai](#table-3)
+- [Bảng 4 — Trạng thái của lệnh in](#table-4)
+- [Bảng 5 — Ví dụ tùy chọn và giới hạn driver](#table-5)
+- [Bảng 6 — Biến cấu hình runtime](#table-6)
+- [Bảng 7 — Giới hạn có thể chỉnh qua web](#table-7)
+- [Bảng 8 — Các API của client](#table-8)
+- [Bảng 9 — Trường của một yêu cầu in](#table-9)
+- [Bảng 10 — Mã phản hồi và cách xử lý](#table-10)
+- [Bảng 11 — Nhóm API quản trị](#table-11)
+- [Bảng 12 — Bảng tra cứu sự cố](#table-12)
+- [Bảng 13 — Thuật ngữ kỹ thuật bổ sung](#table-13)
+<!-- END TABLE LIST -->
+
+<!-- FRONT-MATTER-END -->
+
+<a name="1-muc-ich-pham-vi-va-cach-oc" class="heading-anchor"></a>
+
+## 1. Mục đích, phạm vi và cách đọc
+
+<a name="11-bai-toan-he-thong-giai-quyet" class="heading-anchor"></a>
+
+### 1.1 Bài toán hệ thống giải quyết
+
+Khi nhiều ứng dụng cần dùng chung máy in, mỗi ứng dụng không nên phải tự cài và quản lý kết nối với từng máy. Print Appliance đặt một thiết bị quản lý tại nơi in để nhận yêu cầu, xếp thứ tự xử lý và ghi lại kết quả.
+
+**Thiết bị quản lý in** là máy tính đứng giữa ứng dụng gửi yêu cầu và máy in vật lý. Trong triển khai được mô tả, thiết bị này là EDATEC. EDATEC chạy phần mềm Print Appliance; bản thân EDATEC không phải máy in.
+
+Hệ thống làm ba việc: nhận đúng yêu cầu từ đúng người gửi, điều phối yêu cầu tới đúng máy, và cho người quản trị biết yêu cầu đang ở bước nào. Một phản hồi “đã nhận” chưa có nghĩa giấy đã ra khỏi máy.
+
+<a name="12-pham-vi-va-oi-tuong" class="heading-anchor"></a>
+
+### 1.2 Phạm vi và đối tượng
+
+Phạm vi hiện tại là một thiết bị hoạt động trong **mạng nội bộ**: mạng của văn phòng, kho hoặc nơi đặt máy in. Tài liệu không hướng dẫn công bố dịch vụ ra Internet hay vận hành nhiều thiết bị như một cụm.
+
+Người sử dụng cần biết cách chọn máy và gửi file. Người quản trị cần hiểu quyền truy cập, hàng đợi, lỗi và bảo trì. Đơn vị tích hợp cần hiểu cách ứng dụng gửi yêu cầu và kiểm tra kết quả. Không cần đọc cách tổ chức mã nguồn để hiểu phần chính. Đây là hướng dẫn cài đặt, sử dụng và vận hành, không phải tài liệu dạy lập trình.
+
+<a name="13-thu-tu-oc" class="heading-anchor"></a>
+
+### 1.3 Thứ tự đọc
+
+Đọc mục 2–4 để hiểu thành phần, cách liên lạc và điều kiện cần chuẩn bị. Mục 5 giải thích một yêu cầu đi qua hệ thống như thế nào; mục 6–8 đi từ cấu hình đến sử dụng và xử lý lỗi. Mục 9–10 dành cho bảo trì, an toàn và nghiệm thu.
+
+Sau khi hiểu luồng, dùng phụ lục đúng việc cần làm: A để cài đặt; B để cấu hình máy và giới hạn; C để tích hợp ứng dụng; D để vận hành/bảo trì. Phụ lục E giải nghĩa thuật ngữ kỹ thuật bổ sung. Phụ lục F cung cấp thông tin bàn giao và cách tái tạo tài liệu.
+
+<a name="2-nhung-thanh-phan-va-khai-niem-nen-tang" class="heading-anchor"></a>
+
+## 2. Những thành phần và khái niệm nền tảng
+
+<a name="21-nguoi-gui-nguoi-quan-tri-va-may-in" class="heading-anchor"></a>
+
+### 2.1 Người gửi, người quản trị và máy in
+
+**Ứng dụng gửi yêu cầu**, gọi ngắn là **client**, là ứng dụng được cấp quyền sử dụng thiết bị quản lý in. Client có thể là phần mềm nghiệp vụ hoặc trang gửi thử của sản phẩm; không nhất thiết là một người dùng.
+
+**Người quản trị** là người đăng nhập trang quản lý để đăng ký máy, cấp quyền cho client và xử lý các tình huống cần quyết định. Tài khoản quản trị không phải danh tính client.
+
+**Máy in vật lý** là thiết bị thật làm ra bản in. **Máy in đăng ký** là thông tin đại diện cho máy đó trong Print Appliance, gồm tên, kết nối và lựa chọn in. Mỗi đăng ký có một mã ổn định, gọi là **mã máy**; Dữ liệu trao đổi dùng tên trường `printer_id` cho mã này.
+
+Máy đăng ký có thể sửa cấu hình mà không đổi mã máy. Tuy nhiên, hệ thống không được âm thầm đổi nơi in của một yêu cầu đã nhận. Vì vậy cần phân biệt đăng ký hiện tại với cấu hình đã được giữ cho từng yêu cầu.
+
+<a name="22-lenh-in-va-cau-hinh-giu-cho-lenh" class="heading-anchor"></a>
+
+### 2.2 Lệnh in và cấu hình giữ cho lệnh
+
+**Lệnh in** là yêu cầu đã được thiết bị nhận và lưu, gồm file (tệp nội dung cần in), máy được chọn, số bản, lựa chọn in và người gửi. Hệ thống cấp **mã lệnh** để tra cứu lệnh; Dữ liệu trao đổi gọi trường này là `job_id`.
+
+**Ảnh chụp cấu hình**, hay **snapshot**, là bản cấu hình được giữ cho một lệnh tại thời điểm nhận. Tên gọi này không chỉ ảnh chụp màn hình: nó là dữ liệu về nơi in và các lựa chọn có hiệu lực. Sửa mặc định của máy sau đó không tự thay lựa chọn của lệnh cũ.
+
+**Hàng đợi** là danh sách lệnh chờ xử lý. Mỗi máy đăng ký có thứ tự riêng. “Đã nhận”, “đang xử lý” và “đã hoàn thành” là các bước khác nhau trong vòng đời lệnh.
+
+<a name="23-khoa-truy-cap-va-hai-loai-ma" class="heading-anchor"></a>
+
+### 2.3 Khóa truy cập và hai loại mã
+
+**API** là giao diện để ứng dụng gửi yêu cầu và nhận phản hồi từ thiết bị. **Khóa truy cập client**, hay **API key**, là chuỗi bí mật giúp hệ thống nhận biết client. Người quản trị cấp khóa này cho ứng dụng; phải giữ nó như mật khẩu. Khóa client khác mật khẩu dùng đăng nhập trang quản trị và khác mật khẩu kết nối tới hệ điều hành của thiết bị.
+
+**Mã yêu cầu** do client đặt trước khi gửi để nhận diện một thao tác in. Khi gửi lại vì mất kết nối, client phải giữ mã này cùng file và các tham số gốc. Đây là cách tránh tạo thêm lệnh cho cùng một yêu cầu; cơ chế đó gọi là **chống gửi trùng**.
+
+Mã yêu cầu không phải mã lệnh: mã yêu cầu có trước khi gửi; mã lệnh do thiết bị cấp sau khi nhận. Mã yêu cầu cũng không phải khóa truy cập, vì nó không dùng để chứng minh danh tính.
+
+<a name="24-bang-thuat-ngu-cot-loi" class="heading-anchor"></a>
+
+### 2.4 Bảng thuật ngữ cốt lõi
+
+<a id="table-2"></a>
+
+**Bảng 2 — Thuật ngữ cốt lõi**
+
+| Khái niệm | Hiểu ngắn gọn | Không đồng nghĩa với |
 | --- | --- | --- |
-| macOS | Chạy local, test, build; quản trị Linux bằng trình duyệt/SSH; gọi API | Gửi API tới appliance Linux. Không coi CUPS macOS là môi trường triển khai được hỗ trợ |
-| Windows 10/11 + PowerShell | Trình duyệt, SSH, SCP và gọi API | Gửi API tới appliance Linux |
-| Windows + WSL2 Ubuntu | Chạy mã Python, test, build và trình duyệt qua localhost | Local dùng để phát triển; không chứng nhận USB/CUPS/driver trong WSL |
-| Debian 12 ARM64 + Python 3.11 | Môi trường triển khai Linux đã được dùng trên EDATEC | CUPS và driver đúng kiến trúc; từng model cần kiểm thử |
-| Linux khác | Có thể phát triển; triển khai sau khi kiểm tra Python/CUPS/driver/quyền | Không suy ra tương thích chỉ từ việc cài được wheel |
+| Thiết bị quản lý in | Nhận và điều phối yêu cầu tại nơi in | Máy in vật lý |
+| Client | Ứng dụng được cấp danh tính gửi yêu cầu | Tài khoản quản trị |
+| Máy in đăng ký | Thông tin đại diện máy trong hệ thống | Chỉ một địa chỉ mạng |
+| Lệnh in | Yêu cầu đã được nhận và lưu | Một lần gửi qua mạng |
+| Snapshot | Cấu hình giữ cho một lệnh | Cấu hình mới nhất của máy |
+| Khóa truy cập | Chứng minh danh tính client | Mã yêu cầu hay mã lệnh |
+| Mã yêu cầu | Nhận diện thao tác, dùng chống trùng | Mã lệnh do thiết bị cấp |
 
-**Không chạy service trực tiếp bằng Python native Windows.** Worker dùng `fcntl.flock`, quyền file POSIX, đồng bộ thư mục và Unix socket CUPS. Windows không có đầy đủ các cơ chế này. Dùng WSL2 cho phát triển; dùng Linux thật cho appliance.
+<a name="3-he-thong-lien-lac-va-phan-chia-trach-nhiem" class="heading-anchor"></a>
 
-macOS có một số cơ chế POSIX nhưng socket mặc định `/run/cups/cups.sock` là đường dẫn Linux. Bản cài local không tự tìm hoặc dùng máy in của Mac. Khi không có pycups/CUPS phù hợp, trang quản trị vẫn chạy và báo CUPS không khả dụng; đó là trạng thái đúng, không phải mô phỏng đã in thành công.
+## 3. Hệ thống liên lạc và phân chia trách nhiệm
 
-### 2.1 Lộ trình ngắn
+<a name="31-ung-dung-gui-yeu-cau-qua-au" class="heading-anchor"></a>
 
-- **Chỉ cần sử dụng:** mở trang quản trị và `/client` trên thiết bị đã cài; xem phần 10–12.
-- **Muốn chạy thử mã nguồn:** làm phần 6 trên Mac hoặc phần 7 trên Windows/WSL.
-- **Muốn cài thiết bị mới:** build ở phần 8, rồi triển khai Debian ở phần 9.
-- **Muốn tích hợp ứng dụng:** đọc phần 13–15; giữ request ID trong dữ liệu nghiệp vụ của client.
-- **Muốn bảo trì:** đọc phần 16–20 trước khi restart, restore hoặc nâng phiên bản.
+### 3.1 Ứng dụng gửi yêu cầu qua đâu?
 
-## 3. Kiến trúc và trách nhiệm
+**API** là giao diện để ứng dụng gửi yêu cầu và nhận phản hồi từ một phần mềm khác. Client dùng API của Print Appliance thay vì tự liên lạc với driver của máy in.
 
-![Kiến trúc appliance: client, quản trị, lưu trữ, worker, CUPS và máy in](diagrams/01-architecture.svg)
+API ở đây dùng **HTTP**, giao thức trao đổi yêu cầu/phản hồi cũng được trình duyệt dùng khi mở trang web. Phản hồi có mã số để phân biệt kết quả: chẳng hạn **202** nghĩa là lệnh mới đã được nhận, **200** có thể là kết quả của yêu cầu đã nhận trước đó, và **409** báo cùng mã yêu cầu nhưng nội dung không khớp. Các mã cụ thể được tra cứu ở phụ lục C.
 
-_Hình 1 — Hai đường truy cập dùng cơ chế xác thực riêng; driver và việc truyền tới máy nằm ở phía CUPS._
+Người dùng có thể thao tác qua trang gửi thử thay vì viết chương trình. Trang gửi thử cũng hoạt động như một client, không được tự có quyền quản trị hoặc quyền dùng mọi máy.
 
-Các hình trong báo cáo là SVG, có thể phóng to mà không vỡ chữ. Trên GitHub có thể mở riêng từng hình; HTML đã nhúng hình để đọc offline. Màn hình nhỏ có thể cuộn ngang bên trong sơ đồ.
+<a name="32-phan-mem-nao-noi-chuyen-voi-may-in" class="heading-anchor"></a>
 
-CUPS chịu trách nhiệm driver, filter, hàng đợi hệ thống và truyền dữ liệu tới máy. Appliance chịu trách nhiệm quyền client, tiếp nhận bền vững, chống trùng, cấu hình đăng ký, chính sách điều phối và lịch sử. Không thay CUPS bằng một spooler tự viết.
+### 3.2 Phần mềm nào nói chuyện với máy in?
 
-Driver chạy cùng CUPS trên Linux. Vì vậy driver dành cho Windows, macOS hoặc x86 không thay thế được driver ARM64 trên EDATEC. Một file PPD chỉ mô tả lựa chọn; driver có thể còn cần executable filter và thư viện.
+Thiết bị chạy **Linux**, một hệ điều hành. Print Appliance quản lý quyền, tiếp nhận, hàng đợi và lịch sử. **CUPS** là hệ thống in chạy trên Linux, chịu trách nhiệm hàng đợi cấp hệ thống và truyền dữ liệu đến máy.
 
-### 3.1 Bản đồ mã nguồn
+**Driver máy in** là phần mềm giúp hệ thống in xử lý nội dung theo ngôn ngữ máy hiểu. Driver phải đúng dòng máy và đúng môi trường của thiết bị; driver dành cho Windows không thay được driver Linux trên EDATEC.
 
-| Đường dẫn | Trách nhiệm |
-| --- | --- |
-| `src/print_appliance/app.py` | Route FastAPI, xác thực/CSRF, giới hạn HTTP, lifecycle và khóa process |
-| `src/print_appliance/service.py` | Tiếp nhận, quyền, snapshot, idempotency, FIFO, điều phối và đối soát |
-| `src/print_appliance/cups.py` | Adapter CUPS thật, discovery, mapping, capability, job/control |
-| `src/print_appliance/db.py` | Schema SQLite, migrations đơn giản, giới hạn mặc định |
-| `src/print_appliance/auth.py` | Hash mật khẩu, session/token và kiểm tra phiên |
-| `src/print_appliance/config.py` | Thư mục dữ liệu, địa chỉ/port và biến môi trường |
-| `src/print_appliance/cli.py` | Chạy service, đặt/reset mật khẩu và backup SQLite |
-| `src/print_appliance/static/` | HTML/CSS/JS offline của admin và client |
-| `deploy/print-appliance.service` | Mẫu service systemd không chạy root |
-| `tests/` | API, CRUD, coordinator, adapter và regression bằng fake/mock |
-| `tests/browser/` | Kiểm thử Chrome/Playwright, chỉ cho phép URL loopback |
-| `CONTEXT.md` | Thuật ngữ miền nghiệp vụ |
-| `docs/adr/` | Quyết định kiến trúc |
-| `uv.lock` | Phiên bản dependency dùng khi tái tạo môi trường |
+Kết nối tới máy có thể dùng cáp **USB**, cổng nối trực tiếp với thiết bị, hoặc mạng nội bộ, thường viết tắt là **LAN**. Máy tính cá nhân mở được trang quản trị không chứng minh thiết bị quản lý in đã kết nối được tới máy in.
 
-Frontend dùng JavaScript thuần, không cần build Node để vận hành. Node/Playwright chỉ phục vụ kiểm thử trình duyệt. Wheel chứa các asset offline; không cần CDN hay Internet sau khi đã cài đủ package/driver.
+<a name="33-du-lieu-va-hai-uong-truy-cap" class="heading-anchor"></a>
 
-### 3.2 Dữ liệu và cơ chế bền vững
+### 3.3 Dữ liệu và hai đường truy cập
 
-SQLite dùng WAL, `synchronous=FULL`, foreign keys và transaction. Các bảng chính là `printers`, `clients`, `client_printers`, `jobs`, `idempotency`, `events`, `admin`, `sessions`, `login_guard`, `settings`, `audit_events`.
+**Lưu bền vững** nghĩa là lệnh và file được ghi an toàn vào bộ nhớ lưu trữ trước khi báo đã nhận; dữ liệu không chỉ tồn tại trong bộ nhớ tạm của chương trình. Điều này giúp khôi phục trạng thái sau khi phần mềm khởi động lại, nhưng không làm việc in vật lý trở thành một giao dịch có thể hoàn tác.
 
-- File tải lên được ghi, kiểm hash và `fsync`; thư mục spool được đồng bộ trước phản hồi tiếp nhận.
-- Job có `sequence` tăng theo thứ tự tiếp nhận; FIFO không dựa vào đồng hồ tường.
-- Mỗi job giữ snapshot queue, URI, driver fingerprint, định dạng và tùy chọn hiệu lực.
-- Request digest dùng trường gốc, tên file và SHA-256 nội dung. Cấu hình thay đổi sau đó không làm một retry biến thành lệnh khác.
-- Worker giữ khóa độc quyền `worker.lock`. Hai instance dùng cùng data directory sẽ bị chặn. Không tăng `--workers`, không chạy thêm coordinator trên cùng dữ liệu.
+Client dùng khóa truy cập và chỉ dùng máy được cấp. Người quản trị dùng một **phiên đăng nhập**, tức trạng thái hệ thống ghi nhận sau khi đăng nhập đúng mật khẩu. Thao tác quản trị còn có kiểm tra bảo vệ để hạn chế việc một trang khác gửi thao tác thay người đã đăng nhập.
 
-![Luồng nhận job mới, replay cùng request ID và từ chối xung đột](diagrams/02-admission.svg)
+<a id="figure-1"></a>
 
-_Hình 2 — Request ID chống tạo lệnh trùng trong phạm vi client. Chỉ job mới được lưu bền vững mới trả 202; replay không tạo một lần giao mới._
+![Phân chia trách nhiệm giữa ứng dụng, thiết bị quản lý in, CUPS và máy in](diagrams/01-architecture.svg)
 
-Các bảo đảm phụ thuộc ổ đĩa, filesystem và hệ điều hành thực hiện đồng bộ đúng. Mất điện vật lý cần kiểm thử riêng; SQLite transaction không tạo được transaction chung với máy in.
+_Hình 1 — Ứng dụng gửi yêu cầu, Print Appliance nhận và điều phối, CUPS xử lý driver và truyền tới máy. Hai đường truy cập có quyền riêng._
 
-## 4. Trạng thái lệnh và giới hạn bảo đảm
+<a name="34-file-pdf-va-noi-dung-zpl" class="heading-anchor"></a>
 
-| Status | Ý nghĩa | Cách xử lý |
+### 3.4 File PDF và nội dung ZPL
+
+**PDF** là định dạng tài liệu trang thường dùng cho hướng dẫn hoặc phiếu in. CUPS cùng driver phù hợp xử lý PDF để gửi đến máy.
+
+**ZPL** là ngôn ngữ lệnh dành cho các máy in nhãn có hỗ trợ nó. ZPL không phải một loại PDF và không được tự chuyển thành nội dung mà mọi máy in đều hiểu. Chỉ cấp định dạng này cho máy đã xác minh hỗ trợ.
+
+Sản phẩm nhận hai loại trên nhưng không thiết kế biểu mẫu, không chuyển PDF thành ZPL và không cung cấp phần mềm quản lý kho. Nếu một ứng dụng nghiệp vụ tạo file, ứng dụng đó vẫn chịu trách nhiệm nội dung file.
+
+<a name="4-ieu-kien-can-chuan-bi-truoc-khi-cai-va-su-dung" class="heading-anchor"></a>
+
+## 4. Điều kiện cần chuẩn bị trước khi cài và sử dụng
+
+<a name="41-phan-biet-noi-dung-voi-noi-chay-he-thong-in" class="heading-anchor"></a>
+
+### 4.1 Phân biệt nơi dùng với nơi chạy hệ thống in
+
+Trình duyệt trên máy cá nhân dùng để quản trị hoặc gửi thử. Thiết bị Linux là nơi chạy hệ thống in thật. Việc chọn máy cá nhân để phát triển không thay đổi nơi đặt driver và kết nối vật lý.
+
+Không cần cài môi trường lập trình trên Mac/Windows để sử dụng hệ thống hoặc lấy mã nguồn. Trình duyệt dùng để quản trị và gửi thử; công cụ gọi API phục vụ đơn vị tích hợp. Bản này không hướng dẫn chạy hệ thống in trực tiếp trên Windows.
+
+<a id="table-3"></a>
+
+**Bảng 3 — Môi trường và vai trò triển khai**
+
+| Môi trường | Việc phù hợp | Giới hạn |
 | --- | --- | --- |
-| `queued` | Đã lưu, chưa giao CUPS | Chờ FIFO; có thể hủy trước giao |
-| `held` | Đang giữ do pause, lỗi hoặc cấu hình | Sửa nguyên nhân; quản trị cho tiếp tục |
-| `submitting` | Đã ghi ý định giao; chưa chốt phản hồi | Để service đối soát, không gửi lệnh mới |
-| `submitted` | Có CUPS job, đang theo dõi | Poll trạng thái; cancel cần xác nhận CUPS |
-| `completed` | CUPS báo hoàn thành | Không đồng nghĩa chứng minh mọi trang đã ra giấy |
-| `failed` | Kết thúc với lỗi xác định | Kiểm tra reason và sự kiện trước khi quyết định in thêm |
-| `canceled` | Đã hủy với mức xác nhận ghi nhận | Không thu hồi được giấy đã in |
-| `unknown` | Không đủ bằng chứng về kết quả giao/in | Chặn tiến trình máy đó; quản trị đối soát thủ công |
+| macOS | Đọc tài liệu, dùng web/API và lấy mã nguồn | Không dùng CUPS của Mac làm môi trường triển khai được chứng nhận |
+| Windows | Dùng trình duyệt và gọi API; quản trị thiết bị từ xa | Không cài phần mềm in trực tiếp trên Windows |
+| Linux trên thiết bị | Chạy Print Appliance, CUPS và driver | Từng model, kiến trúc phần cứng và quyền kết nối phải được kiểm tra |
 
-Ba status terminal là `completed`, `failed`, `canceled`. `unknown` không phải terminal và vẫn giữ payload.
+<a name="42-kiem-tra-truoc-khi-trien-khai" class="heading-anchor"></a>
 
-![Vòng đời queued, held, submitting, submitted, unknown và các kết quả terminal](diagrams/03-job-lifecycle.svg)
+### 4.2 Kiểm tra trước khi triển khai
 
-_Hình 3 — Vòng đời nghiệp vụ rút gọn, không liệt kê mọi chuyển trạng thái nội bộ. Unknown cần đối soát, không phải một trạng thái được tự retry._
+Triển khai đã dùng Debian 12, một bản phân phối Linux, với Python 3.11 trên EDATEC ARM64. **Python** là môi trường thực thi phần mềm; **ARM64** là kiến trúc bộ xử lý, giúp chọn đúng gói driver. Đây là thông tin của môi trường đã kiểm tra, không phải bảo đảm mọi thiết bị Linux tương thích.
 
-### 4.1 Vì sao không hứa exactly-once vật lý
+Cần nguồn điện ổn định, bộ nhớ lưu trữ có chỗ trống cho file chờ in, kết nối mạng phù hợp và driver đúng dòng máy. Chưa có đo kiểm hiệu năng để cam kết một mức bộ nhớ/bộ xử lý hoặc dung lượng tối thiểu cho mọi khối lượng in; phải đánh giá theo số lệnh và kích thước file thực tế.
 
-CUPS có thể nhận nội dung rồi mạng/process mất trước khi appliance lưu phản hồi. Máy in có thể ra giấy rồi CUPS mất lịch sử. Không thể kết luận “không thấy job = chưa in”.
+Lần cài đầu cần công cụ và gói phần mềm từ Internet, trừ khi đã chuẩn bị bộ cài riêng. Sau khi cài đầy đủ, trang quản trị không cần tải font hoặc thư viện ngoài để hoạt động. Địa chỉ mạng của thiết bị nên ổn định; đừng coi IP ví dụ trong tài liệu là địa chỉ bắt buộc.
 
-Đường giao bình thường là:
+Trước cài đặt, ghi nhận cấu hình hiện tại, sao lưu phần liên quan và thống nhất phạm vi thay đổi. Cài driver có thể restart CUPS, ảnh hưởng các lệnh đang dùng hệ thống in. Phụ lục A/B cung cấp lệnh chi tiết sau khi các điều kiện này đã được đáp ứng.
 
-1. Lưu ý định và correlation `pa-<job-id>`.
-2. Gửi CUPS job ở trạng thái giữ (`job-hold-until=indefinite`).
-3. Lưu CUPS job ID vào SQLite.
-4. Release đúng job bằng `setJobHoldUntil(id, 'no-hold')` khi được phép.
-5. Theo dõi bằng CUPS ID và correlation; đối soát khi restart.
+<a name="5-mot-lenh-in-i-qua-he-thong-nhu-the-nao" class="heading-anchor"></a>
 
-![Trình tự giao CUPS: lưu ý định, submit held, lưu CUPS ID, release và poll](diagrams/04-cups-handoff.svg)
+## 5. Một lệnh in đi qua hệ thống như thế nào?
 
-_Hình 4 — Thứ tự giao bình thường. 202 xác nhận tiếp nhận của appliance; release xuống CUPS là một bước sau đó, có điều kiện._
+<a name="51-tiep-nhan-va-chong-gui-trung" class="heading-anchor"></a>
 
-Khi không xác minh được danh tính hoặc kết quả, chuyển `unknown`, giữ file và chờ người vận hành. Không tự resend để “thử lại”. Job tìm lại ở trạng thái held sau restart cần resume thủ công.
+### 5.1 Tiếp nhận và chống gửi trùng
 
-### 4.2 Một máy vật lý, một đường điều phối
+Client chuẩn bị file, mã máy, số bản, lựa chọn in và một mã yêu cầu mới. Thiết bị xác thực khóa truy cập rồi kiểm quyền, định dạng, cấu hình và sức chứa.
 
-FIFO được bảo đảm theo **máy đăng ký**, không theo địa chỉ vật lý chung. Nếu hai `printer_id` hoặc hai queue cùng trỏ tới một Canon, chúng có thể xử lý song song và làm mất giả định “một lệnh tại một thời điểm” trên máy vật lý đó. Nên đăng ký một đích cho một máy và tránh nhiều sender ngoài appliance dùng cùng queue.
+Hệ thống tạo **dấu nhận dạng nội dung**, là giá trị kiểm tra được tính từ file và các tham số gốc. Nếu mã yêu cầu đã tồn tại trong phạm vi client, dấu nhận dạng khớp thì trả lại lệnh cũ; không khớp thì báo xung đột. Khi một yêu cầu được nhận lần đầu, hệ thống lưu file, lệnh và snapshot trước khi trả mã lệnh.
 
-![FIFO riêng theo từng máy đăng ký và xử lý độc lập giữa các máy](diagrams/05-printer-fifo.svg)
+<a id="figure-2"></a>
 
-_Hình 5 — Máy C có unknown không làm máy A/B dừng theo. Mỗi đích đăng ký có FIFO riêng; nhiều ID cùng trỏ một máy vật lý không tạo FIFO chung._
+![Tiếp nhận yêu cầu mới, chống trùng và trả kết quả](diagrams/02-admission.svg)
 
-## 5. Quy ước lệnh và dữ liệu mẫu
+_Hình 2 — Gửi lại cùng mã và nội dung không tạo thêm một lệnh. 202 xác nhận đã nhận, chưa xác nhận giấy đã in._
 
-- Khối `bash` chạy trong Terminal macOS, WSL hoặc shell Linux đúng nhãn.
-- Khối `powershell` chạy trong PowerShell của Windows; không dán vào CMD.
-- Các lệnh dưới phần **trên Linux** chạy sau khi SSH vào thiết bị, không chạy trên Mac/Windows.
-- Thay các biến mẫu trước khi dùng. `192.168.88.228` chỉ là IP triển khai từng dùng, không phải địa chỉ bắt buộc.
-- Chọn một commit cố định để tái tạo. Tài liệu dùng mốc 0.1.5; đừng thay bằng `main` giữa chừng.
-- Lệnh tải công cụ/package cần Internet. CUPS/admin UI vận hành offline sau cài đặt, nhưng lần cài đầu không phải bộ cài air-gap.
+<a name="52-cac-trang-thai-can-phan-biet" class="heading-anchor"></a>
 
-Mật khẩu web admin, mật khẩu SSH và API key client là ba thứ khác nhau. Tài liệu không dùng tài khoản `pi` hoặc mật khẩu mặc định như một bảo đảm chung: tài khoản SSH phải do chủ thiết bị cấp.
+### 5.2 Các trạng thái cần phân biệt
 
-## 6. Chạy local trên macOS
+Tên trạng thái tiếng Anh trong web/API là định danh thống nhất, được giải thích dưới đây. **Kết thúc** nghĩa là hệ thống đã ghi nhận một kết quả cuối; lệnh chưa rõ kết quả vẫn chưa được coi là kết thúc.
 
-### 6.1 Cài công cụ
+<a id="table-4"></a>
 
-Mở **Terminal**. Kiểm tra Git và Command Line Tools:
+**Bảng 4 — Trạng thái của lệnh in**
+
+| Trạng thái | Ý nghĩa với người vận hành | Hành động phù hợp |
+| --- | --- | --- |
+| queued | Đã lưu, đang chờ đến lượt | Theo dõi hàng đợi; có thể hủy trước giao |
+| held | Đang giữ do quyết định quản trị, lỗi hoặc cấu hình | Sửa nguyên nhân rồi quản trị cho tiếp tục |
+| submitting | Đang giao; kết quả lần giao chưa được chốt | Chờ đối soát, không tạo bản sao |
+| submitted | Có lệnh trong CUPS; mã lệnh CUPS đã lưu để theo dõi | Xem kết quả; hủy sau giao cần xác nhận |
+| completed | CUPS báo hoàn thành | Không mặc nhiên chứng minh mọi trang đã ra giấy |
+| failed | Kết thúc với lỗi xác định | Xem lý do trước khi quyết định gửi lệnh mới |
+| canceled | Đã ghi nhận hủy | Không thu hồi giấy đã in |
+| unknown | Chưa đủ bằng chứng về lần giao hoặc kết quả | Giữ file, chặn máy tương ứng, đối soát thủ công |
+
+<a id="figure-3"></a>
+
+![Vòng đời của lệnh và các trạng thái xử lý](diagrams/03-job-lifecycle.svg)
+
+_Hình 3 — Sơ đồ nghiệp vụ rút gọn. Unknown không phải lỗi được tự gửi lại để thử._
+
+<a name="53-giao-xuong-cups-va-theo-doi" class="heading-anchor"></a>
+
+### 5.3 Giao xuống CUPS và theo dõi
+
+Một lệnh có mã do Print Appliance cấp; khi giao xuống CUPS, CUPS còn cấp một mã riêng. **Dấu nhận diện đối soát**, gọi là **correlation**, nối hai bản ghi này với nhau để tránh đọc nhầm kết quả của một lệnh khác.
+
+Luồng bình thường là ghi ý định giao, tạo lệnh trong CUPS ở trạng thái giữ chưa in, lưu mã CUPS, rồi mới cho phép in nếu đủ điều kiện. Sau đó hệ thống đọc trạng thái CUPS và đối chiếu mã cùng dấu nhận diện để cập nhật kết quả.
+
+<a id="figure-4"></a>
+
+![Giao có giữ, lưu mã CUPS rồi mới cho phép in](diagrams/04-cups-handoff.svg)
+
+_Hình 4 — Báo đã nhận cho client và cho CUPS bắt đầu in là hai thời điểm khác nhau. Khi đứt giữa các bước, cần đối soát thay vì gửi lại nội dung._
+
+<a name="54-thu-tu-xu-ly-giua-cac-may" class="heading-anchor"></a>
+
+### 5.4 Thứ tự xử lý giữa các máy
+
+**FIFO** nghĩa là nhận trước xử lý trước. Print Appliance áp thứ tự này theo từng máy đăng ký. Trong một vòng điều phối, có thể xử lý độc lập tối đa bốn máy; không có nghĩa bốn lệnh được giao cùng lúc tới một máy.
+
+Lệnh unknown chặn máy liên quan, không tự làm các máy khác dừng. Nếu nhiều đăng ký cùng trỏ một máy vật lý, chúng không tạo hàng đợi FIFO chung. Vì vậy nên dùng một đích đăng ký dành riêng cho một máy và tránh nguồn gửi khác dùng chung hàng đợi CUPS.
+
+<a id="figure-5"></a>
+
+![Hàng đợi theo từng máy và xử lý độc lập](diagrams/05-printer-fifo.svg)
+
+_Hình 5 — Máy C cần đối soát không ngăn máy A/B xử lý. Thứ tự riêng không thay thế giới hạn của máy vật lý._
+
+<a name="6-ang-ky-may-va-lua-chon-in" class="heading-anchor"></a>
+
+## 6. Đăng ký máy và lựa chọn in
+
+<a name="61-hai-cach-ua-may-vao-he-thong" class="heading-anchor"></a>
+
+### 6.1 Hai cách đưa máy vào hệ thống
+
+Quản trị có thể tạo cấu hình mới để Print Appliance tạo hàng đợi CUPS dành riêng, hoặc nhập một hàng đợi CUPS đã có. Đây là hai cách thay thế nhau, không phải hai bước bắt buộc.
+
+**Khám phá thiết bị** là việc CUPS liệt kê máy/kết nối có thể nhận biết. **Địa chỉ kết nối** xác định nơi CUPS gửi nội dung, không phải mã máy đăng ký. Chọn được thiết bị chưa chứng minh driver đúng; thấy driver chưa chứng minh đã in ra giấy.
+
+Máy nhập từ hàng đợi có sẵn bắt đầu ở trạng thái giữ trong app; người quản trị phải kiểm tra chính sách và quyết định tiếp tục. Không dùng chung hàng đợi với hệ thống khác đang gửi lệnh ngoài Print Appliance.
+
+Thực hiện trên trang quản trị:
+
+1. Vào **Máy in → Thêm máy in**.
+2. Chọn tạo cấu hình mới hoặc nhập cấu hình CUPS đã có.
+3. Chọn thiết bị/kết nối và driver đúng dòng máy đã cài.
+4. Chỉ chọn PDF hoặc ZPL phù hợp với máy.
+5. Lưu rồi mở chi tiết để kiểm tên, kết nối và driver. Nếu đang giữ, đọc lý do trước khi cho tiếp tục.
+
+Không lấy việc lưu thành công làm bằng chứng đã in được; thử giấy là bước nghiệm thu riêng.
+
+<a name="62-kha-nang-mac-inh-va-quyen-lua-chon" class="heading-anchor"></a>
+
+### 6.2 Khả năng, mặc định và quyền lựa chọn
+
+**Khả năng in**, gọi là **capability**, là các lựa chọn và tổ hợp driver/CUPS công bố. Ví dụ: khổ giấy, in hai mặt và loại giấy. **In hai mặt**, hay **duplex**, có thể cần loại giấy và mép lật phù hợp.
+
+Ba lớp phải được tách rõ: máy hỗ trợ gì; quản trị đặt mặc định gì; client được đổi những giá trị nào. **Ràng buộc tổ hợp** là điều kiện khiến hai lựa chọn riêng lẻ hợp lệ nhưng không dùng được cùng nhau. Hệ thống phải kiểm tra cả tổ hợp, không chỉ từng ô chọn.
+
+<a id="figure-6"></a>
+
+![Khả năng máy, cấu hình mặc định và quyền client](diagrams/06-option-permissions.svg)
+
+_Hình 6 — Form giúp chọn đúng nhưng thiết bị vẫn kiểm tra lại. Cấu hình có hiệu lực được giữ cho lệnh, không tự thay sau khi nhận._
+
+<a name="63-kho-giay-va-cach-at-noi-dung-pdf" class="heading-anchor"></a>
+
+### 6.3 Khổ giấy và cách đặt nội dung PDF
+
+Client chọn dùng mặc định thì không ghi đè lựa chọn đó. Nếu không được cấp lựa chọn khác, vẫn có thể gửi với mặc định khi cấu hình được xác minh hợp lệ. ZPL gửi nội dung nguyên bản và không nhận các tùy chọn xử lý PDF.
+
+**Fit** hướng tới giữ nội dung trong vùng in; **fill** hướng tới lấp vùng và có thể cắt một phần; **none** không yêu cầu đổi tỷ lệ. Các lựa chọn chỉ được dùng khi hệ thống in công bố hỗ trợ. Vùng in thực tế có thể có lề, nên “đầy trang” không phải cam kết in không viền.
+
+<a name="64-sua-hoac-go-ang-ky" class="heading-anchor"></a>
+
+### 6.4 Sửa hoặc gỡ đăng ký
+
+Đổi kết nối hoặc driver có thể làm snapshot của lệnh cũ không còn khớp; hệ thống giữ lệnh thay vì tự đổi đường in. Việc gỡ đăng ký chỉ gỡ khỏi app, không tự xóa hàng đợi CUPS hoặc lịch sử.
+
+Gỡ máy hoặc xóa client bị chặn khi còn lệnh chưa kết thúc. Đăng ký lại sau khi gỡ tạo một mã máy mới, không tự phục hồi quyền cũ. Chi tiết các trường và driver nằm ở phụ lục B.
+
+<a name="7-cap-quyen-va-gui-lenh-tu-client" class="heading-anchor"></a>
+
+## 7. Cấp quyền và gửi lệnh từ client
+
+<a name="71-chuan-bi-quyen-truoc-khi-gui" class="heading-anchor"></a>
+
+### 7.1 Chuẩn bị quyền trước khi gửi
+
+Thực hiện trên trang quản trị:
+
+1. Vào **Clients → Thêm client**, đặt tên dễ nhận biết ứng dụng/người dùng thử.
+2. Trong **Máy được cấp**, tìm và tích các máy client được dùng; kiểm lại các lựa chọn đã chọn.
+3. Lưu, sao chép khóa truy cập trong cửa sổ hiện một lần và chuyển qua kênh an toàn.
+4. Nếu client chưa có máy, dùng **Sửa client** để cấp máy rồi lưu; không cần đổi khóa chỉ để thay quyền.
+
+Không có quyền máy thì client vẫn có thể xác thực nhưng không có máy để chọn.
+
+**Thu hồi khóa** ngăn yêu cầu mới dùng khóa đó; không tự hủy lệnh đã được nhận. **Đổi khóa** cấp khóa thay thế, cần cập nhật ứng dụng đang dùng. Lịch sử và dữ liệu chống trùng không bị xóa chỉ vì xóa client.
+
+<a name="72-dung-trang-gui-thu" class="heading-anchor"></a>
+
+### 7.2 Dùng trang gửi thử
+
+Trang quản trị ở `/`; trang gửi thử ở `/client`. Dấu `/` biểu thị đường dẫn trên cùng địa chỉ web của thiết bị. Trang gửi thử dùng khóa client, không dùng mật khẩu quản trị.
+
+Dùng địa chỉ thiết bị do người quản trị cung cấp. Ví dụ `http://192.168.88.228:8081/` là trang quản trị, thêm `client` sau dấu `/` để mở trang gửi thử; IP này chỉ là ví dụ.
+
+1. Mở trang `/client`, nhập khóa truy cập và bấm **Kết nối**.
+2. Chọn một máy được cấp. Danh sách rỗng thì kiểm quyền, không đổi khóa vô cớ.
+3. Chọn file, số bản và tùy chọn phù hợp. Kiểm máy và nội dung trước khi gửi.
+4. Bấm **Gửi lệnh in** đúng một lần, ghi nhận mã lệnh khi được trả về.
+5. Xem trạng thái/lịch sử đến kết quả cuối. Nếu bị giữ hoặc unknown, nhờ người quản trị xử lý theo mục 8.
+
+Phản hồi đã nhận không phải kết quả cuối, vì hàng đợi và bước giao CUPS diễn ra sau đó.
+
+**Bộ nhớ phiên theo tab**, tên kỹ thuật **sessionStorage**, được trang gửi thử dùng để nhớ khóa truy cập. Tải lại tự kết nối nhưng không tự gửi file. Ngắt kết nối hoặc khóa bị API từ chối sẽ xóa khóa đã lưu. Trình duyệt có thể khôi phục phiên/tab; trên máy dùng chung phải chủ động ngắt kết nối.
+
+<a id="figure-7"></a>
+
+![Luồng cấp quyền, gửi thử và theo dõi kết quả](diagrams/07-client-workflow.svg)
+
+_Hình 7 — Kết nối, quyền sử dụng máy và kết quả in là ba điều khác nhau. Trang gửi thử chỉ có quyền của client._
+
+<a name="73-neu-mat-phan-hoi-hoac-tai-lai-trang" class="heading-anchor"></a>
+
+### 7.3 Nếu mất phản hồi hoặc tải lại trang
+
+Mất phản hồi không chứng minh thiết bị chưa nhận. Khi còn giữ tab và dữ liệu gốc, dùng chức năng gửi lại cùng yêu cầu: mã, file và tham số không đổi.
+
+Tải lại chỉ giữ kết nối, không giữ an toàn giao dịch đang gửi. Nếu mất dữ liệu request, kiểm tra lịch sử và nhờ quản trị đối soát trước khi tạo thao tác in mới. Không tự đổi mã yêu cầu để vượt một xung đột.
+
+<a name="8-van-hanh-va-xu-ly-tinh-huong-bat-thuong" class="heading-anchor"></a>
+
+## 8. Vận hành và xử lý tình huống bất thường
+
+<a name="81-kiem-tra-hang-ngay" class="heading-anchor"></a>
+
+### 8.1 Kiểm tra hàng ngày
+
+Kiểm tra service chạy, dung lượng còn đủ, máy và cấu hình đúng, rồi xem lệnh giữ/chưa rõ kết quả. **Service** là chương trình được hệ điều hành quản lý để chạy liên tục; không cần giữ Terminal của máy cá nhân mở để thiết bị tiếp tục nhận lệnh.
+
+Lịch sử cho biết ai gửi, gửi tới máy nào, trạng thái và lý do thay đổi. Lịch sử không phải bản sao file để in lại. **Payload** là file nguồn của lệnh; app xóa file sau khi lệnh kết thúc, còn file đang chờ hoặc unknown được giữ. CUPS có bộ lưu trữ riêng cần chính sách bảo trì riêng.
+
+<a name="82-dung-tiep-tuc-va-huy" class="heading-anchor"></a>
+
+### 8.2 Dừng, tiếp tục và hủy
+
+**Pause** là giữ hàng đợi để không tiếp tục giao. **Resume** là quyết định cho tiếp tục sau kiểm tra, không phải gửi lại mọi lỗi. Có thể cho tiếp tục một lệnh hoặc cả hàng đợi; chọn một lệnh không mặc nhiên thả toàn bộ hàng đợi.
+
+**Offline** nghĩa là kết nối hoặc trạng thái máy không xác minh được theo kiểm tra của hệ thống. Máy kết nối lại không tự làm hàng đợi được thả. Người quản trị phải xử lý nguyên nhân và cho phép tiếp tục.
+
+Hủy trước giao có thể được xác định ngay trong app. Hủy sau giao phải gửi yêu cầu tới CUPS và xác minh kết quả thực tế; giấy đã in không thể thu hồi. Không xóa lịch sử để làm một lỗi “biến mất”.
+
+<a name="83-oi-soat-chua-ro-ket-qua" class="heading-anchor"></a>
+
+### 8.3 Đối soát chưa rõ kết quả
+
+**Đối soát** là kiểm tra các bằng chứng để xác định điều gì đã xảy ra với một lệnh. Dùng mã lệnh, mã CUPS, correlation và trạng thái kết thúc của đúng lệnh. Không lấy kết quả của một lệnh CUPS khác để gán cho lệnh đang xử lý.
+
+**Resolve** là thao tác quản trị ghi nhận kết quả đã đối soát kèm lý do; nó không gửi lại file. CUPS không còn lịch sử không có nghĩa chưa in. Chưa đủ bằng chứng thì giữ unknown và tiếp tục điều tra, không thử bằng cách in thêm.
+
+<a id="figure-8"></a>
+
+![Đối soát lệnh unknown có bằng chứng](diagrams/08-unknown-resolution.svg)
+
+_Hình 8 — Danh tính và kết quả đều phải được xác minh. Unknown bảo vệ khỏi việc tạo bản in lặp khi kết quả chưa rõ._
+
+<a name="84-tra-cuu-loi-theo-nhom" class="heading-anchor"></a>
+
+### 8.4 Tra cứu lỗi theo nhóm
+
+Không mở được web: kiểm địa chỉ thiết bị, mạng và service. Không thấy máy trên trang client: kiểm quyền máy trước khi đổi khóa. Không thấy driver: kiểm package đúng dòng máy và kiến trúc. Lệnh bị giữ: đọc lý do, cấu hình và snapshot. Lệnh unknown: dùng đối soát, không gửi lại.
+
+**Mã lỗi** giúp chọn bước kiểm tiếp theo, không thay việc đọc lý do cụ thể. Phụ lục C giải thích lỗi API; phụ lục D có bảng tra cứu và các lệnh chẩn đoán.
+
+<a name="9-sao-luu-cap-nhat-va-phuc-hoi" class="heading-anchor"></a>
+
+## 9. Sao lưu, cập nhật và phục hồi
+
+<a name="91-truoc-moi-thay-oi-bao-tri" class="heading-anchor"></a>
+
+### 9.1 Trước mọi thay đổi bảo trì
+
+**Bảo trì có kế hoạch** là thời điểm đã được phép thay đổi hệ thống, biết các lệnh đang tồn tại và cách quay lại khi lỗi. Kiểm cả hàng đợi của app và CUPS; unknown vẫn là lệnh chưa kết thúc dù CUPS không còn lệnh chờ.
+
+**Backup** là bản sao để bảo vệ dữ liệu. **Restore** là phục hồi từ bản sao; có thể làm mất dữ liệu mới hơn bản sao. Vì vậy hai thao tác này không đơn giản là làm ngược nhau.
+
+<a name="92-ban-sao-nao-u-cho-viec-phuc-hoi" class="heading-anchor"></a>
+
+### 9.2 Bản sao nào đủ cho việc phục hồi?
+
+App lưu thông tin lệnh trong một **cơ sở dữ liệu**, tức kho thông tin có cấu trúc, và lưu file nguồn riêng trên đĩa. Chỉ sao lưu cơ sở dữ liệu không đủ lấy lại file cần in của lệnh chưa kết thúc.
+
+Bản sao đầy đủ phải phù hợp với dữ liệu, file, cấu hình và phiên bản phần mềm. Kiểm bản sao dùng được, bảo vệ vì có thông tin riêng, rồi đưa một bản ra ngoài thiết bị. Không đưa khóa, file nghiệp vụ hoặc backup lên repository công khai.
+
+Khi restore, lưu trạng thái hiện tại và đối soát mọi lệnh nhận sau thời điểm backup. Kiểm dữ liệu và cấu hình trước khi cho service chạy. Nếu bản khôi phục có lệnh chưa kết thúc, giữ service dừng và xử lý riêng; không start chỉ để xem lỗi đã hết chưa.
+
+<a id="figure-9"></a>
+
+![Backup và restore với các điều kiện trước khi chạy tiếp](diagrams/09-backup-restore.svg)
+
+_Hình 9 — Phục hồi dữ liệu không chứng minh máy chưa từng in nội dung đó. Cần đối soát trước activation._
+
+<a name="93-cap-nhat-mot-phien-ban-thong-nhat" class="heading-anchor"></a>
+
+### 9.3 Cập nhật một phiên bản thống nhất
+
+Cập nhật là cài một phiên bản phần mềm đã được kiểm tra, không sửa riêng một file trên thiết bị. Ghi lại phiên bản đang dùng, bản cần cài và cách quay lại trước khi thay đổi.
+
+**Bản phát hành**, hay **release**, là phiên bản phần mềm được chọn để đưa vào hoạt động. **Activation** là đưa bản đã cài vào chạy thực tế. Chỉ chốt cập nhật sau khi kiểm dịch vụ, đăng nhập, danh sách máy và cấu hình vẫn đúng.
+
+**Rollback** là quay lại phiên bản trước. Chỉ đổi phần mềm có thể không đủ nếu cấu trúc hoặc dữ liệu đã thay đổi. Phải xem tính tương thích và đối soát các lệnh mới trước khi phục hồi dữ liệu cũ.
+
+<a id="figure-10"></a>
+
+![Luồng chuẩn bị release, cập nhật và rollback có điều kiện](diagrams/10-git-rollout.svg)
+
+_Hình 10 — Chỉ chốt phiên bản chạy sau kiểm tra. Checkout mã nguồn đúng chưa đủ chứng minh gói thực thi đúng._
+
+<a name="10-an-toan-gioi-han-va-ieu-kien-nghiem-thu" class="heading-anchor"></a>
+
+## 10. An toàn, giới hạn và điều kiện nghiệm thu
+
+<a name="101-nhung-bao-am-can-hieu-ung" class="heading-anchor"></a>
+
+### 10.1 Những bảo đảm cần hiểu đúng
+
+Thiết bị lưu trước khi báo nhận, chống tạo lệnh trùng và không tự gửi lại lệnh unknown. Những điều đó không tạo được cam kết **chỉ in đúng một lần trên giấy** trong mọi sự cố: thiết bị, hệ thống in và máy vật lý không cùng một giao dịch.
+
+CUPS báo completed không phải bằng chứng phổ quát về mọi trang giấy. Khả năng driver công bố không thay thử nghiệm giấy thực tế. Cài được package không chứng minh có đúng quyền CUPS hoặc driver phù hợp.
+
+<a name="102-bao-ve-quyen-va-du-lieu" class="heading-anchor"></a>
+
+### 10.2 Bảo vệ quyền và dữ liệu
+
+Client chỉ dùng máy được cấp và xem lệnh của mình. Quản trị dùng tài khoản riêng. Khóa và password phải trao qua kênh an toàn, không ghi vào ảnh chụp, URL hay hướng dẫn.
+
+**TLS** là cơ chế mã hóa kết nối mạng; địa chỉ bắt đầu bằng HTTPS sử dụng lớp bảo vệ này. HTTP trong LAN không mặc nhiên bảo vệ khỏi nghe lén. Vận hành phải có kiểm soát mạng; không mở router/Internet ngoài phạm vi được phê duyệt.
+
+Chỉ cấp quyền gửi file cho ứng dụng đáng tin. Driver là phần mềm chạy trên hệ điều hành, còn PDF/ZPL có thể gây hành vi ngoài việc in một trang thông thường. Kiểm tra trường dữ liệu không phải một bộ kiểm tra an toàn toàn diện cho nội dung file.
+
+<a name="103-nhung-gi-a-kiem-va-viec-con-phai-nghiem-thu" class="heading-anchor"></a>
+
+### 10.3 Những gì đã kiểm và việc còn phải nghiệm thu
+
+Đã kiểm phần mềm bằng thử nghiệm tự động, giao diện trình duyệt và các lần triển khai trên EDATEC. Đã xác minh khả năng đọc cấu hình CUPS và dữ liệu đối soát. Người dùng báo Canon LBP6230dw đã in ra giấy; đây là xác nhận người dùng, không phải quan sát tự động của toàn bộ thử nghiệm.
+
+Vẫn cần nghiệm thu theo dòng máy và nơi triển khai: PDF/ZPL thực tế, số bản, duplex, scaling, lỗi giấy, mất kết nối, restart, mất điện, hủy sau giao và backup/rollback. **Scaling** là cách điều chỉnh tỷ lệ nội dung, đã giải thích bằng fit/fill ở mục 6.
+
+Không có cloud, nhiều thiết bị phối hợp, gửi thông báo kết quả tự động cho client hoặc hệ thống quản lý cả đội thiết bị. App không cài driver qua web và không giữ file để in lại từ lịch sử. Chọn giải pháp dựa trên nhu cầu LAN hiện tại, không suy ra tính năng chưa triển khai.
+
+<!-- BACK-MATTER-START -->
+
+<a name="phu-luc-a-lay-ma-nguon-va-cai-thiet-bi" class="heading-anchor"></a>
+
+## Phụ lục A — Lấy mã nguồn và cài thiết bị
+
+Phụ lục này hướng dẫn thao tác, không hướng dẫn lập trình. **Terminal/shell** là nơi nhập lệnh; **PowerShell** là shell của Windows. **SSH** là kết nối điều khiển thiết bị từ xa; **SCP** copy file qua kết nối được bảo vệ. **Git** lấy một bản của project về máy; thao tác đó gọi là **clone**. **Repository** là kho chứa project, **GitHub** là nơi lưu kho của dự án.
+
+<a name="a1-cai-git-va-clone-project" class="heading-anchor"></a>
+
+### A.1 Cài Git và clone project
+
+Không cần cài Python, công cụ test hoặc công cụ build chỉ để lấy mã nguồn. Người dùng thiết bị đã cài không bắt buộc thực hiện phần này.
+
+**macOS — Terminal:** nếu chưa có Git, chạy lệnh dưới và hoàn tất hộp thoại cài công cụ của Apple. Nếu Git đã có thì bỏ bước cài:
 
 ```bash
-xcode-select -p
 git --version
 ```
 
-Nếu chưa có công cụ, chạy một lần và hoàn tất hộp thoại của Apple:
+Nếu chưa có Git, cài công cụ của Apple rồi hoàn tất hộp thoại:
 
 ```bash
 xcode-select --install
 ```
 
-Cài `uv` bằng installer chính thức. Lệnh thực thi script tải từ Internet; đọc script hoặc chính sách công ty trước khi chạy:
+Sau cài, kiểm tra lại rồi clone:
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh -o /tmp/install-uv.sh
-less /tmp/install-uv.sh
-sh /tmp/install-uv.sh
-```
-
-Mở Terminal mới hoặc cập nhật PATH rồi kiểm tra:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-uv --version
-```
-
-### 6.2 Clone và tạo môi trường
-
-```bash
+git --version
 mkdir -p "$HOME/work"
 cd "$HOME/work"
 git clone https://github.com/luongnguyen008/printer-server.git
-cd printer-server
 ```
 
-```bash
-APP_COMMIT=056e2e7823d8e4579a02aab027d6a2dad678549f
-git checkout --detach "$APP_COMMIT"
-uv python install 3.11
-uv sync --frozen --python 3.11 --extra dev
-```
-
-`--detach` phù hợp đọc/chạy lại phiên bản đã chọn. Nếu sửa code, tạo nhánh trước:
-
-```bash
-git switch -c my-change
-```
-
-### 6.3 Test và chạy web
-
-```bash
-uv run pytest -q
-uv run ruff check .
-uv run ruff format --check .
-```
-
-Tạo dữ liệu local và đặt mật khẩu quản trị riêng, ít nhất 12 ký tự:
-
-```bash
-mkdir -p .local-data/local-demo
-chmod 700 .local-data .local-data/local-demo
-uv run print-appliance admin-password --data-dir .local-data/local-demo
-```
-
-Chạy foreground; giữ cửa sổ Terminal mở:
-
-```bash
-uv run print-appliance run --data-dir .local-data/local-demo --host 127.0.0.1 --port 8081
-```
-
-Mở Terminal khác:
-
-```bash
-open http://127.0.0.1:8081/
-```
-
-Đăng nhập bằng mật khẩu vừa đặt. Chưa cài Linux CUPS/pycups thì discovery báo không khả dụng; vẫn có thể kiểm tra giao diện và test mock. Không thêm địa chỉ LAN hoặc máy thật vào môi trường local chỉ để bỏ cảnh báo. CLI dùng adapter CUPS thật, không phải chế độ giả; nếu bạn đã cài pycups và cấu hình socket dùng được trên máy local, không đăng ký/submit vào queue thật trong lúc test.
-
-Dừng bằng **Ctrl+C**. Nếu cổng bận, chọn 18081 và mở URL cùng cổng:
-
-```bash
-uv run print-appliance run --data-dir .local-data/local-demo --host 127.0.0.1 --port 18081
-```
-
-## 7. Chạy local trên Windows với WSL2
-
-### 7.1 Công cụ Windows
-
-Dùng Windows 10/11 có WSL2. Trong PowerShell, kiểm tra:
+**Windows — PowerShell:** nếu chưa có Git, dùng trình cài Git chính thức tại https://git-scm.com/downloads/win hoặc trình quản lý ứng dụng Windows `winget`:
 
 ```powershell
-wsl --status
-ssh -V
-curl.exe --version
+winget install --id Git.Git -e --source winget
 ```
 
-Nếu WSL chưa cài, mở **PowerShell as Administrator**:
+Mở PowerShell mới rồi clone:
 
 ```powershell
-wsl --install -d Ubuntu-24.04
-```
-
-Khởi động lại nếu Windows yêu cầu. Mở Ubuntu, tạo user Linux và mật khẩu riêng. Không nhầm user WSL với user SSH của EDATEC. Nếu WSL đã có distro phù hợp, không bắt buộc cài thêm distro.
-
-Có thể cài Git Windows để clone tài liệu hoặc quản lý mã ngoài WSL:
-
-```powershell
-winget install --id Git.Git -e
-```
-
-Git Windows không thay WSL để chạy worker. Với phần local Python bên dưới, clone vào home Linux của WSL, không vào `C:\...` hoặc `/mnt/c/...`; filesystem Linux phù hợp hơn cho lock/quyền và SQLite.
-
-### 7.2 Công cụ và clone trong Ubuntu/WSL
-
-Các lệnh này chạy trong cửa sổ **Ubuntu**, không phải PowerShell:
-
-```bash
-sudo apt-get update
-sudo apt-get install --no-install-recommends git curl ca-certificates
-```
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh -o /tmp/install-uv.sh
-less /tmp/install-uv.sh
-sh /tmp/install-uv.sh
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-```bash
-mkdir -p "$HOME/work"
-cd "$HOME/work"
+git --version
+New-Item -ItemType Directory -Force (Join-Path $HOME 'work') | Out-Null
+Set-Location (Join-Path $HOME 'work')
 git clone https://github.com/luongnguyen008/printer-server.git
-cd printer-server
 ```
 
-```bash
-APP_COMMIT=056e2e7823d8e4579a02aab027d6a2dad678549f
-git checkout --detach "$APP_COMMIT"
-uv python install 3.11
-uv sync --frozen --python 3.11 --extra dev
-```
+Project nằm trong thư mục `printer-server`. Các bản hướng dẫn nằm trong `docs`. Không có thêm bước sửa code, chạy test hoặc build trong phần lấy mã nguồn.
 
-```bash
-uv run pytest -q
-uv run ruff check .
-uv run ruff format --check .
-```
+<a name="a2-cai-moi-tren-linuxedatec" class="heading-anchor"></a>
 
-```bash
-mkdir -p .local-data/local-demo
-chmod 700 .local-data .local-data/local-demo
-uv run print-appliance admin-password --data-dir .local-data/local-demo
-```
+### A.2 Cài mới trên Linux/EDATEC
 
-```bash
-uv run print-appliance run --data-dir .local-data/local-demo --host 127.0.0.1 --port 8081
-```
+Chỉ áp dụng thiết bị chưa có installation. Nếu đã có `/opt/print-appliance` hoặc `/var/lib/print-appliance`, dùng quy trình cập nhật; không ghi đè. Chỉ thay đổi khi được chủ thiết bị cho phép, đã ghi nhận cấu hình và có backup phù hợp.
 
-Trên trình duyệt Windows mở `http://localhost:8081/`. WSL2 thường chuyển tiếp localhost; nếu không truy cập được, kiểm tra WSL/firewall/VPN và xác nhận service đang chạy. Không mở `0.0.0.0` ra LAN như bước chữa lỗi mặc định.
+Các tên cần biết trước khi chạy lệnh: **Debian** là bản phân phối Linux; **uv** là công cụ cài môi trường Python theo danh sách phụ thuộc của project; **venv** là môi trường Python riêng; **dependency** là thư viện ứng dụng cần. **pycups** là thư viện kết nối Python với CUPS. Gói `python3-cups` của Debian phải dùng với Python hệ thống tương ứng. **ABI** gọi tính tương thích nhị phân giữa hai thành phần này.
 
-Dừng bằng **Ctrl+C** trong WSL. Không chạy `uv run print-appliance run` bằng Python native Windows; lỗi `No module named fcntl` là giới hạn nền tảng, không phải thiếu package để pip-install.
+**systemd** quản lý service; **journal** là nhật ký service. **User service** là tài khoản hệ điều hành chạy chương trình, khác admin trên web. **Loopback** là địa chỉ chỉ truy cập trên chính máy; **port** là cổng số của dịch vụ; **bind** là chọn địa chỉ lắng nghe. **Tunnel** chuyển tiếp kết nối qua SSH. **CLI** là cách gọi công cụ bằng dòng lệnh. **Policy** là quy tắc cấp quyền/hành vi. **Unix socket** là kết nối nội bộ giữa các chương trình trên Linux.
 
-### 7.3 Phạm vi đã kiểm chứng
+<a name="a21-chuan-bi-mang-va-ssh" class="heading-anchor"></a>
 
-Lệnh PowerShell/WSL trong báo cáo được thiết kế cho các công cụ nêu trên và đã được đối chiếu cú pháp/mã nguồn; chưa chạy trực tiếp trên máy Windows trong đợt này. Python tests và browser tests đã chạy trên Mac; runtime thật đã chạy trên Debian ARM64. USB pass-through, CUPS và driver vendor trong WSL không nằm trong chứng nhận triển khai.
+#### A.2.1 Chuẩn bị mạng và SSH
 
-## 8. Build, kiểm thử trình duyệt và chuẩn bị release
-
-### 8.1 Build wheel và dependency đã khóa
-
-Thực hiện trong repo trên **Mac hoặc WSL** sau khi test:
-
-```bash
-uv build
-mkdir -p .local-data/release
-uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file .local-data/release/runtime-requirements.txt
-```
-
-Wheel 0.1.5 nằm ở `dist/print_appliance-0.1.5-py3-none-any.whl`. Dependency export có hash và marker hệ điều hành; không xóa marker hoặc hash. `python3-cups` dùng từ distro Linux, không cài extra `cups` trong quy trình này.
-
-Đảm bảo source đã push và ghi commit:
-
-```bash
-git status --short
-git rev-parse HEAD
-```
-
-Nếu có sửa đổi, test và commit/push trước build release cuối. Build từ cây sạch. Không gửi bản đã sửa nhưng chưa commit lên thiết bị.
-
-Tạo checksum bằng Python sẵn trong môi trường uv; dùng được trên Mac và WSL:
-
-```bash
-uv run python - <<'PY'
-from pathlib import Path
-import hashlib
-wheel = Path('dist/print_appliance-0.1.5-py3-none-any.whl')
-Path('.local-data/release/wheel.sha256').write_text(hashlib.sha256(wheel.read_bytes()).hexdigest() + '\n')
-PY
-```
-
-### 8.2 Browser regression
-
-Python test không thay kiểm tra giao diện. Hai suite browser dùng API mock và chỉ cho URL loopback. Chúng không gửi nội dung tới máy in thật.
-
-Cần Node.js và Playwright/Chromium. Trên Mac có Homebrew thì cài Node bằng `brew install node`; nếu chưa có Homebrew, cài Node LTS từ bộ cài chính thức. Trong WSL:
-
-```bash
-sudo apt-get install --no-install-recommends nodejs npm
-node --version
-npm --version
-```
-
-Node phải đáp ứng phiên bản Playwright được chọn. Bộ lệnh dưới dùng Playwright 1.51.1 (yêu cầu Node 18 trở lên); máy công ty có thể pin bản mới hơn và chạy lại suite.
-
-Cài test tooling vào thư mục ignored, không thêm dependency frontend:
-
-```bash
-mkdir -p .local-data/browser-tools
-npm install --prefix .local-data/browser-tools playwright@1.51.1
-```
-
-Trên Mac:
-
-```bash
-./.local-data/browser-tools/node_modules/.bin/playwright install chromium
-```
-
-Trong WSL có thể cần thư viện browser; chỉ chạy trong môi trường dev được phép cài dependency:
-
-```bash
-./.local-data/browser-tools/node_modules/.bin/playwright install --with-deps chromium
-```
-
-Chạy ứng dụng local ở Terminal thứ nhất:
-
-```bash
-uv run print-appliance run --data-dir .local-data/browser-data --host 127.0.0.1 --port 18081
-```
-
-Terminal thứ hai, tại repo:
-
-```bash
-export PLAYWRIGHT_MODULE="$PWD/.local-data/browser-tools/node_modules/playwright"
-export UI_BASE_URL=http://127.0.0.1:18081
-export UI_ARTIFACT_DIR="$PWD/.local-data/browser-screens"
-node tests/browser/admin-ui.cjs
-node tests/browser/client-ui.cjs
-```
-
-Nếu dùng Chrome có sẵn trên Mac thay Chromium tải về:
-
-```bash
-export CHROME_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-```
-
-Suite kiểm tra tab/modal, dirty-close, driver 16k lựa chọn, multi-grants, toast, loading/error, schema theo máy, client session/reload/revoke, request retry không đổi và mobile. Sau khi chạy, dừng server local bằng Ctrl+C. Không đổi URL của suite sang EDATEC: suite chủ động từ chối URL không phải loopback.
-
-## 9. Cài mới trên Debian 12/EDATEC
-
-Đây là quy trình **cài mới**, không áp vào thiết bị đã có `/opt/print-appliance` hoặc `/var/lib/print-appliance`. Thiết bị đã cài dùng phần cập nhật. Không cài lại đè lên dữ liệu đang vận hành.
-
-### 9.1 Chuẩn bị mạng và SSH
-
-Ghi IP appliance, IP máy in, tài khoản SSH và phạm vi được phép thay đổi. Nên cấp DHCP reservation cho thiết bị và máy in. Cùng SSID/băng tần không chứng minh cùng LAN; 2.4 GHz và 5 GHz có thể nằm cùng mạng, nhưng guest VLAN/client isolation có thể chặn kết nối.
+Địa chỉ **IP** xác định một thiết bị trên mạng. Ghi IP thiết bị quản lý in, IP máy in, tài khoản SSH và phạm vi được phép thay đổi. Nhờ người quản trị mạng giữ các địa chỉ ổn định; tránh đổi IP sau khi cấu hình. Cùng tên Wi-Fi hoặc băng tần không chứng minh các thiết bị được phép liên lạc; mạng dành cho khách có thể chặn kết nối giữa chúng.
 
 Mac, Terminal:
 
@@ -441,7 +709,7 @@ SshTarget="$SshUser@$ApplianceHost"
 ssh "$SshTarget"
 ```
 
-Windows, PowerShell:
+Windows, PowerShell: kiểm tra `ssh` và `scp` có sẵn bằng `Get-Command ssh, scp`. Nếu chưa có, mở phần Optional features (Tính năng tùy chọn) của Windows và cài **OpenSSH Client** rồi mở PowerShell mới. Sau đó:
 
 ```powershell
 $ApplianceHost = '192.168.88.228'
@@ -450,9 +718,11 @@ $SshTarget = "$SshUser@$ApplianceHost"
 ssh $SshTarget
 ```
 
-Lần đầu, kiểm tra host fingerprint qua kênh tin cậy trước khi chấp nhận. Không dùng `StrictHostKeyChecking=no`. Trên Mac, chuyển bộ gõ sang **ABC/U.S.** khi nhập mật khẩu SSH; không suy ra mật khẩu sai chỉ từ lỗi do bộ gõ.
+Lần đầu, kiểm tra dấu nhận diện máy kết nối, gọi là **host fingerprint**, qua người quản trị hoặc một kênh tin cậy trước khi chấp nhận. Không dùng `StrictHostKeyChecking=no`. Trên Mac, chuyển bộ gõ sang **ABC/U.S.** khi nhập mật khẩu SSH; không suy ra mật khẩu sai chỉ từ lỗi do bộ gõ.
 
-### 9.2 Inventory chỉ đọc trên Linux
+<a name="a22-ghi-nhan-hien-trang-tren-linux-chi-oc" class="heading-anchor"></a>
+
+#### A.2.2 Ghi nhận hiện trạng trên Linux (chỉ đọc)
 
 ```bash
 cat /etc/os-release
@@ -475,19 +745,21 @@ Môi trường đã dùng là Debian 12, `aarch64`/`arm64`, Python 3.11. Không 
 
 Nếu cache apt chiếm nhiều chỗ và người quản lý cho phép, `sudo apt-get clean` chỉ dọn cache package đã tải. Không dùng `autoremove`, xóa log/spool hoặc driver để giải quyết đầy đĩa mà chưa đánh giá ảnh hưởng.
 
-### 9.3 Cài dependency hệ thống
+<a name="a23-cai-dependency-he-thong" class="heading-anchor"></a>
+
+#### A.2.3 Cài dependency hệ thống
 
 Trong SSH Linux, khi đã có quyền cài package và maintenance phù hợp:
 
 ```bash
 sudo apt-get update
-sudo apt-get -s install --no-install-recommends cups python3-cups python3-venv python3-pip git ca-certificates
+sudo apt-get -s install --no-install-recommends cups python3-cups python3-venv python3-pip git curl ca-certificates
 ```
 
 Đọc kết quả simulation. Dừng nếu có removals/upgrades ngoài phạm vi cho phép. Nếu chấp thuận:
 
 ```bash
-sudo apt-get install --no-install-recommends cups python3-cups python3-venv python3-pip git ca-certificates
+sudo apt-get install --no-install-recommends cups python3-cups python3-venv python3-pip git curl ca-certificates
 sudo systemctl enable --now cups
 ```
 
@@ -498,7 +770,9 @@ test -S /run/cups/cups.sock
 
 Không cần bật CUPS web admin từ xa hoặc `cupsctl --remote-admin`. Appliance gọi local Unix socket. Quyền dùng CUPS phải được kiểm tra dưới user service; thêm group không tự chứng minh mọi policy đã cho phép.
 
-### 9.4 Tạo user và thư mục mới
+<a name="a24-tao-user-va-thu-muc-moi" class="heading-anchor"></a>
+
+#### A.2.4 Tạo user và thư mục mới
 
 Các lệnh sau cố ý dừng nếu phát hiện đã có installation:
 
@@ -518,100 +792,56 @@ sudo install -d -o root -g print-appliance -m 0750 /opt/print-appliance
 
 Đừng thay user hiện có hoặc thêm tài khoản web vào root/sudo không mật khẩu. User `print-appliance` không cần đăng nhập SSH.
 
-### 9.5 Copy artifact từ Mac/Windows
+<a name="a25-cai-phan-mem-tu-project-tren-thiet-bi" class="heading-anchor"></a>
 
-Trước tiên thoát SSH hoặc dùng Terminal thứ hai trên **máy cá nhân**. Trong SSH Linux đã mở, tạo nơi upload tạm theo user SSH:
+#### A.2.5 Cài phần mềm từ project trên thiết bị
 
-```bash
-mkdir -p "$HOME/print-appliance-upload"
-chmod 700 "$HOME/print-appliance-upload"
-```
-
-Mac/WSL tại repo (biến `SshTarget` đã đặt):
-
-```bash
-scp dist/print_appliance-0.1.5-py3-none-any.whl "$SshTarget:print-appliance-upload/"
-scp .local-data/release/runtime-requirements.txt "$SshTarget:print-appliance-upload/"
-scp .local-data/release/wheel.sha256 "$SshTarget:print-appliance-upload/"
-```
-
-Windows PowerShell có file build từ WSL thì copy artifact ra một thư mục Windows. Trong WSL, ví dụ thay `WindowsUser` bằng tên user thật:
-
-```bash
-mkdir -p /mnt/c/Users/WindowsUser/Downloads/print-appliance-release
-cp dist/print_appliance-0.1.5-py3-none-any.whl .local-data/release/runtime-requirements.txt .local-data/release/wheel.sha256 /mnt/c/Users/WindowsUser/Downloads/print-appliance-release/
-```
-
-Sau đó trong PowerShell:
-
-```powershell
-$ReleaseDir = Join-Path $HOME 'Downloads\print-appliance-release'
-scp "$ReleaseDir\print_appliance-0.1.5-py3-none-any.whl" "${SshTarget}:print-appliance-upload/"
-scp "$ReleaseDir\runtime-requirements.txt" "${SshTarget}:print-appliance-upload/"
-scp "$ReleaseDir\wheel.sha256" "${SshTarget}:print-appliance-upload/"
-```
-
-### 9.6 Clone đúng commit và cài venv trên Linux
-
-Trở lại SSH Linux:
+Các lệnh sau chạy trong SSH Linux. Không cần build hay chuyển gói từ Mac/Windows. **Commit** là một mốc mã nguồn cụ thể; đoạn dưới chọn mốc sản phẩm 0.1.5 đã được hướng dẫn này mô tả để không vô tình cài phiên bản khác về sau.
 
 ```bash
 APP_COMMIT=056e2e7823d8e4579a02aab027d6a2dad678549f
-UPLOAD="$HOME/print-appliance-upload"
-```
-
-```bash
-ACTUAL=$(sha256sum "$UPLOAD/print_appliance-0.1.5-py3-none-any.whl" | cut -d ' ' -f 1)
-EXPECTED=$(cat "$UPLOAD/wheel.sha256")
-test "$ACTUAL" = "$EXPECTED" || { echo 'Wheel checksum mismatch'; exit 1; }
-```
-
-```bash
 sudo git clone https://github.com/luongnguyen008/printer-server.git /opt/print-appliance/source
 sudo git -C /opt/print-appliance/source checkout --detach "$APP_COMMIT"
 sudo /usr/bin/python3 -m venv --system-site-packages /opt/print-appliance/.venv
 ```
 
-Cài runtime theo dependency export và wheel. Dùng `/usr/bin/python3` Debian 12 để khớp ABI với `python3-cups`:
+Cài công cụ `uv` vào thư mục riêng của appliance. Installer được tải từ nguồn chính thức; đọc file trước khi thực thi, nhấn `q` để thoát trình xem:
 
 ```bash
-sudo /opt/print-appliance/.venv/bin/python -m pip install --require-hashes -r "$UPLOAD/runtime-requirements.txt"
-sudo /opt/print-appliance/.venv/bin/python -m pip install --no-deps "$UPLOAD/print_appliance-0.1.5-py3-none-any.whl"
-sudo find /opt/print-appliance/.venv/lib/python3.11/site-packages/print_appliance -type d -exec chmod 755 {} +
-sudo find /opt/print-appliance/.venv/lib/python3.11/site-packages/print_appliance -type f -exec chmod 644 {} +
+curl -fLsS https://astral.sh/uv/install.sh -o /tmp/print-appliance-install-uv.sh
+less /tmp/print-appliance-install-uv.sh
+sudo env UV_INSTALL_DIR=/opt/print-appliance/tools UV_NO_MODIFY_PATH=1 sh /tmp/print-appliance-install-uv.sh
 ```
 
-Không thay bằng Python 3.13 do uv tải rồi kỳ vọng tự import CUPS binding của Python 3.11. Không dùng `sudo pip install` vào system Python hoặc `--break-system-packages`.
+Cài đúng các dependency đã được khóa phiên bản trong project, dùng Python Debian cùng với CUPS. Lệnh phải thành công mới đi tiếp:
 
-Lưu wheel cho rollback:
+```bash
+sudo env VIRTUAL_ENV=/opt/print-appliance/.venv /opt/print-appliance/tools/uv sync --project /opt/print-appliance/source --active --frozen --no-dev --no-editable --python /usr/bin/python3
+```
+
+Không cài `cups` bằng pip hoặc đổi sang một Python khác rồi kỳ vọng tự dùng được binding Debian. Không dùng `--break-system-packages`. Lưu mốc và cấu hình cài để đối chiếu sau này:
 
 ```bash
 sudo install -d -m 0700 "/opt/print-appliance/releases/$APP_COMMIT"
-sudo install -m 0600 "$UPLOAD/print_appliance-0.1.5-py3-none-any.whl" "$UPLOAD/runtime-requirements.txt" "$UPLOAD/wheel.sha256" "/opt/print-appliance/releases/$APP_COMMIT/"
+sudo cp /opt/print-appliance/source/uv.lock /opt/print-appliance/source/pyproject.toml "/opt/print-appliance/releases/$APP_COMMIT/"
 ```
 
-### 9.7 Kiểm tra package và CUPS bằng service account
+<a name="a26-kiem-tra-cai-at-truoc-khi-chay" class="heading-anchor"></a>
+
+#### A.2.6 Kiểm tra cài đặt trước khi chạy
+
+Đây là lệnh chẩn đoán, không tạo máy hoặc gửi nội dung in:
 
 ```bash
-sudo -u print-appliance /opt/print-appliance/.venv/bin/python -c 'import cups, print_appliance; import importlib.metadata as m; print(m.version("print-appliance")); print(cups.__file__); print(print_appliance.__file__)'
+sudo -u print-appliance /opt/print-appliance/.venv/bin/print-appliance --help
+sudo -u print-appliance /opt/print-appliance/.venv/bin/python -c 'import cups; import importlib.metadata as m; print(m.version("print-appliance")); print(cups.__file__)'
 ```
 
-Đọc health/discovery, không tạo queue hoặc in:
+Kỳ vọng có help của ứng dụng, version `0.1.5` và import `cups` thành công. Nếu lỗi permission/import, giữ service chưa chạy và xử lý nguyên nhân. Group `lpadmin` chưa đủ chứng minh quyền mọi thao tác CUPS; cần kiểm discovery và thao tác được phép dưới tài khoản service trong nghiệm thu.
 
-```bash
-sudo -u print-appliance /opt/print-appliance/.venv/bin/python - <<'PY'
-from print_appliance.cups import PyCupsBackend
-backend = PyCupsBackend()
-print(backend.health())
-discovery = backend.discover()
-print('devices:', len(discovery['devices']))
-print('drivers:', len(discovery['drivers']))
-PY
-```
+<a name="a27-at-mat-khau-cai-service-loopback" class="heading-anchor"></a>
 
-Nếu denied, kiểm tra local CUPS policy, socket và group. Không tắt authentication/privacy toàn cục để làm test pass. Discovery thành công chưa chứng minh queue creation, hold/release hoặc cancel đã được cho phép.
-
-### 9.8 Đặt mật khẩu, cài service loopback
+#### A.2.7 Đặt mật khẩu, cài service loopback
 
 ```bash
 sudo -u print-appliance /opt/print-appliance/.venv/bin/print-appliance admin-password --data-dir /var/lib/print-appliance
@@ -639,7 +869,9 @@ curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8081/api/v1/printers
 
 Service chạy non-root, restart khi lỗi và chỉ được ghi data directory theo systemd hardening. `After=cups.service` là thứ tự startup, không phải bảo đảm CUPS luôn sẵn sàng; ứng dụng phải báo unavailable khi CUPS lỗi.
 
-### 9.9 Truy cập an toàn từ máy cá nhân
+<a name="a28-truy-cap-an-toan-tu-may-ca-nhan" class="heading-anchor"></a>
+
+#### A.2.8 Truy cập an toàn từ máy cá nhân
 
 Cách mặc định là SSH tunnel, không cần đổi listener hoặc mở firewall. Trên **Mac**:
 
@@ -678,43 +910,36 @@ sudo systemctl restart print-appliance
 
 Chỉ mở firewall từ subnet/client cần thiết theo chính sách của site. Không tự bật/tắt UFW trên thiết bị đang vận hành, không port-forward ra Internet. HTTP không mã hóa password/key. Nếu dùng TLS reverse proxy, cấu hình forwarding/scheme/origin đúng và bật Secure cookie; đừng bật `Secure` trên HTTP rồi kết luận login bị lỗi. TLS cụ thể phụ thuộc tên miền/chứng chỉ/proxy tại site và không có bộ cài tự động trong repo.
 
-### 9.10 Chốt release
+<a name="a29-chot-cai-at" class="heading-anchor"></a>
 
-So sánh package với source trước khi ghi release identifier:
+#### A.2.9 Chốt cài đặt
 
-```bash
-sudo /opt/print-appliance/.venv/bin/python - <<'PY'
-from pathlib import Path
-import hashlib
-import print_appliance
-source = Path('/opt/print-appliance/source/src/print_appliance')
-installed = Path(print_appliance.__file__).parent
-for path in source.rglob('*'):
-    if not path.is_file() or '__pycache__' in path.parts:
-        continue
-    relative = path.relative_to(source)
-    assert hashlib.sha256(path.read_bytes()).digest() == hashlib.sha256((installed / relative).read_bytes()).digest(), str(relative)
-print('Source and installed package match')
-PY
-```
-
-Nếu HTTP, auth, package và read-only CUPS checks đều đạt:
+Đăng nhập web, kiểm danh sách máy/driver được CUPS đọc, trạng thái hệ thống và phiên bản. Không gửi thử file cho tới khi đã xác minh máy/driver và được phép in. Nếu không có lỗi, ghi mốc đã cài:
 
 ```bash
-printf '%s\n' "$APP_COMMIT" | sudo tee /opt/print-appliance/SOURCE_COMMIT >/dev/null
-sudo chmod 600 /opt/print-appliance/SOURCE_COMMIT
+sudo sh -c 'git -C /opt/print-appliance/source rev-parse HEAD > /opt/print-appliance/SOURCE_COMMIT'
+systemctl is-active print-appliance cups
 ```
 
-Xóa đúng thư mục upload chỉ chứa ba artifact đã tạo khi không còn cần:
+Không mặc nhiên thay queue cũ hoặc driver đang dùng. Hướng dẫn cài từ project này có dùng `uv` ở lúc cài; service khi vận hành không chạy công cụ build/test. Cách cài gói theo project đã kiểm trong môi trường local; không cài lại EDATEC đang hoạt động chỉ để thử hướng dẫn. Các lệnh systemd, quyền CUPS và driver vẫn phải được nghiệm thu trên thiết bị thực.
 
-```bash
-rm "$UPLOAD/print_appliance-0.1.5-py3-none-any.whl" "$UPLOAD/runtime-requirements.txt" "$UPLOAD/wheel.sha256"
-rmdir "$UPLOAD"
-```
+<a name="phu-luc-b-driver-cau-hinh-may-va-gioi-han" class="heading-anchor"></a>
 
-## 10. Cấu hình máy in và driver
+## Phụ lục B — Driver, cấu hình máy và giới hạn
 
-### 10.1 Kiểm tra kết nối trước
+Đọc mục 6 trước. **Model** là dòng máy. **PPD** là file mô tả lựa chọn của một driver; **filter** là chương trình chuyển/xử lý nội dung trong đường in. **UFRII LT** là dòng ngôn ngữ/driver Canon dùng ở ví dụ; **SPL, PostScript và PCL** là các ngôn ngữ máy in khác, không được thay thế theo tên hãng. **DNS-SD** là cơ chế quảng bá/khám phá dịch vụ; **URI** là chuỗi chỉ giao thức và nơi kết nối. **IPP/IPPS, LPD và socket** là các cách truyền dữ liệu in khác nhau; IPPS có mã hóa.
+
+**Schema** là mô tả có cấu trúc của các lựa chọn; **enum** là tập giá trị hữu hạn. **Fingerprint** là dấu nhận biết cấu hình; **stale** nghĩa là cấu hình đọc được không còn khớp bản đăng ký. **Allowlist** là danh sách các giá trị được phép; **override** là ghi đè mặc định. **Borderless** là in không viền; không suy ra từ khả năng fill. Tên trường và giá trị driver bên dưới là định danh kỹ thuật, không phải tên lựa chọn dùng chung mọi model.
+
+**Biến môi trường** cung cấp cấu hình khi chạy chương trình. Trong bảng giới hạn, **MiB/GiB** là đơn vị dung lượng theo lũy thừa hai; **retention** là thời gian giữ dữ liệu, **tombstone** là bản ghi tối thiểu còn giữ để chống tạo trùng sau dọn lịch sử.
+
+<a name="b1-cau-hinh-may-in-va-driver" class="heading-anchor"></a>
+
+### B.1 — Cấu hình máy in và driver
+
+<a name="b11-kiem-tra-ket-noi-truoc" class="heading-anchor"></a>
+
+#### B.1.1 Kiểm tra kết nối trước
 
 Trên Windows:
 
@@ -735,7 +960,9 @@ nc -vz -w 3 192.168.88.210 631
 
 Không chọn `socket://...:9100` chỉ vì port mở nếu chưa biết ngôn ngữ/driver model. `IPP`, `IPPS`, `socket`, `LPD`, USB và DNS-SD có ý nghĩa khác nhau.
 
-### 10.2 Driver Canon LBP6230dw trên ARM64
+<a name="b12-driver-canon-lbp6230dw-tren-arm64" class="heading-anchor"></a>
+
+#### B.1.2 Driver Canon LBP6230dw trên ARM64
 
 Một triển khai đã dùng Canon UFRII LT V5.10, package `cnrdrvcups-ufr2lt-uk_5.10-1.00_arm64.deb`, PPD `CNRCUPSLBP6230ZNK.ppd` với tên Canon LBP6230/6240. Người dùng đã xác nhận có giấy in ra. Đây không phải chứng nhận mọi lựa chọn hoặc mọi bản driver Canon.
 
@@ -794,7 +1021,9 @@ lpinfo -m | grep -i 'LBP6230'
 
 Nếu apt thất bại, lưu lỗi và vẫn kiểm tra/start lại appliance, không để service dừng không rõ lý do. Không `autoremove`, purge driver hoặc restore CUPS tùy tiện. `lsb/...` và `usr/...` có thể là alias cùng một PPD, không phải hai máy.
 
-### 10.3 Thêm máy trong UI
+<a name="b13-them-may-trong-ui" class="heading-anchor"></a>
+
+#### B.1.3 Thêm máy trong UI
 
 1. Mở `/`, đăng nhập admin, chọn **Máy in → Thêm máy in**.
 2. Chọn **Tạo cấu hình mới** nếu muốn appliance tạo queue riêng `pa_...`.
@@ -815,13 +1044,17 @@ sudo lpadmin -p QUEUE -o printer-error-policy=stop-printer
 
 Đây là lệnh thay cấu hình; thay `QUEUE` đúng queue đã phê duyệt, không chạy hàng loạt. Gỡ đăng ký khỏi web **không xóa queue CUPS**, kể cả queue managed; việc dọn queue thừa là maintenance riêng.
 
-### 10.4 Sửa và xóa
+<a name="b14-sua-va-xoa" class="heading-anchor"></a>
+
+#### B.1.4 Sửa và xóa
 
 Đổi tên hoặc tùy chọn trong modal rồi lưu. Đổi mapping/driver có thể làm snapshot của job cũ không còn khớp; appliance giữ job thay vì âm thầm in sang cấu hình mới. Mapping không được sửa khi còn job đã giao hoặc `unknown`.
 
 Gỡ đăng ký/xóa client bị chặn `409` khi còn job nonterminal. Xóa là soft-delete để giữ lịch sử và tombstone. Không có CRUD xóa/sửa lịch sử lệnh. Đăng ký lại cùng queue sau xóa tạo một printer ID mới, không phục hồi quyền cũ.
 
-## 11. Tùy chọn in theo capability
+<a name="b2-tuy-chon-in-theo-capability" class="heading-anchor"></a>
+
+### B.2 — Tùy chọn in theo capability
 
 Ba lớp riêng biệt:
 
@@ -829,15 +1062,17 @@ Ba lớp riêng biệt:
 2. **Mặc định appliance:** lựa chọn quản trị muốn áp cho PDF.
 3. **Quyền ghi đè:** giá trị client được phép chọn; driver hỗ trợ không tự cấp quyền.
 
-![Từ capability driver tới mặc định, quyền client, validation và snapshot](diagrams/06-option-permissions.svg)
-
-_Hình 6 — Driver hỗ trợ một lựa chọn chưa có nghĩa client được dùng nó. Server vẫn kiểm quyền và constraints, không chỉ dựa vào form._
-
 Vào **Máy in → Sửa cấu hình** để chọn trường phổ biến và mở nâng cao khi cần. Mặc định appliance phải nằm trong allowlist tương ứng. UI tự tích mặc định; muốn cố định thì không cấp thêm lựa chọn khác. Không đặt mặc định riêng sẽ dùng default driver đã đọc.
 
 Client chọn **Dùng mặc định** thì bỏ khóa đó khỏi `options`. `options:{}` là hợp lệ khi không có quyền override, nếu schema vẫn đọc được. ZPL gửi nguyên bản và dùng `{}`; PDF driver options không áp lên nội dung ZPL.
 
-### 11.1 Khổ giấy, duplex và căn PDF
+<a name="b21-kho-giay-duplex-va-can-pdf" class="heading-anchor"></a>
+
+#### B.2.1 Khổ giấy, duplex và căn PDF
+
+<a id="table-5"></a>
+
+**Bảng 5 — Ví dụ tùy chọn và giới hạn driver**
 
 | Tùy chọn | Ví dụ | Giới hạn |
 | --- | --- | --- |
@@ -851,7 +1086,9 @@ Với PPD Canon đã đọc: duplex cạnh dài tương ứng `DuplexNoTumble` v
 
 `fit` hướng tới giữ nội dung trong vùng in; `fill` có thể cắt nội dung để lấp vùng; `none` không yêu cầu scaling. Kết quả phụ thuộc filter/driver/giấy. Máy laser có lề vật lý; “đầy trang” không đồng nghĩa in sát mọi mép. Thử một file kiểm chuẩn trên giấy trước khi đưa vào biểu mẫu nghiệp vụ.
 
-### 11.2 Schema unavailable hoặc stale
+<a name="b22-schema-unavailable-hoac-stale" class="heading-anchor"></a>
+
+#### B.2.2 Schema unavailable hoặc stale
 
 `available` là có schema dùng được; `partial` chỉ có một phần thuộc tính. `stale` là mapping đã khác đăng ký. `unknown`/`unavailable` không phải bằng chứng máy không có tính năng.
 
@@ -865,41 +1102,72 @@ Xem lựa chọn queue trên Linux bằng lệnh đọc-only:
 lpoptions -p QUEUE -l
 ```
 
-## 12. Clients, API key và trang gửi thử
+<a name="b3-cau-hinh-runtime-va-gioi-han" class="heading-anchor"></a>
 
-### 12.1 Tạo quyền
+### B.3 — Cấu hình runtime và giới hạn
 
-1. **Clients → Thêm client**.
-2. Đặt tên theo ứng dụng/người dùng thử, ví dụ `odoo-warehouse`.
-3. Mở dropdown **Máy được cấp**, tìm và tích từng máy. Các chip thể hiện lựa chọn; bỏ chip để bỏ quyền.
-4. Lưu. Sao chép API key trong modal hiện một lần và lưu ở secret store của ứng dụng.
-5. Đóng modal sẽ không xem lại key. Mất key thì rotate và cập nhật client; không tìm plaintext trong DB.
+<a name="b31-bien-moi-truongcli" class="heading-anchor"></a>
 
-Không có printer grants thì key vẫn xác thực nhưng `/client` không có máy để gửi. Sửa client và cấp máy; không cần rotate key chỉ để đổi quyền. Revoke dừng request mới; không mặc nhiên hủy job đã được nhận. Delete còn bị chặn bởi job nonterminal.
+#### B.3.1 Biến môi trường/CLI
 
-![Luồng cấp key, kết nối client, gửi file, theo dõi và xử lý mất phản hồi](diagrams/07-client-workflow.svg)
+<a id="table-6"></a>
 
-_Hình 7 — Kết nối được không đồng nghĩa đã được cấp máy. Retry sau mất phản hồi dùng request gốc; reload chỉ phục hồi kết nối, không phục hồi giao dịch in._
+**Bảng 6 — Biến cấu hình runtime**
 
-### 12.2 Sử dụng `/client`
+| Biến | Mặc định | Ý nghĩa |
+| --- | --- | --- |
+| `PRINT_APPLIANCE_DATA_DIR` | `/var/lib/print-appliance` | DB/spool/worker lock |
+| `PRINT_APPLIANCE_HOST` | `127.0.0.1` | Bind app; IP triển khai, không IP máy in |
+| `PRINT_APPLIANCE_PORT` | `8081` | Port HTTP |
+| `PRINT_APPLIANCE_SECURE_COOKIE` | `0` | `1`, `true`, `yes` bật Secure admin cookie; cần HTTPS |
+| `PRINT_APPLIANCE_CUPS_SOCKET` | `/run/cups/cups.sock` | Unix socket tuyệt đối; không remote TCP CUPS |
 
-Mở `http://APPLIANCE_HOST:8081/client`, nhập API key và kết nối. Trang chỉ gọi `/api/v1/...` bằng Bearer, bỏ admin cookies khỏi request; không dùng password admin.
+`run --data-dir --host --port` override biến tương ứng. Worker interval mặc định 2 giây là settings nội bộ, không có biến môi trường documented để chỉnh. Không dùng một file YAML cũ của gateway làm config cho ứng dụng này.
 
-Key được lưu **sessionStorage theo tab** sau khi kết nối. Reload tự xác thực lại và tải danh sách/history của đúng client. Ngắt kết nối hoặc API 401 xóa key. Không đưa key vào URL/localStorage. Một số trình duyệt có thể khôi phục hoặc copy session khi restore/duplicate tab; đừng coi đóng tab là bằng chứng secret đã bị xóa khỏi mọi cơ chế browser.
+<a name="b32-gioi-han-qua-web" class="heading-anchor"></a>
 
-Nếu storage bị chặn, vẫn dùng được trong bộ nhớ nhưng reload cần nhập lại. Máy dùng chung phải ngắt kết nối khi dùng xong. Script cùng origin có thể đọc sessionStorage; tránh extension không tin cậy và luôn cập nhật bảo mật.
+#### B.3.2 Giới hạn qua web
 
-Chọn máy, file, số bản và tùy chọn rồi bấm **Gửi lệnh in**. POST yêu cầu in thật. Reload chỉ giữ danh tính, **không phục hồi file, lựa chọn hoặc request đang gửi**, và không tự POST.
+<a id="table-7"></a>
 
-Nếu mất phản hồi, giữ tab và dùng **Gửi lại cùng yêu cầu**: file, fields và request ID không đổi. Nếu đã reload/đóng tab, kiểm tra lịch sử và nhờ admin đối soát trước khi tạo lệnh mới. Lưu kết nối không phải lưu an toàn giao dịch in chưa xác nhận.
+**Bảng 7 — Giới hạn có thể chỉnh qua web**
 
-## 13. API client: hợp đồng và kết quả
+| Setting | Mặc định | Khoảng server cho phép |
+| --- | --- | --- |
+| `max_upload_bytes` | 10 MiB = 10485760 | 64 KiB–512 MiB |
+| `max_pending_jobs` | 100 | 1–10000 |
+| `min_free_bytes` | 100 MiB = 104857600 | 0–100 GiB |
+| `history_retention_days` | 30 | 1–3650 |
+
+HTTP body limit là ít nhất 12 MiB, hoặc upload limit + 2 MiB overhead nếu lớn hơn. Đây không thay connection/rate limits ở mạng/proxy. Không đặt min-free bằng 0 trên eMMC nhỏ chỉ để tiếp nhận thêm.
+
+Job chưa kết thúc tính cả `unknown`. Khi hàng đợi đầy hoặc disk thấp, app từ chối lệnh mới thay vì xóa job đang chờ. Terminal payload bị xóa; history hết hạn bị dọn; tombstone chống trùng lưu riêng và tăng theo số yêu cầu lâu dài. Cần theo dõi cả DB và CUPS spool, không chỉ thư mục appliance.
+
+<a name="phu-luc-c-api-va-vi-du-tich-hop" class="heading-anchor"></a>
+
+## Phụ lục C — API và ví dụ tích hợp
+
+Đọc mục 2–3 và 5–7 trước. **Endpoint/route** là đường dẫn chức năng của API. **GET** dùng đọc thông tin; **POST** gửi yêu cầu/thao tác. **Header** là phần thông tin điều khiển request; **Bearer** chỉ cách gửi khóa truy cập trong header xác thực. **Idempotency-Key** là tên header mang mã yêu cầu chống trùng.
+
+**JSON** là định dạng dữ liệu có cấu trúc; **object** gồm các cặp khóa/giá trị, **array** là danh sách. **Multipart** là cách một request mang file cùng các trường văn bản. **UTF-8** là cách mã hóa văn bản; **BOM** là dấu đầu file có thể gây lỗi với bên nhận không mong đợi nó. **Poll** là đọc trạng thái lặp lại có kiểm soát; **timeout** là hết thời gian chờ. **OpenAPI** là mô tả hợp đồng API; bản này không mở trang khám phá công khai.
+
+**Cookie** lưu trạng thái phiên trình duyệt; **CSRF** là rủi ro một trang khác gây thao tác thay người đang đăng nhập. Token CSRF bảo vệ các thao tác quản trị. **CORS** là quy tắc cho request từ một origin khác; **origin** gồm giao thức, host và port. Host là tên/địa chỉ máy của dịch vụ. Client keys, admin sessions và các quyền không thay thế nhau.
+
+**Odoo** là phần mềm quản lý nghiệp vụ có thể tạo tài liệu để gửi in; **PDA** là thiết bị cầm tay, thường có chức năng quét mã. Chúng là ví dụ nguồn yêu cầu, không thành phần bắt buộc của Print Appliance.
+
+<a name="c1-api-client-hop-ong-va-ket-qua" class="heading-anchor"></a>
+
+### C.1 — API client: hợp đồng và kết quả
 
 Base URL mẫu: `http://192.168.88.228:8081`. Mọi API client cần:
 
 ```text
 Authorization: Bearer <API_KEY>
 ```
+
+<a id="table-8"></a>
+
+**Bảng 8 — Các API của client**
 
 | Method và route | Chức năng |
 | --- | --- |
@@ -952,7 +1220,13 @@ Capability là object versioned. Ví dụ hình dạng, không phải allowlist 
 
 Client schema chỉ expose choice được cấp; defaults/constraints có thể giải thích vì sao một giá trị hiệu lực cố định. Fingerprint là dấu phát hiện thay đổi, không phải request ID hoặc giấy phép ghi đè. Khi availability không dùng được, đọc reason; không biến schema rỗng thành quyền tùy chọn tự do.
 
-### 13.1 Multipart của job mới
+<a name="c11-multipart-cua-job-moi" class="heading-anchor"></a>
+
+#### C.1.1 Multipart của job mới
+
+<a id="table-9"></a>
+
+**Bảng 9 — Trường của một yêu cầu in**
 
 | Field | Giá trị |
 | --- | --- |
@@ -975,7 +1249,13 @@ Sau dọn history, replay có thể trả `history_expired:true` và metadata t�
 
 GET job trả các trường `job_id`, `printer_id`, `status`, `accepted_at`, `updated_at`, `title`, `format`, `copies`, `reason`; detail còn có `events` theo thứ tự. Danh sách jobs là array, mới nhất trước, có limit; không phải cơ chế phân trang/export toàn bộ. Client detail không trả file/snapshot nội bộ; admin detail có snapshot và CUPS ID để đối soát.
 
-### 13.2 Mã lỗi
+<a name="c12-ma-loi" class="heading-anchor"></a>
+
+#### C.1.2 Mã lỗi
+
+<a id="table-10"></a>
+
+**Bảng 10 — Mã phản hồi và cách xử lý**
 
 | HTTP | Ý nghĩa | Hành động |
 | --- | --- | --- |
@@ -992,11 +1272,15 @@ GET job trả các trường `job_id`, `printer_id`, `status`, `accepted_at`, `u
 
 Header/signature checks không phải PDF security scanner hoặc ZPL sandbox. Chỉ cấp API key cho sender đáng tin; raw ZPL có thể chứa lệnh thiết bị ngoài việc in một nhãn.
 
-## 14. Gọi API từ macOS và Windows
+<a name="c2-goi-api-tu-macos-va-windows" class="heading-anchor"></a>
+
+### C.2 — Gọi API từ macOS và Windows
 
 Các ví dụ sau gửi **một file đã có**. Không dùng PDF giả chỉ gồm header để in thật. Kiểm tra máy/driver và thông báo người vận hành trước POST.
 
-### 14.1 macOS: biến, key và danh sách
+<a name="c21-macos-bien-key-va-danh-sach" class="heading-anchor"></a>
+
+#### C.2.1 macOS: biến, key và danh sách
 
 Trong Terminal, dùng Bash để đọc key không echo (nếu Terminal đang chạy zsh thì gõ `bash` trước):
 
@@ -1063,7 +1347,9 @@ Dọn biến key khi dùng xong:
 unset ApiKey
 ```
 
-### 14.2 Windows PowerShell: gọi bằng curl.exe
+<a name="c22-windows-powershell-goi-bang-curlexe" class="heading-anchor"></a>
+
+#### C.2.2 Windows PowerShell: gọi bằng curl.exe
 
 Dùng `curl.exe`, không `curl` alias của Windows PowerShell 5.1. Không dùng cú pháp `export`, `read` hoặc dấu `\` nối dòng của Bash trong PowerShell.
 
@@ -1118,17 +1404,27 @@ Remove-Variable ApiKey, Secret -ErrorAction SilentlyContinue
 
 Key không echo/history literal, nhưng `curl -H` có thể xuất hiện trong process arguments khi đang chạy. Trên máy nhiều user, ưu tiên ứng dụng gọi HTTP trực tiếp hoặc secret mechanism theo chính sách. Không log URL chứa query key, header Authorization, file content hoặc toàn bộ shell transcript.
 
-### 14.3 PDF options và ZPL
+<a name="c23-pdf-options-va-zpl" class="heading-anchor"></a>
+
+#### C.2.3 PDF options và ZPL
 
 Muốn override, ghi JSON đúng schema và quyền vào options file, ví dụ `{"PageSize":"A4"}`. Không copy `Duplex`/`BindEdge` từ ví dụ sang một driver khác. Client cần được cấp các giá trị đó, và tổ hợp hiệu lực phải hợp lệ.
 
 ZPL dùng `format=zpl`, `options={}` và file UTF-8 `^XA...^XZ` cho máy hiểu ZPL. Appliance không rasterize PDF thành nhãn và không kiểm chứng mọi command ZPL. `copies`/`^PQ` có thể tương tác; kiểm tra số nhãn trên model thật.
 
-## 15. API quản trị và tích hợp Odoo/PDA
+<a name="c3-api-quan-tri-va-tich-hop-odoopda" class="heading-anchor"></a>
 
-### 15.1 Quản trị
+### C.3 — API quản trị và tích hợp Odoo/PDA
+
+<a name="c31-quan-tri" class="heading-anchor"></a>
+
+#### C.3.1 Quản trị
 
 Admin dùng cookie `pa_admin`, session phía server hết hạn sau 8 giờ và `X-CSRF-Token` cho mutations. Login JSON có password; response trả token và cookie. Bearer client không thay admin session.
+
+<a id="table-11"></a>
+
+**Bảng 11 — Nhóm API quản trị**
 
 | Nhóm | Route chính |
 | --- | --- |
@@ -1143,7 +1439,9 @@ Admin dùng cookie `pa_admin`, session phía server hết hạn sau 8 giờ và 
 
 Thường dùng UI cho admin để khỏi tự giữ cookie/CSRF. Client tích hợp nghiệp vụ chỉ dùng API client. Không gọi SQL trực tiếp như một API quản trị.
 
-### 15.2 Mẫu luồng tích hợp
+<a name="c32-mau-luong-tich-hop" class="heading-anchor"></a>
+
+#### C.3.2 Mẫu luồng tích hợp
 
 1. Admin tạo client riêng cho Odoo/PDA/application và cấp printer IDs.
 2. Ứng dụng tạo nội dung PDF hoặc ZPL đúng loại máy; lưu file/parameters và request ID trong cơ sở dữ liệu của chính nó.
@@ -1156,36 +1454,21 @@ Thường dùng UI cho admin để khỏi tự giữ cookie/CSRF. Client tích h
 
 Bản này không cung cấp callback/webhook. Không tự suy ra gateway cũ/Odoo addon cũ dùng được nguyên cấu hình với API mới: header, route, request ID và quyền đã khác.
 
-## 16. Cấu hình runtime và giới hạn
+<a name="phu-luc-d-runbook-van-hanh-va-bao-tri" class="heading-anchor"></a>
 
-### 16.1 Biến môi trường/CLI
+## Phụ lục D — Runbook vận hành và bảo trì
 
-| Biến | Mặc định | Ý nghĩa |
-| --- | --- | --- |
-| `PRINT_APPLIANCE_DATA_DIR` | `/var/lib/print-appliance` | DB/spool/worker lock |
-| `PRINT_APPLIANCE_HOST` | `127.0.0.1` | Bind app; IP triển khai, không IP máy in |
-| `PRINT_APPLIANCE_PORT` | `8081` | Port HTTP |
-| `PRINT_APPLIANCE_SECURE_COOKIE` | `0` | `1`, `true`, `yes` bật Secure admin cookie; cần HTTPS |
-| `PRINT_APPLIANCE_CUPS_SOCKET` | `/run/cups/cups.sock` | Unix socket tuyệt đối; không remote TCP CUPS |
+Runbook là tập bước thực hiện một công việc vận hành. Đọc mục 8–10 trước khi dùng các lệnh dưới đây. **IPP state** là số trạng thái CUPS trả qua giao thức IPP; nó không phải số thứ tự bước của app. **Nonterminal** là chưa kết thúc; **terminal** là đã có kết quả cuối. **WAL** là nhật ký ghi trước của cơ sở dữ liệu SQLite, giúp phối hợp ghi dữ liệu; không copy rời một file DB sống để thay cho backup nhất quán. **SQLite** là hệ quản lý cơ sở dữ liệu nằm trên thiết bị, **DB** là viết tắt cơ sở dữ liệu.
 
-`run --data-dir --host --port` override biến tương ứng. Worker interval mặc định 2 giây là settings nội bộ, không có biến môi trường documented để chỉnh. Không dùng một file YAML cũ của gateway làm config cho ứng dụng này.
+**Migration** là thay cấu trúc dữ liệu khi nâng phiên bản. **Soft-delete** là đánh dấu đối tượng đã xóa nhưng giữ bản ghi cần cho lịch sử/đối soát. **Artifacts** là các file bàn giao của release; **SOURCE_COMMIT** là file ghi mốc mã nguồn đã kích hoạt. **Readiness** là kiểm dịch vụ đã sẵn sàng đáp ứng. **Activation** là đưa phiên bản đã cài vào hoạt động.
 
-### 16.2 Giới hạn qua web
+<a name="d1-van-hanh-hang-ngay-va-xu-ly-su-co" class="heading-anchor"></a>
 
-| Setting | Mặc định | Khoảng server cho phép |
-| --- | --- | --- |
-| `max_upload_bytes` | 10 MiB = 10485760 | 64 KiB–512 MiB |
-| `max_pending_jobs` | 100 | 1–10000 |
-| `min_free_bytes` | 100 MiB = 104857600 | 0–100 GiB |
-| `history_retention_days` | 30 | 1–3650 |
+### D.1 — Vận hành hàng ngày và xử lý sự cố
 
-HTTP body limit là ít nhất 12 MiB, hoặc upload limit + 2 MiB overhead nếu lớn hơn. Đây không thay connection/rate limits ở mạng/proxy. Không đặt min-free bằng 0 trên eMMC nhỏ chỉ để tiếp nhận thêm.
+<a name="d11-cac-kiem-tra-thuong-dung-tren-linux" class="heading-anchor"></a>
 
-Job chưa kết thúc tính cả `unknown`. Khi hàng đợi đầy hoặc disk thấp, app từ chối lệnh mới thay vì xóa job đang chờ. Terminal payload bị xóa; history hết hạn bị dọn; tombstone chống trùng lưu riêng và tăng theo số yêu cầu lâu dài. Cần theo dõi cả DB và CUPS spool, không chỉ thư mục appliance.
-
-## 17. Vận hành hàng ngày và xử lý sự cố
-
-### 17.1 Các kiểm tra thường dùng trên Linux
+#### D.1.1 Các kiểm tra thường dùng trên Linux
 
 ```bash
 systemctl is-active print-appliance cups
@@ -1198,7 +1481,9 @@ lpstat -W not-completed -o
 
 Chỉ kiểm tra; không clear queue. Logs có thể chứa metadata lỗi; lọc trước khi đưa lên issue công khai. Uvicorn CLI tắt access log, nhưng proxy/router/monitor vẫn có thể log; không coi đó là giấy phép truyền credential trong URL.
 
-### 17.2 Pause, resume, cancel
+<a name="d12-pause-resume-cancel" class="heading-anchor"></a>
+
+#### D.1.2 Pause, resume, cancel
 
 - Pause printer giữ queue cho người vận hành; pause latch lưu bền vững trước thao tác CUPS.
 - Resume toàn máy cho phép FIFO tiếp tục sau xác minh policy/mapping/kết quả job đang hoạt động.
@@ -1208,7 +1493,9 @@ Chỉ kiểm tra; không clear queue. Logs có thể chứa metadata lỗi; lọ
 
 Không chạy `cancel -a`, `cupsenable` hoặc `systemctl restart cups` như bước đầu sửa mọi lỗi. Chúng có thể tác động sender/job ngoài appliance hoặc làm mất bằng chứng.
 
-### 17.3 Unknown và job identity
+<a name="d13-unknown-va-job-identity" class="heading-anchor"></a>
+
+#### D.1.3 Unknown và job identity
 
 Vào **Lệnh in → Xem**, ghi job ID, CUPS ID, snapshot, reason và events. Đối chiếu CUPS job correlation với `pa-<job-id>`; chỉ terminal state có danh tính khớp mới làm bằng chứng cho lệnh đó.
 
@@ -1216,11 +1503,13 @@ IPP state: `7=canceled`, `8=aborted`, `9=completed`. Không đọc state 9 thàn
 
 Khi CUPS còn nonterminal phải cancel/xác minh trước. Khi không còn lịch sử, cần bằng chứng vận hành đáng tin và reason; thiếu lịch sử không phải bằng chứng chưa in. Admin resolve ghi kết quả terminal và lý do, không in lại nội dung. Một job từng bị unknown đã được đối soát completed bằng correlation/state khớp trên EDATEC, không resend.
 
-![Đối soát unknown bằng CUPS ID, correlation, state và quyết định có lý do](diagrams/08-unknown-resolution.svg)
+<a name="d14-bang-loi-nhanh" class="heading-anchor"></a>
 
-_Hình 8 — Không gán kết quả của một CUPS job khác cho lệnh đang đối soát. Resolve là ghi nhận có bằng chứng, không in lại._
+#### D.1.4 Bảng lỗi nhanh
 
-### 17.4 Bảng lỗi nhanh
+<a id="table-12"></a>
+
+**Bảng 12 — Bảng tra cứu sự cố**
 
 | Hiện tượng | Kiểm tra | Tránh |
 | --- | --- | --- |
@@ -1239,13 +1528,13 @@ _Hình 8 — Không gán kết quả của một CUPS job khác cho lệnh đang
 | 507/disk gần đầy | App spool, DB, CUPS retention, apt cache | Xóa unknown payload hoặc DB/WAL |
 | Toast/UI cũ | Hard reload, asset hash, wheel/source parity | Patch riêng JS trên EDATEC |
 
-## 18. Sao lưu và phục hồi
+<a name="d2-sao-luu-va-phuc-hoi" class="heading-anchor"></a>
 
-![Hai luồng backup đầy đủ và restore có kiểm soát, với điều kiện trước activation](diagrams/09-backup-restore.svg)
+### D.2 — Sao lưu và phục hồi
 
-_Hình 9 — Backup và restore không đối xứng: restore phải đối soát lệnh mới sau backup và kiểm dữ liệu trước khi cho worker chạy._
+<a name="d21-backup-sqlite-online" class="heading-anchor"></a>
 
-### 18.1 Backup SQLite online
+#### D.2.1 Backup SQLite online
 
 Lệnh CLI dùng SQLite backup API, xử lý WAL và kiểm integrity. Destination phải chưa tồn tại và khác live DB. Trên Linux:
 
@@ -1257,7 +1546,9 @@ sudo -u print-appliance /opt/print-appliance/.venv/bin/print-appliance backup --
 
 Đây **chỉ backup DB**, không đủ phục hồi spool của queued/held/unknown. Không copy riêng `appliance.sqlite3` khi service đang chạy và WAL có dữ liệu.
 
-### 18.2 Backup đầy đủ khi đã maintenance
+<a name="d22-backup-ay-u-khi-a-maintenance" class="heading-anchor"></a>
+
+#### D.2.2 Backup đầy đủ khi đã maintenance
 
 Xác nhận không còn job nonterminal trong UI và không còn CUPS job đang chờ. Nếu có unknown, xử lý có phép trước; không gọi đó là queue trống.
 
@@ -1312,7 +1603,9 @@ scp "${SshTarget}:appliance-backups/REPLACE_BACKUP_TIMESTAMP/full-appliance.tar.
 
 Dùng thư mục user riêng, ACL phù hợp và ổ mã hóa theo chính sách trên Windows. Không dùng `ssh ... > backup.tar.gz` trong Windows PowerShell 5.1 cho luồng nhị phân: redirection có thể làm hỏng archive; dùng SCP.
 
-### 18.3 Restore có kiểm soát
+<a name="d23-restore-co-kiem-soat" class="heading-anchor"></a>
+
+#### D.2.3 Restore có kiểm soát
 
 Restore có thể làm mất job mới và phá idempotency nếu snapshot cũ thiếu lệnh đã giao. Chỉ restore sau khi đã lưu backup hiện tại, đối soát mọi job nhận sau backup và chấp thuận maintenance. Không restore DB cũ như cách thử xem “có hết lỗi không”.
 
@@ -1354,184 +1647,200 @@ sudo journalctl -u print-appliance -n 50 --no-pager
 
 Không xóa thư mục before-restore cho tới khi đã xác minh. Restore app data có thể đưa queued job cũ trở lại; operator phải đối soát và quyết định trạng thái trước khi để in tiếp. Backup/restore không chứng minh job vật lý chưa được thực hiện.
 
-## 19. Cập nhật bằng Git, checksum và rollback
+<a name="d3-cap-nhat-va-quay-lai-phien-ban-truoc" class="heading-anchor"></a>
 
-Quy trình bắt buộc: **sửa/test trên máy phát triển → commit/push → checkout đúng commit trên Linux → cài wheel cùng commit → kiểm source/package/served assets**. Không sửa riêng Python/JS trên thiết bị.
+### D.3 Cập nhật và quay lại phiên bản trước
 
-![Luồng release cùng commit từ Mac hoặc WSL tới Linux, kiểm tra và rollback](diagrams/10-git-rollout.svg)
+Đây là quy trình của người quản trị, không hướng dẫn lập trình. Chỉ dùng một mốc phần mềm đã được kiểm tra. Trước thực hiện, có backup hiện tại, không còn lệnh app chưa kết thúc hoặc CUPS đang chờ, và người phụ trách đã chấp thuận maintenance. Kiểm tra lại sau khi stop để tránh bỏ sót lệnh vừa nhận.
 
-_Hình 10 — Checkout source không đủ chứng minh package đang chạy đúng. Chỉ ghi SOURCE_COMMIT sau xác minh; rollback phụ thuộc tính tương thích dữ liệu._
+Thiết bị cài theo A.2 có công cụ `uv` trong `/opt/print-appliance/tools`. Nếu là thiết bị cài trước đó chưa có công cụ này, chuẩn bị công cụ như A.2.5; không chạy lại thủ tục cài mới hoặc ghi đè thư mục dữ liệu.
 
-### 19.1 Chuẩn bị release mới
-
-Trên Mac hoặc WSL:
+Ghi mốc hiện tại và mốc mới đã được cung cấp, thay placeholder trước chạy:
 
 ```bash
-git switch main
-git pull --ff-only origin main
-uv sync --frozen --python 3.11 --extra dev
-uv run pytest -q
-uv run ruff check .
-uv run ruff format --check .
-uv build
-```
-
-Ghi commit mới và version wheel thực. Các lệnh 0.1.5 trong báo cáo chỉ áp cho mốc 0.1.5; version khác phải đổi tên artifact đồng bộ, không đổi version trong device source.
-
-Chạy lại browser suite, export dependency/checksum như phần 8. Upload vào thư mục tạm và giữ previous wheel. Kiểm disk, active jobs, CUPS inventory; backup stopped-service đầy đủ trước migrations.
-
-### 19.2 Activate trên Linux
-
-Giả sử thư mục upload đã chứa wheel/checksum/dependency của version mới. Đặt biến rõ ràng; thay placeholder trước chạy:
-
-```bash
-NEW_COMMIT=REPLACE_WITH_FULL_COMMIT
-NEW_WHEEL=/absolute/path/to/upload/print_appliance-NEW_VERSION-py3-none-any.whl
 PREVIOUS_COMMIT=$(sudo cat /opt/print-appliance/SOURCE_COMMIT)
+NEW_COMMIT=REPLACE_WITH_APPROVED_FULL_COMMIT
+sudo git -C /opt/print-appliance/source status --short
 ```
 
+Phải là thư mục source không có sửa riêng. Nếu có thay đổi không rõ nguồn, dừng để người phụ trách đánh giá. Khi đã sẵn sàng:
+
 ```bash
-sudo git -C /opt/print-appliance/source status --short
+sudo systemctl stop print-appliance
+sudo /opt/print-appliance/.venv/bin/python - <<'PY'
+import sqlite3
+connection = sqlite3.connect('file:/var/lib/print-appliance/appliance.sqlite3?mode=ro', uri=True)
+assert connection.execute("SELECT count(*) FROM jobs WHERE status NOT IN ('completed','failed','canceled')").fetchone()[0] == 0, 'Keep service stopped and arrange maintenance'
+connection.close()
+PY
 sudo git -C /opt/print-appliance/source fetch origin main
 sudo git -C /opt/print-appliance/source checkout --detach "$NEW_COMMIT"
-sudo git -C /opt/print-appliance/source rev-parse HEAD
+sudo env VIRTUAL_ENV=/opt/print-appliance/.venv /opt/print-appliance/tools/uv sync --project /opt/print-appliance/source --active --frozen --no-dev --no-editable --python /usr/bin/python3
 ```
 
-Phải là tree sạch trước checkout, HEAD đúng commit, wheel checksum đúng. Với dependency không đổi, cập nhật package không kéo dependency mới. Khi dependency đổi, cài export hash-pinned đã review trong maintenance:
+Nếu bất kỳ lệnh nào lỗi, không chạy tiếp lệnh start. Đọc lỗi và áp kế hoạch rollback đã duyệt. Khi cài thành công:
 
 ```bash
-sudo systemctl stop print-appliance
-sudo /opt/print-appliance/.venv/bin/python -m pip install --no-deps --force-reinstall "$NEW_WHEEL"
+sudo -u print-appliance /opt/print-appliance/.venv/bin/print-appliance --help
 sudo systemctl start print-appliance
+systemctl is-active print-appliance cups
+sudo journalctl -u print-appliance -n 50 --no-pager
 ```
 
-Chỉ start khi lệnh pip thành công; nếu pip lỗi, giữ service dừng và dùng rollback, không chạy tiếp tự động. Nếu có dependency changes, thêm bước `pip install --require-hashes -r runtime-requirements.txt` trước wheel. Sau activation: kiểm permission package đọc được dưới user service, health/auth/discovery và package hash như phần 9.10; không gửi lệnh thật trừ khi acceptance đã được cho phép. Lưu wheel mới vào `releases/$NEW_COMMIT` và chỉ ghi `SOURCE_COMMIT` sau kiểm tra thành công.
-
-### 19.3 Rollback
-
-Nếu update chỉ thay frontend/code và không đổi schema/dữ liệu không tương thích, có thể cài lại wheel trước. Chọn đúng wheel đã giữ:
+Kiểm readiness, đăng nhập, máy/cấu hình và khả năng đọc CUPS; không gửi lệnh thật nếu chưa được phép. Chỉ khi kiểm tra đạt mới ghi mốc đã chạy:
 
 ```bash
-PREVIOUS_WHEEL=/absolute/path/to/preserved/previous.whl
+sudo sh -c 'git -C /opt/print-appliance/source rev-parse HEAD > /opt/print-appliance/SOURCE_COMMIT'
+```
+
+**Rollback phần mềm chỉ khi dữ liệu còn tương thích với bản trước.** Dừng service, checkout mốc trước và cài môi trường như ở trên; không tự khởi động nếu có lỗi:
+
+```bash
 sudo systemctl stop print-appliance
-sudo /opt/print-appliance/.venv/bin/python -m pip install --no-deps --force-reinstall "$PREVIOUS_WHEEL"
 sudo git -C /opt/print-appliance/source checkout --detach "$PREVIOUS_COMMIT"
-sudo systemctl start print-appliance
+sudo env VIRTUAL_ENV=/opt/print-appliance/.venv /opt/print-appliance/tools/uv sync --project /opt/print-appliance/source --active --frozen --no-dev --no-editable --python /usr/bin/python3
 ```
 
-Kiểm tra rồi khôi phục SOURCE_COMMIT. Nếu dependency đã đổi, rollback dependency cũng phải theo artifact cũ tương thích.
+Nếu đã có migration hoặc dữ liệu không tương thích, dùng kế hoạch phục hồi dữ liệu có đối soát ở D.2, không áp rollback phần mềm để thử. Đặc biệt không hạ 0.1.2+ về 0.1.1 trên DB có soft-delete. Không phục hồi backup cũ nếu chưa đối soát các lệnh nhận sau backup. Internet hoặc các gói cài được lưu sẵn có thể cần để cài lại môi trường.
 
-**Không downgrade 0.1.2+ sang 0.1.1 bằng wheel-only trên DB đã soft-delete.** App cũ có thể coi deleted rows là live. Schema/migration rollback yêu cầu backup dữ liệu phù hợp và đối soát job mới trước restore. Không silent rollback mất job đã nhận.
+Sau xác minh mới start và cập nhật SOURCE_COMMIT. Dọn chính SSH key tạm đã tạo cho việc bảo trì nếu có, giữ các key khác. Không đưa token GitHub cá nhân lên thiết bị cho repository public.
 
-Nếu SSH key tạm được tạo cho rollout, xóa chính authorized-key entry đó và key local sau hoàn tất; giữ các key khác. Không cài GitHub account token trên thiết bị cho repo public.
+<a name="phu-luc-e-thuat-ngu-va-viet-tat-bo-sung" class="heading-anchor"></a>
 
-## 20. Bảo mật, khả năng và giới hạn triển khai
+## Phụ lục E — Thuật ngữ và viết tắt bổ sung
 
-### 20.1 Biện pháp hiện có
+Phần chính giải thích khái niệm khi xuất hiện; bảng này dùng tra cứu các từ kỹ thuật trong phụ lục. Tên kỹ thuật được giữ để đối chiếu đúng giao diện, lệnh và lỗi; không phải thành phần mà người dùng phải tự lập trình.
 
-- API keys random, plaintext hiển thị một lần, server lưu SHA-256 hash.
-- Password admin dùng scrypt có salt; session token phía server lưu hash, cookie HttpOnly/SameSite Strict, CSRF mutation.
-- Login guard khóa sau năm lần sai trong cửa sổ năm phút; lock năm phút.
-- Không wildcard CORS, không public OpenAPI, CSP cùng origin và no-store cho trang/API.
-- Validate enum, URI, queue/options, kích thước file/body, dung lượng và quyền; request không thực thi shell.
-- Service non-root, systemd filesystem hardening; data không nằm trong repo.
-- Local CUPS authentication và job identity được kiểm trước tracking/control/reconciliation.
+<a id="table-13"></a>
 
-Những biện pháp này không thay TLS, firewall, cập nhật OS/driver hoặc kiểm soát client đáng tin. Driver/filter vendor là native executable; PDF/ZPL có thể kích hoạt hành vi phức tạp. Không cấp quyền upload cho người không tin cậy chỉ vì có allowlist option.
+**Bảng 13 — Thuật ngữ kỹ thuật bổ sung**
 
-### 20.2 Điều chưa được hứa
-
-- Không proof-of-paper universal, exactly-once vật lý hoặc thu hồi giấy đã in.
-- Không multi-node HA, replicated storage, cloud/Internet deployment, webhooks hoặc fleet management.
-- Không chứng nhận CUPS 3/PPD-free và mọi driverless printer. Queue non-raw không đọc được PPD fingerprint phải fail closed.
-- Không auto-resume khi offline hết; không auto-retry unknown.
-- Không retained-file reprint/download API, không chỉnh/xóa job history qua CRUD.
-- Không benchmark throughput/RAM/CPU dài hạn hoặc dung lượng tối đa cho mọi workload.
-- Application cleanup không dọn CUPS spool/history. `PreserveJobFiles`/`PreserveJobHistory` là policy CUPS chung phải inventory và phê duyệt riêng.
-- SessionStorage trên `/client` là tiện ích theo tab, không secret vault và không bảo đảm request đang gửi sống qua reload.
-
-## 21. Bằng chứng kiểm thử và checklist nghiệm thu
-
-### 21.1 Đã kiểm tra ở mốc báo cáo
-
-- Đã clone lại repo public vào thư mục mới, checkout mốc 0.1.5 và chạy nguyên luồng uv sync frozen, 93 tests, Ruff, build và CLI/password/web/assets/401 trên Mac. Không dùng dữ liệu hay dependency project cũ để giả định bước setup đúng.
-- 93 Python tests pass trên Mac; release 0.1.4 cũng đã chạy 93 tests trên ARM64. 0.1.5 không thay backend, có browser/real-LAN session tests riêng.
-- Ruff lint/format, JavaScript syntax, wheel/sdist và isolated-wheel asset/browser checks pass.
-- Browser tests cover admin modal, driver search, grants, error/loading, capability/constraints, client immutable retry và session reload/revocation.
-- Một test actual FastAPI/SQLite + explicit FakeCups cố ý làm mất HTTP 202 rồi replay: đúng một durable job.
-- EDATEC Debian 12/Python 3.11/CUPS 2.4.2/pycups 2.0.1 chạy service non-root, discovery và package/source/served hash đã được kiểm tra.
-- Adapter thực đọc được 14 tùy chọn Canon/CUPS và 70 constraint riêng biệt, cùng authenticated correlation/completed metadata.
-- Người dùng báo Canon LBP6230dw đã in ra giấy; không phải quan sát tự động của test suite.
-- Real LAN kiểm tra reload desktop/mobile, tab isolation, disconnect và revoked key; chặn mọi client POST khi smoke, không in thêm và không đổi printer settings.
-
-Một warning Starlette/httpx TestClient vẫn có trong môi trường test; không coi warning là production outage. Windows chưa được chạy trực tiếp. Workflow review trước đây bị gián đoạn; kiểm thử và manual audit không được gọi là chứng nhận independent review hoàn chỉnh.
-
-### 21.2 Trước đưa vào vận hành chính thức
-
-| Gate | Tiêu chí đạt |
+| Thuật ngữ | Giải nghĩa trong tài liệu |
 | --- | --- |
-| Platform/permission | Python ABI, pycups, socket và service-account auth đúng; không fake production |
-| Printer/driver | Model/architecture/filter đúng; test PDF/ZPL trên đúng thiết bị phù hợp |
-| Content/options | Giấy, duplex cạnh dài/ngắn, fit/fill, copies/collate ra kết quả kiểm chuẩn |
-| FIFO/parallel | Một đường điều phối mỗi máy vật lý; nhiều client không bypass queue |
-| Dedup/restart | Lost-response replay, restart sau accept/handoff không tạo lệnh trùng |
-| Faults | Offline/hết giấy/pause/resume/cancel/partial-output xử lý có bằng chứng |
-| Capacity | Upload/count/free-disk reject đúng; không mất job đã nhận |
-| Backup/rollback | Restore thử trên môi trường riêng; giữ metadata/spool, không mất bằng chứng job |
-| Security/network | LAN scope, firewall/TLS phù hợp, secrets protected, revoke hoạt động |
-| Operator handoff | Người vận hành biết unknown/resume/cancel khác nhau và có người chịu trách nhiệm |
+| ABI | Giao diện nhị phân quyết định thư viện có tương thích môi trường thực thi không |
+| API | Giao diện ứng dụng gửi yêu cầu và nhận phản hồi |
+| ARM64 / AArch64 | Kiến trúc bộ xử lý 64-bit cần chọn đúng driver/gói nhị phân |
+| Audit | Dấu vết ghi nhận thao tác quản trị |
+| Bearer | Cách gửi API key trong header xác thực |
+| CLI | Giao diện dòng lệnh |
+| Correlation | Dấu nhận diện nối lệnh app với lệnh CUPS để đối soát |
+| CSP | Chính sách trình duyệt giới hạn nguồn nội dung/script được phép tải |
+| CSRF | Rủi ro thao tác bị gửi thay người đăng nhập; token dùng bảo vệ mutation |
+| CUPS | Hệ thống in quản lý driver, hàng đợi và truyền tới máy |
+| Digest / hash | Dấu tính từ nội dung dùng nhận biết khác biệt, không phải file gốc |
+| FIFO | Nhận trước xử lý trước, trong phạm vi một máy đăng ký |
+| fsync | Yêu cầu hệ điều hành đồng bộ dữ liệu ra thiết bị lưu trữ |
+| Idempotency | Lặp lại cùng yêu cầu không tạo lệnh mới; dùng mã yêu cầu và dấu nội dung |
+| IPP / IPPS | Giao thức in; IPPS bảo vệ kết nối bằng mã hóa |
+| JSON | Định dạng dữ liệu có cấu trúc dùng trong API |
+| LAN | Mạng nội bộ tại địa điểm triển khai |
+| lpadmin | Công cụ/nhóm quyền CUPS phục vụ quản trị theo policy hệ thống |
+| Mapping | Liên kết đăng ký máy với queue, kết nối và driver hiện tại |
+| Mutation | Thao tác làm thay đổi cấu hình hoặc trạng thái, không chỉ đọc |
+| PPD | Mô tả lựa chọn của driver CUPS |
+| pycups | Thư viện để Python gọi CUPS |
+| Queue / spool | Queue là hàng đợi; spool là nơi giữ nội dung chờ xử lý |
+| Raw | Chuyển nội dung theo đường không xử lý như PDF; cần máy hiểu nội dung |
+| scrypt | Thuật toán tạo giá trị kiểm tra mật khẩu; server không giữ password plaintext |
+| SessionStorage | Bộ nhớ phiên của một origin theo tab, không phải kho bí mật lâu dài |
+| SHA-256 | Thuật toán tạo dấu kiểm tra nội dung được ứng dụng dùng |
+| Signature | Dấu định dạng đầu/cuối file được kiểm, không chứng minh file an toàn toàn diện |
+| Snapshot | Cấu hình và lựa chọn giữ cho lệnh tại thời điểm nhận |
+| SQL / SQLite / transaction | Ngôn ngữ truy vấn / cơ sở dữ liệu cục bộ / nhóm thao tác ghi nhất quán |
+| systemd | Bộ quản lý service trên Linux |
+| TLS / HTTPS | Bảo vệ kết nối mạng bằng mã hóa; HTTPS dùng TLS cho HTTP |
+| Tombstone | Metadata còn lại để chống trùng sau dọn lịch sử |
+| URI | Chuỗi chỉ giao thức và nơi kết nối, khác printer_id |
+| uv / venv / wheel | Công cụ quản lý Python / môi trường tách riêng / gói cài Python |
+| WAL | Nhật ký ghi trước của SQLite; backup phải xử lý nhất quán với nó |
+| WSL2 | Môi trường Linux trong Windows, dùng phát triển trong phạm vi hướng dẫn |
+| ZPL | Ngôn ngữ lệnh máy in nhãn hỗ trợ ZPL |
 
-Đánh dấu kết quả và ngày/người thử ở site. Không chạy fault/power-loss test trên queue production đang có việc.
+<a name="phu-luc-f-checklist-ban-giao-va-su-dung-tai-lieu" class="heading-anchor"></a>
 
-## 22. Tiếp nhận và bảo trì dự án
+## Phụ lục F — Checklist bàn giao và sử dụng tài liệu
 
-Người tiếp nhận cần giữ ngoài Git: danh sách thiết bị/IP reservation, tài khoản SSH được phê duyệt, password admin, client secrets, backup policy, driver package/license, release wheel/checksum và kết quả nghiệm thu phần cứng.
+<a name="f1-checklist-chay-tu-au" class="heading-anchor"></a>
 
-Repo public không có nghĩa dữ liệu runtime hoặc secrets được public. Không commit `.local-data`, API keys, ảnh chứa key, spool/PDF/ZPL nghiệp vụ hoặc bản backup. Báo cáo này không chứa các secret đã dùng tại site.
+### F.1 — Checklist chạy từ đầu
 
-Repo ở mốc này chưa có file `LICENSE` riêng cho mã ứng dụng; public GitHub không tự cấp mọi quyền sử dụng/phân phối. Làm rõ license với chủ repo trước khi tái phân phối. Driver Canon và dependency có license riêng; báo cáo không phân phối lại PPD/filter của nhà sản xuất.
+1. Xác định dùng thiết bị đã cài hay cần cài một thiết bị Linux mới.
+2. Nếu chỉ lấy source: cài Git và clone theo A.1. Nếu cài thiết bị mới: làm A.2.
+3. Dùng địa chỉ quản trị do người phụ trách cung cấp, đăng nhập bằng mật khẩu riêng.
+4. Nếu cài thiết bị mới: ghi nhận/sao lưu hiện trạng, cài phần mềm theo A.2 và giữ nguyên cấu hình cũ ngoài phạm vi được phép.
+5. Kiểm phiên bản, đăng nhập và khả năng đọc CUPS; mở web bằng kết nối đã được phép.
+6. Cài driver đúng dòng máy và bộ xử lý trong thời gian bảo trì đã duyệt, không chọn driver phỏng đoán.
+7. Tạo một máy đăng ký dành riêng cho máy vật lý, chỉ cấp PDF/ZPL đúng khả năng.
+8. Chọn mặc định và quyền được đổi, thử giấy có kiểm soát.
+9. Tạo client và cấp máy, lưu khóa một lần; dùng `/client` hoặc API.
+10. Nghiệm thu theo mục 10; bàn giao cách xử lý lỗi, backup và khóa truy cập qua kênh an toàn.
 
-Để sửa lỗi, ghi triệu chứng, version/commit, môi trường và reason không nhạy cảm. Tạo regression rồi sửa nhỏ nhất có thể; test/build/browser; deploy exact commit. Đừng dùng việc xóa dữ liệu hoặc nới kiểm tra danh tính làm fix cho một lỗi đối soát.
+<a name="f2-oc-va-tra-cuu-tai-lieu" class="heading-anchor"></a>
 
-## 23. Checklist chạy từ đầu
+### F.2 Đọc và tra cứu tài liệu
 
-1. Chọn vai trò: Mac/Windows phát triển hay Linux in thật.
-2. Clone repo, checkout mốc và cài Python/uv đúng hướng dẫn.
-3. Chạy pytest/lint; đặt password local; mở web loopback để hiểu giao diện.
-4. Nếu in thật: inventory/backup Linux, cài CUPS/pycups ABI phù hợp, tạo user/data/venv/service mới.
-5. Verify wheel/source, auth và CUPS read dưới service account; mở bằng SSH tunnel hoặc LAN đã phê duyệt.
-6. Cài driver đúng model/architecture trong maintenance, không dùng generic driver phỏng đoán.
-7. Tạo một registered printer dedicated cho máy, chọn PDF/ZPL đúng khả năng.
-8. Đọc schema, đặt defaults/allowlist và thử tổ hợp trên giấy có kiểm soát.
-9. Tạo client/grants, lưu key một lần; dùng `/client` hoặc API.
-10. Thử dedup/fault/restart/backup/rollback trên môi trường nghiệm thu riêng; bàn giao runbook và secrets qua kênh an toàn.
+Markdown dùng để đọc trên GitHub. HTML là một file có sẵn sơ đồ, mở được offline. PDF là bản in chuẩn, có số trang ở mục lục, danh mục hình/bảng và chỉ mục. Không cần Python, công cụ test hoặc công cụ build để đọc và sử dụng tài liệu. Các ví dụ PowerShell được viết cho Windows nhưng chưa được thực thi trực tiếp trên một máy Windows trong lần soạn này; nếu có lỗi, ghi lại lệnh và thông báo để người phụ trách kiểm tra, không tự nới quyền hoặc bỏ bước an toàn.
 
-## 24. Đọc và tái tạo bản HTML
+Mã nguồn chỉ cần cài Git rồi clone theo phụ lục A.1. Tài liệu này không dạy sửa hoặc tổ chức source code. Repository công khai không tự cấp mọi quyền tái phân phối; ở mốc sản phẩm được mô tả chưa có file LICENSE riêng cho ứng dụng, cần thống nhất quyền sử dụng với chủ dự án. Nếu chỉ sử dụng thiết bị đã cài, bỏ qua bước lấy mã nguồn và cài đặt; bắt đầu với mục 6–8.
 
-Bản Markdown là nguồn nội dung; `docs/technical-report.html` là bản HTML self-contained để đọc offline hoặc in. Không tải font/script/CDN ngoài. Mở file tải về bằng trình duyệt; GitHub thường hiển thị mã HTML thay vì render trang.
+<a name="tai-lieu-tham-khao" class="heading-anchor"></a>
 
-Sơ đồ nguồn nằm trong `docs/diagrams/`. Muốn sửa sơ đồ, sửa `tools/render_report_diagrams.py`, tạo lại SVG rồi render lại HTML. SVG dùng font hệ thống và không có thư viện/ảnh từ Internet:
+## Tài liệu tham khảo
 
-```bash
-python3 tools/render_report_diagrams.py
-```
+Hướng dẫn có thể đọc độc lập. Các nguồn dưới đây phục vụ kiểm chứng và bảo trì, không phải yêu cầu người đọc phải mở thêm để hiểu phần chính. Mốc phần mềm được đối chiếu là 0.1.5; các kết quả triển khai và in giấy được phân biệt với kiểm thử giả lập.
 
-Có thể tái tạo từ checkout có cả báo cáo và tool renderer (commit tài liệu sau mốc runtime 0.1.5; checkout chỉ mốc runtime nêu đầu báo cáo chưa có hai file này):
+1. **Mã nguồn Print Appliance**, mốc `056e2e7`: [repository theo commit](https://github.com/luongnguyen008/printer-server/tree/056e2e7823d8e4579a02aab027d6a2dad678549f). Nguồn xác định API, cấu hình và hành vi đã triển khai.
+2. **Thuật ngữ miền nghiệp vụ**: [CONTEXT.md](https://github.com/luongnguyen008/printer-server/blob/056e2e7823d8e4579a02aab027d6a2dad678549f/CONTEXT.md). Cơ sở phân biệt client, máy đăng ký, lệnh, snapshot, completed và unknown.
+3. **Quyết định kiến trúc**: [ADR về appliance và CUPS](https://github.com/luongnguyen008/printer-server/blob/056e2e7823d8e4579a02aab027d6a2dad678549f/docs/adr/0001-local-appliance-and-cups.md). Nguồn phạm vi LAN và giới hạn giao dịch với máy in vật lý.
+4. **CUPS/OpenPrinting**: [CUPS](https://openprinting.github.io/cups/) và [pycups](https://github.com/OpenPrinting/pycups). Nguồn hệ thống in và thư viện kết nối; không thay kiểm quyền trên thiết bị thực.
+5. **Canon UFRII LT V5.10**: [bundle đã được kiểm tra](https://pdisp01.c-wss.com/gdl/WWUFORedirectTarget.do?id=MDEwMDAwNTk1MDEx&cmp=ACB&lang=EN). Kiểm package ARM64 và PPD model trước cài; download có thể thay đổi và chịu license Canon.
+6. **uv**: [tài liệu chính thức](https://docs.astral.sh/uv/). Nguồn quản lý Python, môi trường và dependencies có khóa phiên bản.
+7. **Microsoft WSL**: [hướng dẫn cài WSL](https://learn.microsoft.com/windows/wsl/install). Nguồn điều kiện Windows/WSL; không phải chứng nhận in qua USB trong WSL.
+8. **Tài liệu dự án và kết quả kiểm tra**: design/API/operations/verification theo mốc phần mềm trong repository. Hướng dẫn nêu rõ kiểm thử local, đọc CUPS thật và kết quả giấy do người dùng xác nhận.
 
-```bash
-uv run --no-project --with markdown==3.7 python tools/render_technical_report.py
-```
+Ngày biên soạn/đối chiếu: 04/10/2026. Quyền sử dụng mã ứng dụng, dependency và driver là các quyền riêng; xem license của chủ repository trước tái phân phối.
 
-Mac:
+<a name="chi-muc-tra-cuu" class="heading-anchor"></a>
 
-```bash
-open docs/technical-report.html
-```
+## Chỉ mục tra cứu
 
-Windows PowerShell ở checkout Windows:
+Chỉ mục chọn các khái niệm quan trọng, sắp theo chữ cái. Liên kết tới mục giải thích hoặc hướng dẫn; số trang trong HTML/PDF là trang bắt đầu mục được tham chiếu, không phải mọi lần từ khóa xuất hiện.
 
-```powershell
-Start-Process .\docs\technical-report.html
-```
-
-Nếu checkout chỉ có trong WSL, copy HTML ra Downloads như artifact ở phần 9.5, hoặc mở đường dẫn WSL qua File Explorer. Bản HTML không cần Python/uv để đọc. Chọn **Print → Save as PDF** nếu cần gửi bản in; kiểm tra preview vì code/table dài có thể chia trang.
+<!-- BEGIN INDEX -->
+- **API:** [3.1](#31-ung-dung-gui-yeu-cau-qua-au); [C.1](#c1-api-client-hop-ong-va-ket-qua)
+- **API key (khóa truy cập):** [2.3](#23-khoa-truy-cap-va-hai-loai-ma); [7.1](#71-chuan-bi-quyen-truoc-khi-gui)
+- **Backup (sao lưu):** [9.2](#92-ban-sao-nao-u-cho-viec-phuc-hoi); [D.2](#d2-sao-luu-va-phuc-hoi)
+- **Capability (khả năng in):** [6.2](#62-kha-nang-mac-inh-va-quyen-lua-chon); [B.2](#b2-tuy-chon-in-theo-capability)
+- **Client:** [2.1](#21-nguoi-gui-nguoi-quan-tri-va-may-in); [7.1](#71-chuan-bi-quyen-truoc-khi-gui)
+- **Completed (hoàn thành):** [5.2](#52-cac-trang-thai-can-phan-biet); [10.1](#101-nhung-bao-am-can-hieu-ung)
+- **Correlation (dấu đối soát):** [5.3](#53-giao-xuong-cups-va-theo-doi); [8.3](#83-oi-soat-chua-ro-ket-qua)
+- **CUPS:** [3.2](#32-phan-mem-nao-noi-chuyen-voi-may-in); [5.3](#53-giao-xuong-cups-va-theo-doi)
+- **Driver:** [3.2](#32-phan-mem-nao-noi-chuyen-voi-may-in); [B.1.2](#b12-driver-canon-lbp6230dw-tren-arm64)
+- **Dữ liệu bền vững:** [3.3](#33-du-lieu-va-hai-uong-truy-cap); [5.1](#51-tiep-nhan-va-chong-gui-trung)
+- **Duplex (in hai mặt):** [6.2](#62-kha-nang-mac-inh-va-quyen-lua-chon); [B.2.1](#b21-kho-giay-duplex-va-can-pdf)
+- **FIFO:** [5.4](#54-thu-tu-xu-ly-giua-cac-may)
+- **Fill / fit:** [6.3](#63-kho-giay-va-cach-at-noi-dung-pdf); [B.2.1](#b21-kho-giay-duplex-va-can-pdf)
+- **Git và clone project:** [A.1](#a1-cai-git-va-clone-project)
+- **Hàng đợi:** [2.2](#22-lenh-in-va-cau-hinh-giu-cho-lenh); [5.4](#54-thu-tu-xu-ly-giua-cac-may)
+- **HTTP / HTTPS:** [3.1](#31-ung-dung-gui-yeu-cau-qua-au); [10.2](#102-bao-ve-quyen-va-du-lieu)
+- **Hủy lệnh:** [8.2](#82-dung-tiep-tuc-va-huy); [D.1.2](#d12-pause-resume-cancel)
+- **Khóa truy cập:** [2.3](#23-khoa-truy-cap-va-hai-loai-ma); [7.1](#71-chuan-bi-quyen-truoc-khi-gui)
+- **Lệnh in và mã lệnh:** [2.2](#22-lenh-in-va-cau-hinh-giu-cho-lenh); [5.2](#52-cac-trang-thai-can-phan-biet)
+- **Linux / EDATEC:** [4.2](#42-kiem-tra-truoc-khi-trien-khai); [A.2](#a2-cai-moi-tren-linuxedatec)
+- **Mã lỗi:** [C.1.2](#c12-ma-loi); [D.1.4](#d14-bang-loi-nhanh)
+- **Mã yêu cầu / chống trùng:** [2.3](#23-khoa-truy-cap-va-hai-loai-ma); [5.1](#51-tiep-nhan-va-chong-gui-trung)
+- **Mặc định và ghi đè:** [6.2](#62-kha-nang-mac-inh-va-quyen-lua-chon); [6.3](#63-kho-giay-va-cach-at-noi-dung-pdf)
+- **Máy in đăng ký:** [2.1](#21-nguoi-gui-nguoi-quan-tri-va-may-in); [6.1](#61-hai-cach-ua-may-vao-he-thong)
+- **Offline:** [8.2](#82-dung-tiep-tuc-va-huy); [D.1.4](#d14-bang-loi-nhanh)
+- **PDF:** [3.4](#34-file-pdf-va-noi-dung-zpl); [6.3](#63-kho-giay-va-cach-at-noi-dung-pdf)
+- **Quyền sử dụng máy:** [7.1](#71-chuan-bi-quyen-truoc-khi-gui); [C.3.1](#c31-quan-tri)
+- **Restore (phục hồi):** [9.2](#92-ban-sao-nao-u-cho-viec-phuc-hoi); [D.2.3](#d23-restore-co-kiem-soat)
+- **Resume (tiếp tục):** [8.2](#82-dung-tiep-tuc-va-huy); [D.1.2](#d12-pause-resume-cancel)
+- **Rollback:** [9.3](#93-cap-nhat-mot-phien-ban-thong-nhat); [D.3](#d3-cap-nhat-va-quay-lai-phien-ban-truoc)
+- **SessionStorage:** [7.2](#72-dung-trang-gui-thu)
+- **Snapshot:** [2.2](#22-lenh-in-va-cau-hinh-giu-cho-lenh); [6.4](#64-sua-hoac-go-ang-ky)
+- **Thu hồi và đổi khóa:** [7.1](#71-chuan-bi-quyen-truoc-khi-gui); [C.3.1](#c31-quan-tri)
+- **TLS:** [10.2](#102-bao-ve-quyen-va-du-lieu)
+- **Unknown (chưa rõ kết quả):** [5.2](#52-cac-trang-thai-can-phan-biet); [8.3](#83-oi-soat-chua-ro-ket-qua)
+- **ZPL:** [3.4](#34-file-pdf-va-noi-dung-zpl); [C.2.3](#c23-pdf-options-va-zpl)
+<!-- END INDEX -->
