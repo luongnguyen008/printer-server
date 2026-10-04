@@ -108,3 +108,11 @@ button.combo-clear { position: absolute; right: .15rem; top: .1rem; min-height: 
 .item-heading h3 { overflow-wrap: anywhere; min-width: 0; }
 input, select, textarea, .inline-form > div { min-width: 0; }
 @media (max-width: 700px) { .add-mode { gap: .35rem; } .add-mode button { font-size: .87rem; } .combo-list { max-height: 13rem; } }
+
+.client-main { max-width: 850px; }
+.client-link { color: #dff6ed; font-weight: 650; text-decoration: underline; }
+.client-main code { overflow-wrap: anywhere; }
+.client-main .settings-grid > div { display: flex; flex-direction: column; gap: .4rem; }
+.client-main input[type="file"] { padding: .65rem; }
+
+.client-main #client-notice { position: static; }

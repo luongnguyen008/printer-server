@@ -80,3 +80,7 @@ Routes trên đã được cài đặt và test với adapter giả tường min
 - `PUT /admin/api/settings`: finite integer limits `max_upload_bytes`, `max_pending_jobs`, `min_free_bytes`, `history_retention_days`.
 
 Admin APIs return 200 on successful mutations; keys are never returned by list/history/audit routes. In-use deletes return 409, missing/deleted resource mutations return 404, invalid fields 422 and unavailable CUPS 503. Deleted printers/clients are omitted from lists and grants; deleted clients' keys cannot authenticate or be rotated back to active. Successful deletions and configuration/control changes have a minimal credential-free audit entry. All mutations require the admin session and `X-CSRF-Token`.
+
+## Client test page
+
+`GET /client` serves an offline Vietnamese client UI using the existing `/api/v1` contract. The page itself is public, but all printer/job data still requires a scoped Bearer API key. It never calls admin APIs or sends admin session cookies. Keys are held in tab memory, not storage/URL; files remain only while needed by the form or an unresolved submission. Unknown submission responses expose the original request ID and an explicit immutable replay, not a new job. Reload/disconnect can discard an unconfirmed request; inspect history rather than creating a new print request. No new client privileges, CORS changes or printing backend are introduced.

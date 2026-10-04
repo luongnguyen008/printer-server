@@ -226,7 +226,9 @@ def create_app(
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
         )
-        if request.url.path.startswith(("/admin/", "/api/")):
+        if request.url.path in {"/", "/client"} or request.url.path.startswith(
+            ("/admin/", "/api/")
+        ):
             response.headers["Cache-Control"] = "no-store"
         if (
             request.method in {"POST", "PUT", "DELETE"}
@@ -273,9 +275,13 @@ def create_app(
     def index() -> FileResponse:
         return FileResponse(Path(__file__).parent / "static" / "index.html")
 
+    @app.get("/client", include_in_schema=False)
+    def client_page() -> FileResponse:
+        return FileResponse(Path(__file__).parent / "static" / "client.html")
+
     @app.get("/assets/{asset}", include_in_schema=False)
     def assets(asset: str) -> FileResponse:
-        if asset not in {"app.js", "controls.js", "style.css"}:
+        if asset not in {"app.js", "controls.js", "client.js", "style.css"}:
             raise HTTPException(404, "Not found")
         return FileResponse(Path(__file__).parent / "static" / asset)
 

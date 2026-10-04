@@ -373,3 +373,14 @@ def test_packaged_admin_control_assets_are_served(harness):
         assert response.status_code == 200
         assert response.content
     assert harness.api.get("/assets/config.py").status_code == 404
+
+
+def test_client_test_page_public_but_api_stays_scoped(harness):
+    page = harness.api.get("/client")
+    assert page.status_code == 200
+    assert "/assets/client.js" in page.text
+    assert harness.api.get("/assets/client.js").status_code == 200
+    assert harness.api.get("/api/v1/printers").status_code == 401
+    assert harness.api.get("/api/v1/jobs").status_code == 401
+    assert harness.api.get("/admin/api/printers").status_code == 401
+    assert "no-store" in page.headers["cache-control"]

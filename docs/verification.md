@@ -1,5 +1,14 @@
 # Verification history
 
+## Client test page — 0.1.3
+
+Local checks: **80 tests passed**, lint/format and both new JS syntax checks passed; one existing Starlette/httpx warning remains. Installed-wheel browser regressions passed for admin and client pages. Client coverage: key errors/empty grants, memory-only credential/reset, PDF/ZPL, XSS-safe text, slow/duplicate submits, immutable same-ID replay after a lost response, 422 edit recovery, advanced JSON, desktop/mobile and no external requests. Screenshots were inspected.
+
+An additional installed-wheel browser check used actual FastAPI/SQLite with explicitly injected FakeCups, deliberately discarded an accepted HTTP 202 response and replayed the original request: exactly one durable job existed. No physical printer was involved. The read-only reviewer found no client-JS blocker, but did not inspect the route change fully or rerun tests; parent route/asset/security tests cover it.
+
+The public `/client` page does not authenticate by itself; all data/mutations still require scoped API keys. No schema/CUPS/driver change. Target activation and physical printing are separate gates.
+
+
 ## CRUD and admin UX — 0.1.2
 
 Local validation on 2026-10-04: **79 tests passed**, Ruff lint/format and JS syntax checks passed; one existing Starlette/httpx deprecation warning remains. New tests cover soft-delete migration, all nonterminal-job deletion blocks, history/idempotency preservation, revoked-key/deleted-resource access, concurrent acceptance/deletion, CUPS non-mutation and the new controls asset route.

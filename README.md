@@ -123,3 +123,11 @@ The production Mac checkout and EDATEC source must be at the same deployed Git c
 - The **?** beside each field explains its purpose and examples. Open by click/touch/keyboard; close with Escape, the close button or an outside click. Advanced URI/JSON settings are collapsed.
 - Requests display a pending state and disable competing controls to prevent duplicate submissions. Failures keep form values; mutations are never automatically retried.
 - Printer **Gỡ đăng ký** removes only the application's registration and grants, never the CUPS queue. Client **Sửa client / Xóa client** supports rename, grants and deletion. Both deletions require confirmation and are rejected while nonterminal or unknown jobs exist. Historical jobs and deduplication records remain; a deleted client's key stops working.
+
+### Client test page (0.1.3)
+
+Open `/client` on the appliance, enter the API key issued from the admin Clients tab, select an assigned printer and upload PDF/ZPL. The page uses only existing scoped client APIs, never the admin password/session. It submits real print jobs; do not send to a physical printer until its driver is verified. Key/file state is memory-only; reload/disconnect clears it.
+
+A lost/5xx submission response freezes the original request and offers explicit same-ID replay. It never automatically resubmits. Unique IDs use `crypto.getRandomValues`, including on LAN HTTP. History updates every four seconds while jobs are active; unknown outcomes need operator investigation. See [client guide](docs/client-guide.md).
+
+Run `tests/browser/client-ui.cjs` with the same `PLAYWRIGHT_MODULE`, `CHROME_EXECUTABLE`, `UI_BASE_URL` and `UI_ARTIFACT_DIR` environment variables as the admin regression. All client APIs are mocked and loopback-only; no physical printing occurs.
