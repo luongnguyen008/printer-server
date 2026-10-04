@@ -385,3 +385,57 @@ def test_new_offline_error_revokes_single_job_resume_permission(harness):
     harness.appliance.tick()
     assert harness.backend.submit_calls == []
     assert harness.appliance.admin_printers()[0]["paused"] is True
+
+
+def test_unknown_resolution_requires_matching_cups_identity(harness):
+    job = accept(harness.appliance, harness.client_id, harness.printer["id"], "resolution-identity")
+    harness.appliance.tick()
+    cups_id = harness.backend.correlations[f"pa-{job['job_id']}"]
+    harness.backend.set_state(cups_id, "completed")
+    harness.appliance._set_status(job["job_id"], "unknown", "test uncertain identity")
+    harness.backend.jobs[cups_id]["correlation"] = "pa-unrelated"
+    with pytest.raises(ValueError, match="identity"):
+        harness.appliance.resolve_unknown(job["job_id"], "completed", "CUPS reports completed")
+    assert harness.appliance.client_job(harness.client_id, job["job_id"])["status"] == "unknown"
+    harness.backend.jobs[cups_id]["correlation"] = f"pa-{job['job_id']}"
+    assert (
+        harness.appliance.resolve_unknown(
+            job["job_id"], "completed", "CUPS identity and completed verified"
+        )["status"]
+        == "completed"
+    )
+    assert len(harness.backend.submit_calls) == 1
+
+
+def test_request_digest_stays_compatible_with_pre_capability_release(harness):
+    import hashlib
+    import json
+
+    fields = {
+        "printer_id": "legacy-printer",
+        "format": "pdf",
+        "title": "old job",
+        "copies": "1",
+        "options": {"Duplex": "None"},
+        "filename": "old.pdf",
+    }
+    expected = hashlib.sha256(
+        json.dumps(
+            {"fields": fields, "content_sha256": "abc123"},
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode()
+    ).hexdigest()
+    assert (
+        harness.appliance._request_digest(
+            printer_id=fields["printer_id"],
+            format_name=fields["format"],
+            title=fields["title"],
+            copies_raw=fields["copies"],
+            options_raw='{"Duplex":"None"}',
+            filename=fields["filename"],
+            content_hash="abc123",
+        )
+        == expected
+    )

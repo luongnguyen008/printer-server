@@ -391,8 +391,26 @@ class Appliance:
             allowed = safe_json(printer["allowed_json"], {})
             defaults = safe_json(printer["defaults_json"], {})
             options = validate_client_options(parsed_options, allowed)
-            effective_options = dict(defaults)
+            schema = self.backend.printer_capabilities(printer["queue"])
+            driver_defaults = (
+                {
+                    item["name"]: item["default"]
+                    for item in schema.get("options", [])
+                    if item.get("default")
+                    in {choice["value"] for choice in item.get("choices", [])}
+                }
+                if format_name == "pdf"
+                else {}
+            )
+            effective_options = dict(driver_defaults)
+            effective_options.update(defaults)
             effective_options.update(options)
+            if format_name == "zpl":
+                if options:
+                    raise ValueError("unsupported_option_choice")
+                # Raw ZPL carries its own device commands, never PDF driver defaults.
+                effective_options = {}
+            self._validate_capability_options(schema, effective_options, allowed)
             if (
                 shutil.disk_usage(self.settings.spool_dir).free - size
                 < self.limits(db)["min_free_bytes"]
@@ -488,6 +506,127 @@ class Appliance:
         finally:
             temp_path.unlink(missing_ok=True)
             db.close()
+
+    @staticmethod
+    def _validate_capability_options(
+        schema: dict[str, Any], effective: dict[str, str], allowed: dict[str, list[str]]
+    ) -> None:
+        options = {item["name"]: item for item in schema.get("options", [])}
+        for name, value in effective.items():
+            descriptor = options.get(name)
+            if descriptor and value not in {choice["value"] for choice in descriptor["choices"]}:
+                raise ValueError("unsupported_option_choice")
+        for constraint in schema.get("constraints", []):
+            left, right = constraint["option1"], constraint["option2"]
+            if (
+                effective.get(left) == constraint["choice1"]
+                and effective.get(right) == constraint["choice2"]
+            ):
+                raise ValueError("incompatible_options")
+
+    def printer_capabilities(
+        self, printer_id: str, client_id: str | None = None
+    ) -> dict[str, Any] | None:
+        db = self.db()
+        try:
+            row = db.execute(
+                "SELECT * FROM printers WHERE id=? AND deleted_at IS NULL", (printer_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            if (
+                client_id is not None
+                and not db.execute(
+                    "SELECT 1 FROM client_printers WHERE client_id=? AND printer_id=?",
+                    (client_id, printer_id),
+                ).fetchone()
+            ):
+                return None
+        finally:
+            db.close()
+        try:
+            mapping = self.backend.queue_mapping(row["queue"])
+            if mapping is None:
+                raise BackendUnavailable("Registered queue is missing")
+            if mapping["mapping_signature"] != row["mapping_signature"]:
+                return {
+                    "schema_version": 1,
+                    "printer_id": printer_id,
+                    "availability": "stale",
+                    "reason": "CUPS mapping changed; review printer configuration.",
+                    "mapping_fingerprint": mapping["mapping_signature"],
+                    "source": "unknown",
+                    "groups": [
+                        {"id": "common", "label": "Common"},
+                        {"id": "advanced", "label": "Advanced"},
+                    ],
+                    "schema_fingerprint": None,
+                    "ipp_attributes": {},
+                    "options": [],
+                    "constraints": [],
+                    "default_options": safe_json(row["defaults_json"], {}),
+                    "allowed_options": safe_json(row["allowed_json"], {})
+                    if client_id is None
+                    else None,
+                }
+            schema = self.backend.printer_capabilities(row["queue"])
+        except BackendUnavailable:
+            return {
+                "schema_version": 1,
+                "printer_id": printer_id,
+                "availability": "unavailable",
+                "reason": "Local CUPS capabilities could not be queried.",
+                "mapping_fingerprint": None,
+                "schema_fingerprint": None,
+                "source": "unknown",
+                "groups": [],
+                "options": [],
+                "constraints": [],
+                "ipp_attributes": {},
+                "default_options": safe_json(row["defaults_json"], {}),
+                "allowed_options": safe_json(row["allowed_json"], {})
+                if client_id is None
+                else None,
+            }
+        allowed = safe_json(row["allowed_json"], {})
+        defaults = {
+            item["name"]: item["default"]
+            for item in schema.get("options", [])
+            if item.get("default") in {choice["value"] for choice in item.get("choices", [])}
+        }
+        defaults.update(safe_json(row["defaults_json"], {}))
+        descriptors = schema.get("options", [])
+        if client_id is not None:
+            descriptors = [
+                {
+                    **item,
+                    "choices": [
+                        c for c in item["choices"] if c["value"] in allowed.get(item["name"], [])
+                    ],
+                    "overridable": item["name"] in allowed,
+                }
+                for item in descriptors
+            ]
+            descriptors = [item for item in descriptors if item["overridable"]]
+        return {
+            "schema_version": 1,
+            "printer_id": printer_id,
+            "availability": schema.get("availability", "unknown"),
+            "reason": schema.get("reason"),
+            "mapping_fingerprint": mapping["mapping_signature"],
+            "schema_fingerprint": schema.get("mapping_fingerprint"),
+            "source": schema.get("source"),
+            "raw": bool(schema.get("raw")),
+            "groups": [
+                {"id": "common", "label": "Common"},
+                {"id": "advanced", "label": "Advanced"},
+            ],
+            "options": descriptors,
+            "constraints": schema.get("constraints", []),
+            "ipp_attributes": schema.get("ipp_attributes", {}),
+            "default_options": defaults,
+            "allowed_options": allowed if client_id is None else None,
+        }
 
     def client_jobs(self, client_id: str, limit: int) -> list[dict[str, Any]]:
         db = self.db()
@@ -1053,6 +1192,8 @@ class Appliance:
                 raise ValueError(
                     "CUPS must be reachable before resolving an uncertain handoff"
                 ) from exc
+            if known and known.get("correlation") != record["correlation"]:
+                raise ValueError("CUPS identity differs; cannot resolve using an unrelated job")
             if known and known["state"] not in {"completed", "canceled", "aborted"}:
                 raise ValueError("CUPS still has a nonterminal job; cancel and verify it first")
             if (
@@ -1454,6 +1595,16 @@ class Appliance:
             body.get("default_options", safe_json(current["defaults_json"], {})),
             body.get("allowed_options", safe_json(current["allowed_json"], {})),
         )
+        if "default_options" in body or "allowed_options" in body:
+            caps = self.backend.printer_capabilities(current["queue"])
+            descriptors = {item["name"]: item for item in caps.get("options", [])}
+            if caps.get("availability") != "available":
+                raise ValueError("Current printer option schema is unavailable")
+            for key, values in allowed.items():
+                descriptor = descriptors.get(key)
+                choices = {item["value"] for item in descriptor["choices"]} if descriptor else set()
+                if not choices or not set(values) <= choices:
+                    raise ValueError("Printer options must use choices in the current CUPS schema")
         uri, driver = current["device_uri"], current["driver"]
         mapping_changed = body.get("device_uri", uri) != uri or body.get("driver", driver) != driver
         if mapping_changed:

@@ -7,6 +7,7 @@
   <title>Print appliance · Quản trị</title>
   <link rel="stylesheet" href="/assets/style.css">
   <script src="/assets/controls.js" defer></script>
+  <script src="/assets/print-options.js" defer></script>
   <script src="/assets/app.js" defer></script>
 </head>
 <body>
@@ -59,8 +60,7 @@
             <fieldset><legend data-help-key="formats">Định dạng nhận</legend><label class="check"><input type="checkbox" name="format" value="pdf" checked> PDF</label><label class="check"><input type="checkbox" name="format" value="zpl"> ZPL</label></fieldset>
             <details class="advanced"><summary>Nâng cao</summary>
             <label for="manual-uri" data-help-key="uri">Địa chỉ mạng thủ công</label><input id="manual-uri" placeholder="ipp://192.168.1.20:631/ipp/print">
-            <label for="default-options" data-help-key="defaults">Tùy chọn mặc định (JSON)</label><textarea id="default-options" rows="2">{}</textarea>
-            <label for="allowed-options" data-help-key="allowed">Tùy chọn client được đổi (JSON)</label><textarea id="allowed-options" rows="3">{}</textarea>
+            <p class="muted">Có thể đăng ký trước với tùy chọn trống. Sau khi tạo, mở Sửa cấu hình để đọc schema của hàng đợi và chọn giá trị mặc định/quyền client.</p>
             </details>
             <button type="submit">Tạo máy in</button>
           </form>
@@ -75,10 +75,10 @@
         <div id="printers" class="loading">Đang tải danh sách máy in…</div>
       </section>
       <section id="view-clients" class="panel tab-panel" role="tabpanel" aria-labelledby="tab-clients" tabindex="0" hidden>
-        <div class="section-heading"><div><p class="eyebrow">QUYỀN API</p><h2>Clients</h2></div></div>
-        <form id="client-form" class="inline-form">
+        <div class="section-heading"><div><p class="eyebrow">QUYỀN API</p><h2>Clients</h2></div><button id="add-client" type="button">Thêm client</button></div>
+        <form id="client-form" class="edit-form" hidden>
           <div><label for="client-name" data-help-key="client">Tên client</label><input id="client-name" required maxlength="120"></div>
-          <div><label for="client-printers" data-help-key="grants">Máy được cấp</label><select id="client-printers" multiple size="3"></select></div>
+          <div><label for="client-printers-toggle" data-help-key="grants">Máy được cấp</label><div id="client-printers"></div></div>
           <button type="submit">Tạo client + key</button>
         </form>
         <div id="clients" class="loading">Đang tải clients…</div>

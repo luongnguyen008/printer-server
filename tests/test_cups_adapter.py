@@ -51,11 +51,17 @@ class FakeConnection:
         self.jobs[4] = {"job-name": args[3]["job-name"], "job-state": 4}
         return 4
 
+    def adminGetServerSettings(self):
+        self.calls.append(("authenticate",))
+        return {}
+
     def getJobs(self, **kwargs):
+        assert self.calls[-1] == ("authenticate",)
         self.calls.append(("getJobs", kwargs))
         return dict(self.jobs)
 
     def getJobAttributes(self, job_id):
+        assert self.calls[-1] == ("authenticate",)
         return self.jobs[job_id]
 
     def setJobHoldUntil(self, *args):
@@ -189,3 +195,19 @@ def test_ppd_content_not_model_name_determines_fingerprint(monkeypatch, tmp_path
     assert one["device_uri"] == two["device_uri"]
     assert one["mapping_signature"] != two["mapping_signature"]
     assert not (tmp_path / "temporary.ppd").exists()
+
+
+def test_job_identity_read_fails_closed_without_local_auth(monkeypatch):
+    connection = install_fake_cups(monkeypatch)
+    connection.jobs[4] = {"job-name": "pa-job-id", "job-state": 9}
+
+    def denied():
+        raise PermissionError("local auth denied")
+
+    connection.adminGetServerSettings = denied
+    backend = PyCupsBackend()
+    with pytest.raises(BackendUnavailable):
+        backend.get_job(4)
+    with pytest.raises(BackendUnavailable):
+        backend.find_job("pa-job-id")
+    assert not any(call[0] == "getJobs" for call in connection.calls)

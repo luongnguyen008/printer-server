@@ -8,6 +8,8 @@ let driverIndex = [];
 let sessionEpoch = 0;
 let actionPending = false;
 let settingsDirty = false;
+const toasts = createToasts(notice);
+const modal = createEntityModal({busy:()=>actionPending,toasts});
 
 // Serialize UI actions. A network failure may have happened after the server
 // applied a mutation: never auto-retry a create/delete/control request.
@@ -22,7 +24,7 @@ async function runAction(element, event, handler) {
     const trigger = event.submitter || (element.tagName === 'BUTTON' ? element : null);
     const caption = trigger?.textContent;
     const disable = () => {
-      document.querySelectorAll('input:not([type="hidden"]),select,textarea,button:not([role="tab"]):not(.help-button)').forEach(control => {
+      document.querySelectorAll('input:not([type="hidden"]),select,textarea,button:not([role="tab"]):not(.help-button):not(.toast-close)').forEach(control => {
         if (!before.has(control)) before.set(control, control.disabled);
         if (!control.disabled) control.disabled = true;
       });
@@ -49,12 +51,10 @@ function installHelp(root = document) {
     addFieldHelp(label, label.dataset.help || fieldHelp[label.dataset.helpKey]);
   }
 }
-function closeEditor(form) { const details = form.closest('details'); if (details) details.open = false; }
-function updateCards(target, records, render) {
-  const editing = new Map([...target.querySelectorAll(':scope > article[data-id]')].filter(card => card.querySelector('details[open]')).map(card => [card.dataset.id, card]));
-  target.replaceChildren(...records.map(record => editing.get(record.id) || render(record)));
-}
+function closeEditor() { modal.close(true); }
+function updateCards(target, records, render) { target.replaceChildren(...records.map(render)); }
 function resetSession() {
+  modal.close(true); toasts.clear(); newClientGrants.reset();
   sessionEpoch += 1; csrfToken = ''; printerData = []; clientData = []; discoveryData = null; driverIndex = [];
   for (const id of ['printers','clients','jobs','job-details','system-status','job-counts']) document.getElementById(id).replaceChildren();
   for (const form of document.forms) form.reset();
@@ -63,12 +63,22 @@ function resetSession() {
   $('#dashboard').classList.add('hidden'); $('#logout').classList.add('hidden'); $('#login-panel').classList.remove('hidden');
 }
 
-function showNotice(message, kind = "info") {
-  notice.textContent = message;
-  notice.className = `notice ${kind}`;
-  notice.hidden = false;
+function showNotice(message, kind="info") { toasts.show(message,kind); }
+function clearNotice() { toasts.clear(); }
+function showApiKey(value) {
+  modal.close(true);
+  const content=node('section'); content.append(node('p','Sao chép và lưu an toàn. Key chỉ xuất hiện lần này; key cũ (nếu có) đã mất hiệu lực.'));
+  const input=node('textarea');input.value=value;input.readOnly=true;input.rows=3;input.setAttribute('aria-label','API key mới');content.append(input);
+  const copy=node('button','Sao chép API key');copy.type='button';
+  copy.addEventListener('click',async()=>{try{if(!navigator.clipboard)throw new Error('Trình duyệt HTTP không hỗ trợ sao chép tự động. Chọn nội dung rồi sao chép thủ công.');await navigator.clipboard.writeText(input.value);showNotice('Đã sao chép API key.','success');}catch(error){input.focus();input.select();showNotice(error.message,'info');}});
+  content.append(copy);content._cleanup=()=>{input.value='';};modal.open('API key mới',content,{readOnly:true});
 }
-function clearNotice() { notice.hidden = true; notice.textContent = ""; }
+async function showEntity(kind,record) {
+  const data=await api(`/admin/api/${kind}/${encodeURIComponent(record.id)}`);const content=node('section');
+  const fields=kind==='printers'?{Tên:data.name,ID:data.id,'Hàng đợi CUPS':data.queue,Driver:data.driver,'Địa chỉ':data.device_uri,'Định dạng':data.formats?.join(', ')}:{Tên:data.name,ID:data.id,'Trạng thái':data.revoked?'Đã thu hồi':'Hoạt động','Máy được cấp':data.printer_ids?.map(id=>printerData.find(p=>p.id===id)?.name||id).join(', ')||'Chưa cấp máy nào'};
+  const list=node('dl',null,'detail-list');for(const [key,value] of Object.entries(fields)){list.append(node('dt',key),node('dd',value||'—'));}content.append(list);
+  modal.open(kind==='printers'?'Chi tiết máy in':'Chi tiết client',content,{readOnly:true});
+}
 function node(tag, text, className) {
   const element = document.createElement(tag);
   if (text !== undefined && text !== null) element.textContent = String(text);
@@ -92,17 +102,14 @@ async function api(path, options = {}) {
   if (!response.ok) throw new Error(data.detail || `Request failed (${response.status})`);
   return data;
 }
-function jsonField(value, field) {
-  try { return JSON.parse(value); }
-  catch { throw new Error(`${field}: JSON không hợp lệ`); }
-}
-function selectedValues(select) { return [...select.selectedOptions].map(item => item.value); }
+function selectedValues(control) { return control.picker ? control.picker.values() : [...control.selectedOptions].map(item => item.value); }
 function checkedFormats(form, selector = 'input[name="format"]') {
   return [...form.querySelectorAll(selector)].filter(item => item.checked).map(item => item.value);
 }
 
 const searchText = driverSearchText;
 const createPicker = createDriverPicker($('#driver-picker'), 'driver', () => driverIndex);
+const newClientGrants = createPrinterGrantPicker($('#client-printers'),'client-printers',()=>printerData);
 installHelp();
 
 const adminTabs = [...document.querySelectorAll('[role="tab"][data-tab]')];
@@ -172,13 +179,7 @@ async function loadPrinters() {
   if (!target.children.length) target.textContent = "Đang tải danh sách máy in…";
   try {
     printerData = await api("/admin/api/printers");
-    const selection = $("#client-printers");
-    const selectedBeforeRefresh = new Set(selectedValues(selection));
-    selection.replaceChildren();
-    for (const printer of printerData) {
-      option(selection, printer.id, `${printer.name} (${printer.queue})`);
-      selection.options[selection.options.length - 1].selected = selectedBeforeRefresh.has(printer.id);
-    }
+    newClientGrants.refresh();
     updateCards(target, printerData, renderPrinter);
     if (!printerData.length) target.append(node('p', 'Chưa có máy in. Chọn “Thêm máy in” để bắt đầu.'));
   } catch (error) { showNotice(`Lỗi tải máy in: ${error.message}`, "error"); }
@@ -189,8 +190,7 @@ function renderPrinter(printer) {
   const heading = node("div", null, "item-heading");
   heading.append(node("h3", printer.name), node("span", printer.paused ? "Đang tạm dừng" : "Cho phép xử lý", printer.paused ? "pill bad" : "pill good"));
   card.append(heading);
-  card.append(node("p", `Hàng đợi: ${printer.queue} · ${printer.managed ? "Ứng dụng tạo" : "Cấu hình có sẵn"}`));
-  card.append(node("p", `Định dạng: ${printer.formats.join(", ").toUpperCase()} · URI: ${printer.device_uri || "không có"}`));
+  card.append(node("p", `${printer.formats.join(" / ").toUpperCase()} · ${printer.managed ? "Ứng dụng quản lý" : "Đăng ký từ CUPS"}`, "muted"));
   if (printer.pause_reason) card.append(node("p", `Lý do tạm dừng: ${printer.pause_reason}`, "bad"));
   const actions = node("div", null, "button-row");
   const toggle = node("button", printer.paused ? "Tiếp tục máy in" : "Tạm dừng máy in");
@@ -203,11 +203,10 @@ function renderPrinter(printer) {
     showNotice('Đã gỡ đăng ký. Hàng đợi CUPS không thay đổi.', 'success');
     await loadPrinters(); await loadClients();
   });
-  actions.append(toggle, remove);
-  const details = node("details");
-  const summary = node("summary", "Sửa cấu hình");
-  details.append(summary, renderPrinterEdit(printer));
-  card.append(actions, details);
+  const view=node('button','Xem','secondary');view.type='button';bindAction(view,'click',()=>showEntity('printers',printer));
+  const edit=node('button','Sửa cấu hình','secondary');edit.type='button';
+  edit.addEventListener('click',()=>{if(actionPending)return;modal.open(`Sửa máy in · ${printer.name}`,renderPrinterEdit(printer));});
+  actions.append(view,edit,toggle,remove);card.append(actions);
   return card;
 }
 function renderPrinterEdit(printer) {
@@ -234,17 +233,35 @@ function renderPrinterEdit(printer) {
     const reload = node('button', 'Cập nhật danh sách driver', 'text-button'); reload.type = 'button';
     bindAction(reload, 'click', () => discover(false)); form.append(reload);
   }
-  const advanced = node('details', null, 'advanced'); advanced.append(node('summary', 'Nâng cao'));
-  const defaults = node('textarea'); defaults.value = JSON.stringify(printer.default_options); defaults.rows = 2;
-  const allowed = node('textarea'); allowed.value = JSON.stringify(printer.allowed_options); allowed.rows = 2;
-  for (const [control, text, help, suffix] of [[defaults, 'Tùy chọn mặc định (JSON)', fieldHelp.defaults, 'defaults'], [allowed, 'Tùy chọn client được đổi (JSON)', fieldHelp.allowed, 'allowed']]) {
-    const label = node('label', text); control.id = `${suffix}-${printer.id}`; label.htmlFor = control.id; advanced.append(label, control); addFieldHelp(label, help);
-  }
-  form.append(advanced);
+  const schemaPanel=node('section',null,'printer-schema');
+  const schemaHeading=node('div',null,'section-heading');schemaHeading.append(node('h3','Tùy chọn driver và quyền client'));
+  const refreshSchema=node('button','Tải lại schema','secondary');refreshSchema.type='button';schemaHeading.append(refreshSchema);
+  const schemaState=node('p','Đang đọc tùy chọn của máy in…','muted');
+  const schemaControls=node('div');schemaPanel.append(schemaHeading,schemaState,schemaControls);form.append(schemaPanel);
+  let optionEditor=null,schemaLoaded=false,schemaRequest=0,optionsTouched=false;
+  schemaControls.addEventListener('change',()=>{optionsTouched=true;});
+  async function loadSchema(){const requestId=++schemaRequest;schemaLoaded=false;optionEditor=null;schemaState.className='muted';schemaState.textContent='Đang đọc capability của hàng đợi…';schemaControls.replaceChildren();try{
+    const schema=await api(`/admin/api/printers/${encodeURIComponent(printer.id)}/capabilities`);if(requestId!==schemaRequest)return;
+    schemaState.className='muted';
+    schemaState.textContent=schema.reason||'Tùy chọn do CUPS và driver hiện tại báo.';
+    if(schema.availability==='stale'||schema.availability==='unavailable'||schema.availability==='unknown')throw new Error(schema.reason||`Schema hiện không dùng được (${schema.availability}).`);
+    optionEditor=createPrintOptionsEditor(schema,{defaults:printer.default_options||{},allowed:printer.allowed_options||{}});
+    if(!optionEditor.usable)throw new Error('Không có lựa chọn driver có thể cấu hình.');
+    schemaLoaded=true;schemaControls.replaceChildren(optionEditor.root);optionsTouched=false;
+  }catch(error){if(requestId===schemaRequest){schemaState.className='bad';schemaState.textContent=`Không tải/cấu hình được schema: ${error.message}`;}}}
+  bindAction(refreshSchema,'click',async()=>{if(optionsTouched&&!confirm('Tải lại sẽ bỏ các tùy chọn chưa lưu. Tiếp tục?'))return;await loadSchema();});
+  loadSchema();
   const save = node('button', 'Lưu cấu hình'); save.type = 'submit'; form.append(save);
   bindAction(form, 'submit', async () => {
     if (picker && !picker.value.value) throw new Error('Hãy chọn driver trong danh sách.');
-    const data = {name:name.value, formats:[...formatsWrap.querySelectorAll('input')].filter(x => x.checked).map(x => x.value), default_options:jsonField(defaults.value, 'Tùy chọn mặc định'), allowed_options:jsonField(allowed.value, 'Tùy chọn client được đổi')};
+    const mappingChanged=(uri&&uri.value!==printer.device_uri)||(picker&&picker.value.value!==printer.driver);
+    const data = {name:name.value, formats:[...formatsWrap.querySelectorAll('input')].filter(x => x.checked).map(x => x.value)};
+    if(mappingChanged){
+      if((Object.keys(printer.default_options||{}).length||Object.keys(printer.allowed_options||{}).length)&&!confirm('Đổi địa chỉ/driver sẽ xóa tùy chọn và quyền client cũ để tránh áp dụng lựa chọn không tương thích. Tiếp tục?'))return;
+      data.default_options={};data.allowed_options={};
+    } else if(optionsTouched){
+      if(!schemaLoaded||!optionEditor)throw new Error('Hãy tải schema capability trước khi sửa tùy chọn.');const invalid=optionEditor.validate();if(invalid)throw new Error(invalid);Object.assign(data,optionEditor.payload());
+    }
     if (uri && uri.value !== printer.device_uri) data.device_uri = uri.value;
     if (picker && picker.value.value !== printer.driver) data.driver = picker.value.value;
     await api(`/admin/api/printers/${encodeURIComponent(printer.id)}`, {method:'PUT', body:JSON.stringify(data)});
@@ -290,52 +307,30 @@ async function loadClients() {
   } catch (error) { showNotice(`Lỗi tải clients: ${error.message}`, "error"); }
 }
 function renderClient(client) {
-  const card = node("article", null, "item-card");
-  card.dataset.id = client.id;
-  const head = node("div", null, "item-heading"); head.append(node("h3", client.name), node("span", client.revoked ? "Đã thu hồi" : "Hoạt động", client.revoked ? "pill bad" : "pill good"));
-  card.append(head, node("p", `ID: ${client.id}`));
-  const details = node('details'); details.append(node('summary', 'Sửa client'));
-  const form = node('form', null, 'edit-form');
-  const nameLabel = node('label', 'Tên client'); const name = node('input'); name.id = `client-name-${client.id}`; name.value = client.name; name.required = true; name.maxLength = 120; nameLabel.htmlFor = name.id;
-  form.append(nameLabel, name); addFieldHelp(nameLabel, fieldHelp.client);
-  const label = node("label", "Máy được cấp"); const select = node("select"); select.multiple = true; select.size = Math.min(5, Math.max(2, printerData.length));
-  for (const printer of printerData) {
-    option(select, printer.id, printer.name);
-    select.options[select.options.length - 1].selected = client.printer_ids.includes(printer.id);
-  }
-  label.append(select); form.append(label); addFieldHelp(label, fieldHelp.grants);
-  const grant = node("button", "Lưu client"); grant.type = "submit"; form.append(grant);
-  bindAction(form, "submit", async event => {
-    event.preventDefault();
-    try {
-      const payload = {name: name.value};
-      const grants = selectedValues(select);
-      if (JSON.stringify([...grants].sort()) !== JSON.stringify([...client.printer_ids].sort())) payload.printer_ids = grants;
-      await api(`/admin/api/clients/${encodeURIComponent(client.id)}`, { method: "PUT", body: JSON.stringify(payload) });
-      closeEditor(form); showNotice("Đã lưu client.", "success"); await loadClients();
-    } catch (error) { showNotice(error.message, "error"); }
+  const card=node('article',null,'item-card');card.dataset.id=client.id;
+  const head=node('div',null,'item-heading');head.append(node('h3',client.name),node('span',client.revoked?'Đã thu hồi':'Hoạt động',client.revoked?'pill bad':'pill good'));
+  card.append(head,node('p',client.printer_ids.map(id=>printerData.find(p=>p.id===id)?.name||'Máy không còn trong danh sách').join(' · ')||'Chưa cấp máy nào','muted'));
+  const actions=node('div',null,'button-row');
+  const view=node('button','Xem','secondary');view.type='button';bindAction(view,'click',()=>showEntity('clients',client));
+  const edit=node('button','Sửa client','secondary');edit.type='button';
+  edit.addEventListener('click',()=>{if(actionPending)return;const form=node('form',null,'edit-form');
+    const nameLabel=node('label','Tên client'),name=node('input');name.id=`client-name-${client.id}`;name.value=client.name;name.required=true;name.maxLength=120;nameLabel.htmlFor=name.id;form.append(nameLabel,name);addFieldHelp(nameLabel,fieldHelp.client);
+    const label=node('label','Máy được cấp'),host=node('div');label.htmlFor=`client-grants-${client.id}-toggle`;form.append(label,host);addFieldHelp(label,fieldHelp.grants);
+    const picker=createPrinterGrantPicker(host,`client-grants-${client.id}`,()=>printerData,client.printer_ids);form._cleanup=()=>picker.destroy();
+    const save=node('button','Lưu client');save.type='submit';form.append(save);
+    bindAction(form,'submit',async()=>{const payload={name:name.value},grants=picker.values();if(JSON.stringify([...grants].sort())!==JSON.stringify([...client.printer_ids].sort()))payload.printer_ids=grants;
+      await api(`/admin/api/clients/${encodeURIComponent(client.id)}`,{method:'PUT',body:JSON.stringify(payload)});closeEditor();showNotice('Đã lưu client.','success');await loadClients();});
+    modal.open(`Sửa client · ${client.name}`,form);
   });
-  const actions = node("div", null, "button-row");
-  const rotate = node("button", "Đổi API key", "secondary"); rotate.type = "button";
-  bindAction(rotate, 'click', () => {
-    if (confirm(`Đổi API key của “${client.name}”? Key cũ sẽ ngừng hoạt động ngay.`)) return clientAction(client.id, 'rotate-key', 'Đã tạo API key mới');
-  });
-  const revoke = node("button", "Thu hồi key", "danger"); revoke.type = "button";
-  revoke.disabled = client.revoked; bindAction(revoke, 'click', () => {
-    if (confirm(`Thu hồi key của “${client.name}”? Ứng dụng này sẽ không gửi được yêu cầu mới.`)) return clientAction(client.id, 'revoke', 'Đã thu hồi client key');
-  });
-  const remove = node('button', 'Xóa client', 'danger'); remove.type = 'button';
-  bindAction(remove, 'click', async () => {
-    if (!confirm(`Xóa “${client.name}”? API key sẽ mất hiệu lực.\nLịch sử vẫn giữ. Không thể xóa nếu còn lệnh chưa kết thúc.`)) return;
-    await api(`/admin/api/clients/${encodeURIComponent(client.id)}`, {method:'DELETE'});
-    showNotice('Đã xóa client và vô hiệu hóa key.', 'success'); await loadClients();
-  });
-  actions.append(rotate, revoke, remove); details.append(form); card.append(details, actions); return card;
+  const rotate=node('button','Đổi API key','secondary');rotate.type='button';bindAction(rotate,'click',()=>{if(confirm(`Đổi API key của “${client.name}”? Key cũ ngừng hoạt động ngay.`))return clientAction(client.id,'rotate-key','Đã tạo API key mới');});
+  const revoke=node('button','Thu hồi key','danger');revoke.type='button';revoke.disabled=client.revoked;bindAction(revoke,'click',()=>{if(confirm(`Thu hồi key của “${client.name}”? Không hủy lệnh đã nhận.`))return clientAction(client.id,'revoke','Đã thu hồi key');});
+  const remove=node('button','Xóa client','danger');remove.type='button';bindAction(remove,'click',async()=>{if(!confirm(`Xóa “${client.name}”? Key mất hiệu lực; lịch sử vẫn giữ. Không xóa được nếu còn lệnh chưa kết thúc.`))return;await api(`/admin/api/clients/${encodeURIComponent(client.id)}`,{method:'DELETE'});showNotice('Đã xóa client.','success');await loadClients();});
+  actions.append(view,edit,rotate,revoke,remove);card.append(actions);return card;
 }
 async function clientAction(id, action, message) {
   try {
     const result = await api(`/admin/api/clients/${encodeURIComponent(id)}/${action}`, { method: "POST", body: "{}" });
-    if (result.api_key) showNotice(`${message}. Sao chép ngay; key chỉ xuất hiện lần này: ${result.api_key}`, "success");
+    if (result.api_key) { showApiKey(result.api_key); showNotice(message, "success"); }
     else showNotice(message, "success");
     await loadClients();
   } catch (error) { showNotice(`Client action thất bại: ${error.message}`, "error"); }
@@ -404,6 +399,7 @@ async function showJob(summary) {
       }); target.append(form);
     }
     target.append(actions);
+    modal.open("Chi tiết lệnh in",target,{keep:true,readOnly:true});
   } catch (error) { target.textContent = `Không tải được chi tiết: ${error.message}`; }
 }
 async function loadSettings() {
@@ -429,14 +425,15 @@ bindAction($("#logout"), "click", async () => {
   catch (error) { showNotice(`Đăng xuất chưa được xác nhận: ${error.message}`, "error"); return; }
   clearNotice(); resetSession(); activateTab('overview');
 });
-bindAction($('#discover'), 'click', () => discover());
+bindAction($('#discover'), 'click', async()=>{modal.open('Thêm máy in',$('#discovery'),{keep:true});await discover();});
+$('#add-client').addEventListener('click',()=>{if(actionPending)return;modal.open('Tạo client',$('#client-form'),{keep:true,onClose:()=>{$('#client-form').reset();newClientGrants.reset();}});});
 for (const [id, importing] of [['new-printer-mode', false], ['import-printer-mode', true]]) {
   document.getElementById(id).addEventListener('click', () => {
     $('#managed-printer-form').hidden = importing; $('#import-form').hidden = !importing;
     $('#new-printer-mode').setAttribute('aria-pressed', String(!importing)); $('#import-printer-mode').setAttribute('aria-pressed', String(importing));
   });
 }
-$('#close-add').addEventListener('click', () => { $('#discovery').classList.add('hidden'); $('#discover').focus(); });
+$('#close-add').addEventListener('click',()=>modal.close());
 bindAction($("#managed-printer-form"), "submit", async event => {
   event.preventDefault();
   try {
@@ -445,12 +442,11 @@ bindAction($("#managed-printer-form"), "submit", async event => {
     if (!$("#manual-uri").value.trim() && !$("#device-uri").value) throw new Error("Hãy chọn thiết bị hoặc nhập địa chỉ mạng.");
     const payload = {
       name: $("#printer-name").value, device_uri: $("#manual-uri").value.trim() || $("#device-uri").value, driver: $("#driver").value,
-      formats: checkedFormats(form), default_options: jsonField($("#default-options").value, "Default options"),
-      allowed_options: jsonField($("#allowed-options").value, "Allowed options"),
+      formats: checkedFormats(form), default_options: {}, allowed_options: {},
     };
     await api("/admin/api/printers", { method: "POST", body: JSON.stringify(payload) });
     showNotice("Đã tạo queue được quản lý; không xóa hay chiếm queue cũ.", "success");
-    form.reset(); createPicker.reset(); await loadPrinters(); await loadStatus(); await discover();
+    form.reset(); createPicker.reset(); closeEditor(); await loadPrinters(); await loadStatus();
   } catch (error) { showNotice(`Không tạo được máy in: ${error.message}`, "error"); }
 });
 bindAction($("#import-form"), "submit", async event => {
@@ -458,7 +454,7 @@ bindAction($("#import-form"), "submit", async event => {
   try {
     const payload = { queue: $("#existing-queue").value, name: $("#import-name").value, formats: checkedFormats(event.currentTarget, 'input[name="import-format"]') };
     await api("/admin/api/printers/import", { method: "POST", body: JSON.stringify(payload) });
-    showNotice("Đã nhập queue nguyên trạng; CUPS chưa bị sửa.", "success"); await loadPrinters(); await discover();
+    showNotice("Đã nhập queue nguyên trạng; CUPS chưa bị sửa.", "success"); closeEditor(); await loadPrinters();
   } catch (error) { showNotice(`Không nhập được queue: ${error.message}`, "error"); }
 });
 bindAction($("#client-form"), "submit", async event => {
@@ -466,7 +462,7 @@ bindAction($("#client-form"), "submit", async event => {
   try {
     const result = await api("/admin/api/clients", { method: "POST", body: JSON.stringify({ name: $("#client-name").value, printer_ids: selectedValues($("#client-printers")) }) });
     $("#client-name").value = "";
-    showNotice(`Client đã tạo. Sao chép API key này ngay; key chỉ xuất hiện một lần: ${result.api_key}`, "success"); await loadClients();
+    showApiKey(result.api_key); showNotice("Đã tạo client.", "success"); await loadClients();
   } catch (error) { showNotice(`Không tạo được client: ${error.message}`, "error"); }
 });
 bindAction($("#settings-form"), "submit", async event => {

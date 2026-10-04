@@ -77,6 +77,53 @@ def test_scoped_auth_jobs_and_client_privacy(harness: Harness) -> None:
     assert [job["job_id"] for job in listed.json()] == [own.json()["job_id"]]
 
 
+def test_capabilities_scoped_schema_and_option_constraints(harness: Harness) -> None:
+    auth = {"Authorization": f"Bearer {harness.key}"}
+    url = f"/api/v1/printers/{harness.printer['id']}/capabilities"
+    assert harness.api.get(url).status_code == 401
+    response = harness.api.get(url, headers=auth)
+    assert response.status_code == 200
+    schema = response.json()
+    assert schema["availability"] == "available"
+    assert [item["name"] for item in schema["options"]] == []  # stored allowlist only
+    forbidden = harness.api.get("/api/v1/printers/not-granted/capabilities", headers=auth)
+    assert forbidden.status_code == 404
+    harness.backend.available = False
+    unavailable = harness.api.get(url, headers=auth)
+    assert unavailable.status_code == 200
+    assert unavailable.json()["availability"] == "unavailable"
+    assert unavailable.json()["reason"]
+
+
+def test_capability_constraints_and_idempotent_replay_before_schema(harness: Harness) -> None:
+    allowed = {
+        "Duplex": ["DuplexNoTumble", "DuplexTumble"],
+        "PageSize": ["A4"],
+        "BindEdge": ["Left"],
+    }
+    assert harness.appliance.edit_printer(harness.printer["id"], {"allowed_options": allowed})
+    valid = post_pdf(
+        harness,
+        harness.key,
+        "valid-combination",
+        options='{"Duplex":"DuplexNoTumble","PageSize":"A4","BindEdge":"Left"}',
+    )
+    assert valid.status_code == 202
+    invalid = post_pdf(
+        harness,
+        harness.key,
+        "invalid-combination",
+        options='{"Duplex":"DuplexTumble","PageSize":"A4","BindEdge":"Left"}',
+    )
+    assert invalid.status_code == 422
+    original = post_pdf(harness, harness.key, "schema-replay")
+    assert original.status_code == 202
+    harness.backend.available = False
+    replay = post_pdf(harness, harness.key, "schema-replay")
+    assert replay.status_code == 200
+    assert replay.json()["job_id"] == original.json()["job_id"]
+
+
 def test_format_options_size_and_idempotency_validation(harness: Harness) -> None:
     invalid = post_pdf(harness, harness.key, "bad-signature", content=b"not a PDF")
     assert invalid.status_code == 422

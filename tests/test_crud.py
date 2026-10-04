@@ -42,6 +42,28 @@ def accept_job(harness: Harness, key: str) -> tuple[dict[str, Any], int]:
     )
 
 
+def test_capabilities_read_and_non_option_edit_do_not_mutate_cups(harness: Harness) -> None:
+    headers = admin_headers(harness)
+    before = {name: dict(attrs) for name, attrs in harness.backend.queue_data.items()}
+    url = f"/admin/api/printers/{harness.printer['id']}/capabilities"
+    assert harness.api.get(url, headers=headers).status_code == 200
+    assert (
+        harness.api.put(
+            f"/admin/api/printers/{harness.printer['id']}",
+            headers=headers,
+            json={"name": "Renamed"},
+        ).status_code
+        == 200
+    )
+    edited = harness.api.put(
+        f"/admin/api/printers/{harness.printer['id']}",
+        headers=headers,
+        json={"allowed_options": {"Duplex": ["DuplexTumble"]}},
+    )
+    assert edited.status_code == 200
+    assert harness.backend.queue_data == before
+
+
 def test_soft_delete_columns_migrate_existing_database(tmp_path: Path) -> None:
     path = tmp_path / "legacy.sqlite3"
     import sqlite3
@@ -368,7 +390,8 @@ def test_packaged_admin_control_assets_are_served(harness):
     page = harness.api.get("/")
     assert page.status_code == 200
     assert "/assets/controls.js" in page.text
-    for asset in ("app.js", "controls.js", "style.css"):
+    assert "/assets/print-options.js" in page.text
+    for asset in ("app.js", "controls.js", "print-options.js", "style.css"):
         response = harness.api.get(f"/assets/{asset}")
         assert response.status_code == 200
         assert response.content
@@ -379,7 +402,9 @@ def test_client_test_page_public_but_api_stays_scoped(harness):
     page = harness.api.get("/client")
     assert page.status_code == 200
     assert "/assets/client.js" in page.text
+    assert "/assets/print-options.js" in page.text
     assert harness.api.get("/assets/client.js").status_code == 200
+    assert harness.api.get("/assets/print-options.js").status_code == 200
     assert harness.api.get("/api/v1/printers").status_code == 401
     assert harness.api.get("/api/v1/jobs").status_code == 401
     assert harness.api.get("/admin/api/printers").status_code == 401

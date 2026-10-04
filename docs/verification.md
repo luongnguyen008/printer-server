@@ -1,5 +1,13 @@
 # Verification history
 
+## Options and modal UX — 0.1.4
+
+Local: 93 pytest tests, Ruff lint/format, JS syntax, wheel/sdist build and both browser suites against the final isolated installed wheel passed. Browser cases cover modal/dirty-close, 16k driver choices, multi-grant search/chips/keyboard, unchanged-grant revocation race, busy/duplicate/errors, persistent key modal, toast, default/override forms, constrained combinations, empty option rights, stale schema responses, immutable lost-response replay and fresh mobile screenshots. Actual FastAPI/SQLite + explicit FakeCups browser replay discarded an accepted 202 then replayed: exactly one durable job.
+
+Real EDATEC read-only adapter probe passed under the service account: 14 Canon/CUPS options, 70 distinct PPD constraints, PageRegion excluded, reported PDF scaling choices and authenticated matching job13/completed metadata. No new print submission or queue mutation. Target installed-release tests remain a distinct rollout gate.
+
+The serial independent review did not run after provider quota interrupted the UI worker. Parent completed the UI and manually audited adapter authentication/constraints, original-request digest compatibility, privileges, assets and modal state. This is not an independent-review certificate. Hardware duplex/scaling/fault/cancel/physical-copy tests are still separate.
+
 ## Client test page — 0.1.3
 
 Local checks: **80 tests passed**, lint/format and both new JS syntax checks passed; one existing Starlette/httpx warning remains. Installed-wheel browser regressions passed for admin and client pages. Client coverage: key errors/empty grants, memory-only credential/reset, PDF/ZPL, XSS-safe text, slow/duplicate submits, immutable same-ID replay after a lost response, 422 edit recovery, advanced JSON, desktop/mobile and no external requests. Screenshots were inspected.

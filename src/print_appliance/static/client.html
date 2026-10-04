@@ -6,12 +6,13 @@
   <title>Print appliance · Gửi thử</title>
   <link rel="stylesheet" href="/assets/style.css">
   <script src="/assets/controls.js" defer></script>
+  <script src="/assets/print-options.js" defer></script>
   <script src="/assets/client.js" defer></script>
 </head>
 <body>
   <header class="topbar"><div><p class="eyebrow">CLIENT API</p><h1>Gửi lệnh in</h1></div><a class="client-link" href="/">Quản trị</a></header>
   <main class="client-main">
-    <p id="client-notice" class="notice" role="status" aria-live="polite" hidden></p>
+    <section id="client-notice" class="notice" role="status" aria-live="polite" hidden></section>
     <section id="key-panel" class="panel narrow">
       <h2>Kết nối client</h2>
       <form id="key-form" autocomplete="off">
@@ -35,7 +36,7 @@
             <div><label for="client-copies">Số bản</label><input id="client-copies" type="number" min="1" max="100" value="1" required></div>
           </div>
           <label for="client-title">Tiêu đề</label><input id="client-title" maxlength="200" value="In thử" required>
-          <details class="advanced"><summary>Tùy chọn nâng cao</summary><label for="client-options" data-help-key="allowed">Tùy chọn in (JSON)</label><textarea id="client-options" rows="2">{}</textarea><p id="permitted-options" class="muted"></p></details>
+          <section id="client-options-panel" aria-live="polite"><p id="options-state" class="muted">Chọn máy in để tải tùy chọn được cấp.</p><div id="client-options"></div></section>
           <button id="send-print" type="submit">Gửi lệnh in</button>
         </form>
         <div id="uncertain-request" hidden>

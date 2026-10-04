@@ -10,6 +10,30 @@ Base URL local: `http://EDATEC_IP:8081`. Cổng 8081 cho bản mới nhằm trá
 
 Chỉ trả máy được cấp cho client: ID, tên, định dạng được hỗ trợ, tùy chọn mặc định/ghi đè, trạng thái vận hành. Không cần tiết lộ URI/driver/password nội bộ cho client.
 
+### GET /api/v1/printers/{id}/capabilities
+
+Trả schema capability `schema_version:1` và fingerprint mapping/schema hiện tại; đọc không tạo/sửa queue. Client chỉ nhận các enum thật sự nằm trong `allowed_options` đã lưu, không tự được cấp quyền từ khả năng driver. Defaults được trả riêng; `constraints` giải thích các tổ hợp không hợp lệ. Admin dùng `GET /admin/api/printers/{id}/capabilities` để xem các lựa chọn PPD đầy đủ và allowlist hiện tại. Hai endpoint yêu cầu Bearer/Admin session tương ứng; client không được cấp printer và printer không tồn tại đều trả 404. Khi CUPS không truy cập được endpoint vẫn trả 200 với `availability:"unavailable"`, `reason` và danh sách khả năng rỗng; không được hiểu đó là máy không hỗ trợ tính năng nào.
+
+Schema ví dụ:
+
+```json
+{
+  "schema_version": 1,
+  "printer_id": "opaque-id",
+  "availability": "available",
+  "source": "ppd",
+  "mapping_fingerprint": "sha256…",
+  "schema_fingerprint": "sha256…",
+  "groups": [{"id":"common","label":"Common"},{"id":"advanced","label":"Advanced"}],
+  "options": [{"name":"Duplex","label":"Duplex","group":"common","group_label":"General","default":"None","overridable":true,"choices":[{"value":"None","label":"Off"},{"value":"DuplexNoTumble","label":"Long edge"}]}],
+  "constraints": [{"option1":"Duplex","choice1":"DuplexTumble","option2":"BindEdge","choice2":"Left"}],
+  "default_options": {},
+  "allowed_options": null
+}
+```
+
+`availability` là `available`, `partial` (chỉ một số thuộc tính IPP được CUPS báo), `unknown` (không có PPD/IPP capability đáng tin) hoặc `stale` (mapping hiện tại khác mapping đã đăng ký). Raw/driverless queue không được suy diễn tính năng từ tên model; capability IPP chưa biểu diễn thành PPD enum sẽ chỉ được báo trong `ipp_attributes`, không thành điều khiển override. Schema bị giới hạn kích thước và chuỗi; giá trị enum dùng đúng keyword/choice của driver. PDF scaling (`print-scaling`: auto/auto-fit/fit/fill/none) chỉ hiện các giá trị CUPS báo trong `print-scaling-supported`; không áp cho ZPL. Scaling không đồng nghĩa borderless.
+
 ### POST /api/v1/jobs
 
 Multipart với:
@@ -64,7 +88,7 @@ Client contract không đổi. API keys đã revoke trả 401; client chỉ th�
 
 ## Tình trạng xác minh
 
-Routes trên đã được cài đặt và test với adapter giả tường minh. Chưa kiểm chứng pycups/CUPS thực, quyền `@SYSTEM/operator`, Linux/ARM driver hoặc máy in vật lý; không coi test giả là xác minh phần cứng. Xem README/runbook để chạy cục bộ và các giới hạn đã biết.
+Routes trên đã được cài đặt và test với adapter giả tường minh. Đã đọc schema/job metadata thực trên EDATEC ARM64/pycups 2.0.1/CUPS 2.4.2 và driver Canon; người dùng báo in được. Các test offline/duplex/copies/cancel/power-loss phần cứng vẫn riêng biệt; không coi test giả là chứng minh mọi chức năng phần cứng. Xem README/runbook để chạy cục bộ và các giới hạn đã biết.
 
 ## Admin routes implemented
 
@@ -76,7 +100,7 @@ Routes trên đã được cài đặt và test với adapter giả tường min
 - `DELETE /admin/api/printers/{id}` takes no body and returns `{"id":"<printer-id>","deleted":true}`. It returns 409 while any `queued`, `held`, `submitting`, `submitted` or `unknown` job exists; otherwise it unregisters only the application record and grants. It never deletes, pauses or changes a CUPS queue, driver or job. The old ID/history remains; registering the same existing CUPS queue later creates a new printer ID.
 - `POST /admin/api/printers/{id}/pause` and `/resume`. Resume is refused for unresolved unknowns and unsafe error policy.
 - `POST /admin/api/clients`: `name`, `printer_ids`; returns a one-time `api_key`. `GET /admin/api/clients/{id}` returns `{id,name,revoked,created_at,printer_ids}`. `PUT /admin/api/clients/{id}` accepts `{"name":"New name"}`, `{"printer_ids":["<active-printer-id>"]}` or both; `printer_ids` replaces the complete grant list. It returns the same public client record (never the key). `PUT /admin/api/clients/{id}/printers` remains the grant-only form. `DELETE /admin/api/clients/{id}` takes no body and returns `{"id":"<client-id>","deleted":true}`. `POST .../{id}/rotate-key` and `/revoke` affect only active clients.
-- `POST /admin/api/jobs/{id}/cancel`, `/resume`; `POST .../{id}/resolve` takes `outcome` (completed/failed/canceled) and `reason` (8–1000 chars). A live CUPS job must be canceled/confirmed before unknown resolution.
+- `POST /admin/api/jobs/{id}/cancel`, `/resume`; `POST .../{id}/resolve` takes `outcome` (completed/failed/canceled) and `reason` (8–1000 chars). A matching CUPS job must be terminal before resolution; another correlation is not evidence for this job.
 - `PUT /admin/api/settings`: finite integer limits `max_upload_bytes`, `max_pending_jobs`, `min_free_bytes`, `history_retention_days`.
 
 Admin APIs return 200 on successful mutations; keys are never returned by list/history/audit routes. In-use deletes return 409, missing/deleted resource mutations return 404, invalid fields 422 and unavailable CUPS 503. Deleted printers/clients are omitted from lists and grants; deleted clients' keys cannot authenticate or be rotated back to active. Successful deletions and configuration/control changes have a minimal credential-free audit entry. All mutations require the admin session and `X-CSRF-Token`.

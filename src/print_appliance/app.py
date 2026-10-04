@@ -281,7 +281,7 @@ def create_app(
 
     @app.get("/assets/{asset}", include_in_schema=False)
     def assets(asset: str) -> FileResponse:
-        if asset not in {"app.js", "controls.js", "client.js", "style.css"}:
+        if asset not in {"app.js", "controls.js", "client.js", "print-options.js", "style.css"}:
             raise HTTPException(404, "Not found")
         return FileResponse(Path(__file__).parent / "static" / asset)
 
@@ -289,6 +289,18 @@ def create_app(
     @app.get("/api/v1/printers")
     def client_printers(client: dict[str, str] = Depends(api_client)) -> list[dict[str, Any]]:
         return appliance.list_client_printers(client["id"])
+
+    @app.get("/api/v1/printers/{printer_id}/capabilities")
+    def client_printer_capabilities(
+        printer_id: str, client: dict[str, str] = Depends(api_client)
+    ) -> dict[str, Any]:
+        try:
+            result = appliance.printer_capabilities(printer_id, client["id"])
+        except BackendUnavailable as exc:
+            raise HTTPException(503, "Printer capabilities are unavailable") from exc
+        if result is None:
+            raise HTTPException(404, "Printer not found")
+        return result
 
     @app.post("/api/v1/jobs")
     def submit_job(
@@ -316,6 +328,8 @@ def create_app(
                 upload=file,
             )
             return JSONResponse(result, status_code=code)
+        except BackendUnavailable as exc:
+            raise HTTPException(503, "Printer capabilities are unavailable") from exc
         except PermissionError as exc:
             raise HTTPException(403, "Printer is not granted to this client") from exc
         except OverflowError as exc:
@@ -485,6 +499,18 @@ def create_app(
     @app.get("/admin/api/printers")
     def admin_printers(_: dict[str, str] = Depends(admin_session)) -> list[dict[str, Any]]:
         return appliance.admin_printers()
+
+    @app.get("/admin/api/printers/{printer_id}/capabilities")
+    def admin_printer_capabilities(
+        printer_id: str, _: dict[str, str] = Depends(admin_session)
+    ) -> dict[str, Any]:
+        try:
+            result = appliance.printer_capabilities(printer_id)
+        except BackendUnavailable as exc:
+            raise HTTPException(503, "Printer capabilities are unavailable") from exc
+        if result is None:
+            raise HTTPException(404, "Printer not found")
+        return result
 
     @app.get("/admin/api/printers/{printer_id}")
     def admin_printer(

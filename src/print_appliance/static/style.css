@@ -114,5 +114,57 @@ input, select, textarea, .inline-form > div { min-width: 0; }
 .client-main code { overflow-wrap: anywhere; }
 .client-main .settings-grid > div { display: flex; flex-direction: column; gap: .4rem; }
 .client-main input[type="file"] { padding: .65rem; }
+.option-editor { display: grid; gap: .75rem; min-width: 0; }
+.option-common, .option-advanced { min-width: 0; }
+.option-field { display: grid; gap: .45rem; min-width: 0; margin: .55rem 0; padding: .7rem; }
+.option-field legend { overflow-wrap: anywhere; }
+.option-control-label { font-size: .92rem; }
+.option-choices { display: flex; flex-wrap: wrap; gap: .3rem .8rem; }
+.option-choices > p { flex-basis: 100%; margin: .1rem 0; color: var(--muted); }
+.option-choice { max-width: 100%; overflow-wrap: anywhere; }
+.option-choice input { flex: 0 0 auto; }
+.option-editor select { min-width: 0; }
 
-.client-main #client-notice { position: static; }
+
+
+/* Entity dialogs keep lists compact and forms focused. */
+.entity-modal { width: min(46rem, calc(100vw - 2rem)); max-height: 88dvh; padding: 0; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: var(--panel); box-shadow: 0 18px 70px #103b3b40; }
+.entity-modal[open] { display: flex; flex-direction: column; }
+.entity-modal::backdrop { background: #102c2c70; }
+.modal-header, .modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; flex-shrink: 0; }
+.modal-header { border-bottom: 1px solid var(--line); }
+.modal-header h2 { margin: 0; font-size: 1.2rem; overflow-wrap: anywhere; }
+.modal-header button { font-size: 1.4rem; min-width: 2.6rem; padding: 0; }
+.modal-footer { border-top: 1px solid var(--line); justify-content: flex-end; }
+.modal-content { overflow-y: auto; overscroll-behavior: contain; padding: 1rem 1.25rem; min-height: 0; }
+.modal-content .edit-form { margin-top: 0; }
+.modal-content .subpanel { margin-top: 0; }
+.modal-content h3 { font-size: 1.05rem; }
+.detail-list { display: grid; grid-template-columns: minmax(6rem, 1fr) 3fr; gap: .65rem 1rem; }
+.detail-list dt { color: var(--muted); }
+.detail-list dd { margin: 0; overflow-wrap: anywhere; }
+.toast-region { position: fixed; inset: 1rem 1rem auto auto; margin: 0; padding: 0; border: 0; background: transparent; color: var(--ink); width: min(25rem, calc(100vw - 2rem)); max-height: 80dvh; overflow-y: auto; }
+.toast { display: flex; gap: .7rem; align-items: flex-start; margin-bottom: .6rem; padding: .85rem 1rem; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; background: white; box-shadow: 0 4px 18px #103b3b26; overflow-wrap: anywhere; }
+.toast span { flex: 1; min-width: 0; }
+.toast.success { border-left-color: var(--good); }
+.toast.error { border-left-color: var(--danger); }
+button.toast-close { flex-shrink: 0; padding: 0; min-height: 2rem; width: 2rem; color: var(--muted); background: transparent; font-size: 1.3rem; }
+.grant-picker { min-width: 0; }
+.grant-toggle { width: 100%; text-align: left; border: 1px solid var(--line); }
+.grant-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.grant-chip { display: inline-flex; align-items: center; gap: .3rem; padding: .15rem .35rem .15rem .65rem; border-radius: 6px; background: #e5f1ee; max-width: 100%; }
+.grant-chip span { min-width: 0; overflow-wrap: anywhere; }
+.grant-chip button { background: transparent; color: var(--accent); padding: 0; min-height: 2rem; width: 2rem; flex-shrink: 0; }
+.grant-count { margin: .25rem 0; font-size: .85rem; }
+.grant-popup { border: 1px solid var(--line); border-radius: 8px; padding: .6rem; margin-top: .4rem; background: #f8fbfa; }
+.grant-list { max-height: 13rem; overflow-y: auto; display: grid; gap: .2rem; margin-top: .4rem; }
+.grant-list label { padding: .5rem; border-radius: 5px; cursor: pointer; }
+.grant-list label:has(input:checked) { background: #e5f1ee; }
+.grant-list input { flex-shrink: 0; }
+.option-rights { margin-top: .25rem; }
+.option-rights summary { font-size: .9rem; }
+@media (max-width: 700px) { .modal-header,.modal-footer,.modal-content { padding: .8rem; } .entity-modal { width: calc(100vw - 1rem); max-height: 94dvh; } .detail-list { grid-template-columns: 1fr; gap: .2rem; } .detail-list dd { margin-bottom: .6rem; } }
+
+.toast-region { pointer-events: none; }
+.toast { pointer-events: auto; }
+.toast span { max-height: 8rem; overflow-y: auto; }

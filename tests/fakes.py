@@ -24,6 +24,57 @@ class FakeCups:
         self.submit_error = False
         self.release_error = False
         self.cancel_confirms = True
+        self.capability_data: dict[str, Any] = {
+            "source": "ppd",
+            "availability": "available",
+            "reason": None,
+            "mapping_fingerprint": "fake-ppd-v1",
+            "options": [
+                {
+                    "name": "Duplex",
+                    "label": "Duplex",
+                    "group": "common",
+                    "group_label": "General",
+                    "default": "None",
+                    "choices": [
+                        {"value": "None", "label": "Off"},
+                        {"value": "DuplexNoTumble", "label": "Long edge"},
+                        {"value": "DuplexTumble", "label": "Short edge"},
+                    ],
+                },
+                {
+                    "name": "PageSize",
+                    "label": "Paper",
+                    "group": "common",
+                    "group_label": "General",
+                    "default": "A4",
+                    "choices": [
+                        {"value": "A4", "label": "A4"},
+                        {"value": "Letter", "label": "Letter"},
+                    ],
+                },
+                {
+                    "name": "BindEdge",
+                    "label": "Binding",
+                    "group": "advanced",
+                    "group_label": "Finishing",
+                    "default": "None",
+                    "choices": [
+                        {"value": "None", "label": "None"},
+                        {"value": "Left", "label": "Left"},
+                    ],
+                },
+            ],
+            "constraints": [
+                {
+                    "option1": "Duplex",
+                    "choice1": "DuplexTumble",
+                    "option2": "BindEdge",
+                    "choice2": "Left",
+                }
+            ],
+            "ipp_attributes": {},
+        }
 
     def _check(self) -> None:
         if not self.available:
@@ -58,6 +109,10 @@ class FakeCups:
             "mapping_signature": attrs["printer-ppd-name"],
             "error_policy": attrs.get("error-policy", "unknown"),
         }
+
+    def printer_capabilities(self, queue: str) -> dict[str, Any]:
+        self._check()
+        return dict(self.capability_data)
 
     def printer_status(self, queue: str) -> dict[str, Any]:
         self._check()

@@ -1,12 +1,12 @@
 // Same-origin client API only. Credentials and pending files never enter storage or URLs.
 (() => {
   const $ = selector => document.querySelector(selector);
+  const toasts=createToasts($('#client-notice'));
   const labels = {queued:'Đang chờ',held:'Đang giữ',submitting:'Đang giao',submitted:'Đã giao CUPS',completed:'Hoàn thành (CUPS)',failed:'Thất bại',canceled:'Đã hủy',unknown:'Chưa rõ kết quả'};
   const active = new Set(['queued','held','submitting','submitted']);
-  let apiKey = '', printers = [], pending = null, busy = false, epoch = 0, timer = null, reading = false;
-  for (const label of document.querySelectorAll('[data-help-key]')) addFieldHelp(label, 'JSON chỉ gồm tùy chọn được máy cho client thay đổi. Ví dụ {"media":"A4"}. Để {} nếu dùng mặc định. Danh sách quyền của máy hiển thị bên dưới; API sẽ kiểm tra giá trị.');
+  let apiKey = '', printers = [], pending = null, busy = false, epoch = 0, timer = null, reading = false, schemaEpoch = 0, currentSchema = null, optionEditor = null;
   function text(tag, content, className) { const el=document.createElement(tag); el.textContent=String(content ?? ''); if(className) el.className=className; return el; }
-  function notice(message, error = false) { const el=$('#client-notice'); el.textContent=message; el.className=error?'notice error':'notice success'; el.hidden=false; }
+  function notice(message,error=false){toasts.show(message,error?'error':'success');}
   function stopPolling() { clearTimeout(timer); timer=null; }
   function updateControls() {
     for(const el of document.querySelectorAll('input,select,textarea,button')) el.disabled=busy;
@@ -41,14 +41,26 @@
       throw error;
     } finally {clearTimeout(timeout);}
   }
-  function refreshPrinterState() {
+  async function refreshPrinterState(key=apiKey) {
     const printer=printers.find(x=>x.id===$('#client-printer').value);
     const format=$('#client-format'); const previous=format.value;
     format.replaceChildren(...(printer?.formats || []).map(value=>{const item=text('option',value.toUpperCase());item.value=value;return item;}));
     if(printer?.formats.includes(previous)) format.value=previous;
-    if(!printer) { $('#printer-state').textContent=''; $('#permitted-options').textContent=''; return; }
-    $('#printer-state').textContent=printer?.status==='paused'?'Máy đang tạm dừng. Lệnh sẽ được giữ đến khi quản trị cho tiếp tục.':'Được phép xử lý; trạng thái này không xác nhận máy đã in.';
-    $('#permitted-options').textContent=`Giá trị được phép: ${JSON.stringify(printer?.allowed_options || {})}`;
+    const loadId=++schemaEpoch; currentSchema=null; optionEditor=null; $('#client-options').replaceChildren();
+    if(!printer) { $('#printer-state').textContent=''; $('#options-state').textContent=''; return; }
+    $('#printer-state').textContent=printer.status==='paused'?'Máy đang tạm dừng. Lệnh sẽ được giữ đến khi quản trị cho tiếp tục.':'Được phép xử lý; trạng thái này không xác nhận máy đã in.';
+    $('#options-state').textContent='Đang tải schema capability được cấp…';
+    try {
+      const schema=await request(`/api/v1/printers/${encodeURIComponent(printer.id)}/capabilities`,{},key);
+      if(loadId!==schemaEpoch || printer.id!==$('#client-printer').value) return;
+      currentSchema=schema;
+      if(schema.availability==='stale' || schema.availability==='unavailable' || schema.availability==='unknown') throw new Error(schema.reason || `Schema không khả dụng (${schema.availability}).`);
+      $('#options-state').className='muted';
+      optionEditor=createPrintOptionsEditor(schema,{defaults:schema.default_options||{},client:true,format:format.value});
+      if(!optionEditor.usable) throw new Error('Schema không có lựa chọn được phép dùng.');
+      $('#client-options').replaceChildren(optionEditor.root);
+      $('#options-state').textContent=format.value==='zpl'?'ZPL gửi nguyên bản; tùy chọn driver PDF không áp dụng.':'Chỉ các lựa chọn được quản trị cấp mới xuất hiện. “Dùng mặc định” không gửi ghi đè.';
+    } catch(error) { if(loadId===schemaEpoch){currentSchema=null;optionEditor=null;$('#options-state').textContent=`Không thể tải tùy chọn máy in: ${error.message}`;$('#options-state').className='bad';} }
   }
   async function loadPrinters(key=apiKey) {
     const items=await request('/api/v1/printers',{},key);
@@ -56,7 +68,7 @@
     const previous=$('#client-printer').value;
     printers=items; $('#client-printer').replaceChildren(...items.map(item=>{const option=text('option',item.name);option.value=item.id;return option;}));
     if(items.some(x=>x.id===previous)) $('#client-printer').value=previous;
-    $('#no-printers').hidden=items.length>0; refreshPrinterState();
+    $('#no-printers').hidden=items.length>0; await refreshPrinterState(key);
   }
   async function loadJobs() {
     if(reading || !apiKey) return;
@@ -85,9 +97,11 @@
   function capture() {
     const file=$('#client-file').files[0];
     if(!file) throw new Error('Hãy chọn file PDF hoặc ZPL.');
-    const options=JSON.parse($('#client-options').value);
-    if(!options || Array.isArray(options) || typeof options!=='object') throw new Error('Tùy chọn phải là một đối tượng JSON.');
-    return {id:requestId(),file,printer_id:$('#client-printer').value,format:$('#client-format').value,title:$('#client-title').value.trim(),copies:$('#client-copies').value,options:JSON.stringify(options)};
+    const format=$('#client-format').value;
+    if(!currentSchema || !optionEditor) throw new Error('Schema tùy chọn chưa sẵn sàng; chưa gửi lệnh.');
+    const invalid=optionEditor.validate();if(invalid) throw new Error(invalid);
+    const optionValues=format==='pdf'?optionEditor.payload().options:{};
+    return {id:requestId(),file,printer_id:$('#client-printer').value,format,title:$('#client-title').value.trim(),copies:$('#client-copies').value,options:JSON.stringify(optionValues)};
   }
   async function send() {
     const form=new FormData();
@@ -109,24 +123,27 @@
   }
   $('#key-form').addEventListener('submit',event=>{event.preventDefault();action(async()=>{
     const candidate=$('#api-key').value.trim();if(!candidate) throw new Error('Nhập API key.');
-    await loadPrinters(candidate);apiKey=candidate;$('#api-key').value='';epoch+=1;
+    apiKey=candidate;epoch+=1;
+    try { await loadPrinters(candidate); } catch(error) { apiKey='';epoch+=1;throw error; }
+    $('#api-key').value='';
     $('#key-panel').hidden=true;$('#client-workspace').hidden=false;
     notice('Đã kết nối. Chọn file và kiểm tra máy trước khi gửi.');await loadJobs();
   });});
   $('#print-form').addEventListener('submit',event=>{event.preventDefault();action(async()=>{if(!pending) pending=capture();updateControls();await send();});});
   $('#retry-print').addEventListener('click',()=>action(async()=>{if(pending) await send();}));
   $('#refresh-client').addEventListener('click',()=>action(async()=>{if(!pending) await loadPrinters();await loadJobs();}));
-  $('#client-printer').addEventListener('change',refreshPrinterState);
-  $('#client-file').addEventListener('change',()=>{const file=$('#client-file').files[0];if(!file) return;const format=file.name.toLowerCase().endsWith('.zpl')?'zpl':'pdf';if([...$('#client-format').options].some(x=>x.value===format)) $('#client-format').value=format;});
+  $('#client-printer').addEventListener('change',()=>{refreshPrinterState();});
+  $('#client-format').addEventListener('change',()=>{if(currentSchema){optionEditor=createPrintOptionsEditor(currentSchema,{defaults:currentSchema.default_options||{},client:true,format:$('#client-format').value});$('#client-options').replaceChildren(optionEditor.root);$('#options-state').textContent=$('#client-format').value==='zpl'?'ZPL gửi nguyên bản; tùy chọn driver PDF không áp dụng.':'Chọn “Dùng mặc định” hoặc một giá trị được cấp.';}});
+  $('#client-file').addEventListener('change',()=>{const file=$('#client-file').files[0];if(!file) return;const format=file.name.toLowerCase().endsWith('.zpl')?'zpl':'pdf';if([...$('#client-format').options].some(x=>x.value===format) && $('#client-format').value!==format){$('#client-format').value=format;$('#client-format').dispatchEvent(new Event('change'));}});
   $('#disconnect').addEventListener('click',()=>{
     if(busy) return;
     if(pending && !confirm(`Lệnh ${pending.id} có thể đã được nhận. Ngắt kết nối sẽ mất file/mã đang giữ; không gửi lại bằng mã mới khi chưa kiểm tra lịch sử. Vẫn ngắt?`)) return;
-    epoch+=1;stopPolling();apiKey='';printers=[];pending=null;
-    $('#print-form').reset();$('#key-form').reset();$('#client-jobs').replaceChildren();$('#history-state').textContent='';$('#client-notice').hidden=true;
+    epoch+=1;schemaEpoch+=1;currentSchema=null;optionEditor=null;stopPolling();apiKey='';printers=[];pending=null;toasts.clear();$('#client-options').replaceChildren();$('#printer-state').textContent='';$('#options-state').textContent='';
+    $('#print-form').reset();$('#key-form').reset();$('#client-jobs').replaceChildren();$('#history-state').textContent='';toasts.clear();
     $('#client-workspace').hidden=true;$('#key-panel').hidden=false;updateControls();$('#api-key').focus();
   });
   window.addEventListener('beforeunload',event=>{if(pending){event.preventDefault();event.returnValue='';}});
   window.addEventListener('pagehide',()=>{stopPolling();apiKey='';});
-  window.addEventListener('pageshow',event=>{if(event.persisted){epoch+=1;printers=[];pending=null;$('#print-form').reset();$('#key-form').reset();$('#client-jobs').replaceChildren();$('#client-notice').hidden=true;$('#client-workspace').hidden=true;$('#key-panel').hidden=false;updateControls();}});
+  window.addEventListener('pageshow',event=>{if(event.persisted){epoch+=1;schemaEpoch+=1;currentSchema=null;optionEditor=null;printers=[];pending=null;$('#print-form').reset();$('#key-form').reset();$('#client-jobs').replaceChildren();toasts.clear();$('#client-workspace').hidden=true;$('#key-panel').hidden=false;updateControls();}});
   updateControls();
 })();

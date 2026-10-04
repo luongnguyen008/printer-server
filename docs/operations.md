@@ -1,10 +1,10 @@
 # Operations and rollout
 
-## Current system (confirmed from user screenshots)
+## Current deployment
 
-EDATEC is reachable by SSH as `pi` at the address then shown as `192.168.1.218`; this is not a hardcoded product configuration. Service `pi-print-gateway` is enabled/running under `/opt/pi-print-gateway`. CUPS has a default queue `BROTHER_MFC` targeting `ipp://192.168.0.239:631/ipp/print`. Connectivity of that old printer has not been verified. The new Canon model/connection is not yet known.
+EDATEC dùng Debian 12 ARM64/Python 3.11, `print-appliance` trên LAN `192.168.88.228:8081`. IP là cấu hình triển khai, không hardcode trong sản phẩm. Gateway cũ đã gỡ có phép và sao lưu riêng; giữ nguyên CUPS/driver/queue hiện có. Canon LBP6230dw dùng Canon UFRII LT ARM64/CNRCUPSLBP6230ZNK.ppd; người dùng xác nhận in ra giấy. Đọc được trạng thái/schema không thay thế test duplex/offline/copies/cancel trên phần cứng.
 
-Do not reset the appliance, change the old gateway, or remove the Brother queue as a shortcut. On macOS switch Vietnamese input to ABC/U.S. when typing SSH passwords; do not post credentials in chat/logs.
+Đổi input macOS sang ABC/U.S. khi nhập mật khẩu SSH. Không đăng credentials, backup/API key lên Git/log/chat. Xem [Git deployment](git-deployment.md): cùng commit và wheel trên Mac/EDATEC.
 
 ## Before deployment
 
@@ -17,7 +17,7 @@ Tests must inject an explicit fake adapter; fake success is never proof of physi
 ## Safe rollout
 
 1. Test package locally without connecting to printers.
-2. Install a separate `print-appliance` service on an unused port (8081 suggested), with its own data and least-privilege service user. Keep old gateway intact.
+2. Install a separate `print-appliance` service on an unused port (8081 suggested), with its own data and least-privilege service user. Preserve existing CUPS queues and application data.
 3. Bootstrap an admin password locally; create a scoped client key. Do not use default credentials.
 4. Register a test printer/queue deliberately. Avoid enabling two senders on the same physical printer during acceptance testing.
 5. Run print/queue/restart/failure acceptance checks. Only migrate Odoo URL/key after validation and explicit permission.
@@ -37,7 +37,7 @@ See README for actual local run/test/install commands, CLI and implemented route
 
 PyCUPS handoff uses `printFile` with `job-hold-until=indefinite` and a correlation job name, persists the returned ID before release through `setJobHoldUntil(job_id, 'no-hold')`, reconciles using `getJobs(which_jobs='all', my_jobs=False, requested_attributes=[...])` / `getJobAttributes`, and verifies cancel through state polling. `cancelJob` returning `None` is not evidence of cancellation. Managed queues request `stop-printer` error policy. Confirm the local UNIX socket authorization permits discovery, queue administration, enable/disable, job hold/release and cancel with the service account; a TCP localhost connection or lpadmin membership alone is not an assumption of passwordless `@SYSTEM/operator` access.
 
-Tests use only explicitly injected fake CUPS; no Linux/EDATEC/Canon physical test, local CUPS authorization test, ARM driver test, or printer output test has been performed. The implementation fails safe for unreconciled submissions by retaining an `unknown` outcome and never automatically resending. Do not mark the appliance production-ready until the hardware acceptance gate is satisfied.
+Automated tests inject fake CUPS. Real EDATEC discovery/schema/job metadata and service-account local authorization have been checked; the user reports Canon paper output. Hardware fault/duplex/copies/cancel acceptance is not inferred from these checks. The implementation fails safe for unreconciled submissions by retaining an `unknown` outcome and never automatically resending. Do not mark the appliance production-ready until the hardware acceptance gate is satisfied.
 
 ## Implemented runtime details
 
@@ -48,3 +48,7 @@ An imported old queue is initially paused in the application without modifying C
 Snapshot mismatch is not auto-migration: restore the original queue mapping or cancel affected queued jobs and ask the client for a new explicitly intended request. For a CUPS `stopped` job, possible partial paper output makes the result unknown; cancel/verify before recording evidence. No restarting/reprocessing of stopped jobs. Raw ZPL may have device-specific copy/label settings (`^PQ` etc.); test physical counts on the actual Zebra-compatible model.
 
 Modern Python and pycups must match the target ABI. If the existing Raspberry Pi OS only provides Python 3.9, do not silently upgrade the appliance OS: inventory first and plan a separate runtime/driver installation. Existing hardware/gateway remains untouched by this implementation.
+
+## Private CUPS job metadata
+
+Fresh unauthenticated connections can hide `job-name` even for the Unix owner/root. The adapter establishes local certificate auth with read-only `adminGetServerSettings()` on the same connection before job metadata/reconciliation. Failure stays unavailable: never weaken correlation checks or globally disable job privacy. Missing/mismatched identity cannot authorize release or resubmit. Operator resolution records matching terminal CUPS evidence and a reason, without a new job.
