@@ -297,7 +297,10 @@ def main() -> None:
     page_file = args.source.with_suffix(".pages.json")
     if page_file.exists():
         data = json.loads(page_file.read_text())
-        if data.get("source_sha256") == hashlib.sha256(args.source.read_bytes()).hexdigest():
+        if (
+            data.get("source_sha256")
+            == hashlib.sha256(args.source.read_text(encoding="utf-8").encode("utf-8")).hexdigest()
+        ):
             pages = data["pages"]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(render_document(args.source, pages), encoding="utf-8")

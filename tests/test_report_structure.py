@@ -68,7 +68,10 @@ def test_guide_is_operations_focused_and_source_steps_stop_at_clone():
 
 def test_canonical_pdf_page_references_are_current():
     data = json.loads(SOURCE.with_suffix(".pages.json").read_text())
-    assert data["source_sha256"] == hashlib.sha256(SOURCE.read_bytes()).hexdigest()
+    assert (
+        data["source_sha256"]
+        == hashlib.sha256(SOURCE.read_text(encoding="utf-8").encode("utf-8")).hexdigest()
+    )
     assert data["document_version"] == "1.2"
     assert data["product_version"] == "0.1.5"
     assert 10 < data["page_count"] < 100
@@ -80,3 +83,8 @@ def test_canonical_pdf_page_references_are_current():
         )
     with SOURCE.with_suffix(".pdf").open("rb") as file:
         assert file.read(5) == b"%PDF-"
+
+
+def test_pdf_checkout_preserves_binary_bytes():
+    attributes = (ROOT / ".gitattributes").read_text()
+    assert "*.pdf binary" in attributes.splitlines()

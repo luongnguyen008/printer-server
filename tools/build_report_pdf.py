@@ -183,7 +183,9 @@ def main() -> None:
                 {
                     "document_version": "1.2",
                     "product_version": "0.1.5",
-                    "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                    "source_sha256": hashlib.sha256(
+                        source.read_text(encoding="utf-8").encode("utf-8")
+                    ).hexdigest(),
                     "print_profile": PRINT_PROFILE,
                     "browser_version": browser_version,
                     "page_count": count,
