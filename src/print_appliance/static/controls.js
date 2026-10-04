@@ -150,9 +150,12 @@ function createPrinterGrantPicker(host, id, getEntries, initial = []) {
       event.preventDefault(); controls[(i + (event.key === 'ArrowDown' ? 1 : controls.length - 1)) % controls.length]?.focus();
     }
   });
-  host.addEventListener('focusout', event => { if (!host.contains(event.relatedTarget)) close(); });
-  const outside = event => { if (!host.contains(event.target)) close(); }; document.addEventListener('pointerdown', outside);
-  const picker = {values:() => [...selected], refresh:render, reset(){selected.clear();search.value='';close();render();}, destroy(){document.removeEventListener('pointerdown',outside);}, toggle};
+  host.addEventListener('focusout', event => {
+    // Do not collapse the in-flow popup between pointerdown and pointerup on Save.
+    if (!host.contains(event.relatedTarget) && event.relatedTarget?.closest('form') !== host.closest('form')) close();
+  });
+  const outside = event => { if (!host.contains(event.target)) close(); }; document.addEventListener('click', outside);
+  const picker = {values:() => [...selected], refresh:render, reset(){selected.clear();search.value='';close();render();}, destroy(){document.removeEventListener('click',outside);}, toggle};
   host.picker = picker; render(); return picker;
 }
 
