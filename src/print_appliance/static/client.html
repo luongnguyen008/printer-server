@@ -3,57 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
   <title>Print appliance · Gửi thử</title>
   <link rel="stylesheet" href="/assets/style.css">
-  <script src="/assets/controls.js" defer></script>
-  <script src="/assets/print-options.js" defer></script>
   <script src="/assets/client.js" defer></script>
 </head>
 <body>
-  <header class="topbar"><div><p class="eyebrow">CLIENT API</p><h1>Gửi lệnh in</h1></div><a class="client-link" href="/">Quản trị</a></header>
-  <main class="client-main">
-    <section id="client-notice" class="notice" role="status" aria-live="polite" hidden></section>
-    <section id="key-panel" class="panel narrow">
-      <h2>Kết nối client</h2>
-      <form id="key-form" autocomplete="off">
-        <label for="api-key">API key</label><input id="api-key" type="password" required autocomplete="off" maxlength="256" spellcheck="false">
-        <p class="muted">Dùng key được cấp ở tab Clients, không phải mật khẩu quản trị. Key lưu theo tab bằng sessionStorage; tải lại tự kết nối. Ngắt kết nối sẽ xóa key. Không dùng trên trình duyệt dùng chung.</p>
-        <button type="submit">Kết nối</button>
-      </form>
-    </section>
-    <div id="client-workspace" hidden>
-      <div class="section-heading"><p class="good">Đã kết nối bằng API key</p><button id="disconnect" type="button" class="secondary">Ngắt kết nối</button></div>
-      <section class="panel">
-        <h2>Gửi file</h2>
-        <p class="bad">Gửi lệnh sẽ in thật nếu máy được phép xử lý. Kiểm tra máy và số bản trước khi gửi.</p>
-        <p class="muted">Tải lại chỉ giữ kết nối client, không khôi phục file hay yêu cầu đang gửi. Nếu mất phản hồi, kiểm tra lịch sử trước khi tạo lệnh mới.</p>
-        <p id="no-printers" class="muted" hidden>Client chưa được cấp máy in. Nhờ quản trị cấp quyền trong tab Clients.</p>
-        <form id="print-form">
-          <label for="client-printer">Máy in</label><select id="client-printer" required></select>
-          <p id="printer-state" class="muted" role="status"></p>
-          <label for="client-file">File</label><input id="client-file" type="file" accept=".pdf,.zpl,application/pdf" required>
-          <div class="settings-grid">
-            <div><label for="client-format">Định dạng</label><select id="client-format" required><option value="pdf">PDF</option><option value="zpl">ZPL</option></select></div>
-            <div><label for="client-copies">Số bản</label><input id="client-copies" type="number" min="1" max="100" value="1" required></div>
-          </div>
-          <label for="client-title">Tiêu đề</label><input id="client-title" maxlength="200" value="In thử" required>
-          <section id="client-options-panel" aria-live="polite"><p id="options-state" class="muted">Chọn máy in để tải tùy chọn được cấp.</p><div id="client-options"></div></section>
-          <button id="send-print" type="submit">Gửi lệnh in</button>
-        </form>
-        <div id="uncertain-request" hidden>
-          <p class="bad">Chưa xác nhận server đã nhận lệnh hay chưa. Không tạo lệnh mới để gửi lại.</p>
-          <p>Mã yêu cầu: <code id="request-id"></code></p>
-          <button id="retry-print" type="button">Gửi lại cùng yêu cầu</button>
-          <p class="muted">Giữ nguyên file, máy in và mã để server chống trùng. Không đóng tab khi còn chưa xác nhận.</p>
-        </div>
-      </section>
-      <section class="panel">
-        <div class="section-heading"><h2>Lệnh của client</h2><button id="refresh-client" class="secondary" type="button">Làm mới</button></div>
-        <p id="history-state" class="muted" role="status"></p><div id="client-jobs"></div>
-        <p class="muted">Tự cập nhật mỗi 4 giây khi có lệnh đang xử lý. “Hoàn thành” là CUPS báo hoàn thành, không bảo đảm giấy đã ra. “Chưa rõ kết quả” cần quản trị kiểm tra; không tự gửi lại.</p>
-      </section>
-    </div>
-  </main>
-  <footer>Chỉ dùng trên LAN đáng tin cậy. HTTP không mã hóa API key. Trang này không cài driver và không cấp quyền quản trị.</footer>
+  <div id="root"></div>
 </body>
 </html>

@@ -281,7 +281,7 @@ def create_app(
 
     @app.get("/assets/{asset}", include_in_schema=False)
     def assets(asset: str) -> FileResponse:
-        if asset not in {"app.js", "controls.js", "client.js", "print-options.js", "style.css"}:
+        if asset not in {"app.js", "client.js", "style.css", "THIRD_PARTY_LICENSES.txt"}:
             raise HTTPException(404, "Not found")
         return FileResponse(Path(__file__).parent / "static" / asset)
 

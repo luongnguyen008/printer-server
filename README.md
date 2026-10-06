@@ -27,6 +27,20 @@ uv run print-appliance run --data-dir ./.local-data
 
 The password is prompted twice and must be at least 12 characters. There is no default credential. Keep `.local-data` private and remove it when finished. Do not use a development data directory for a production service.
 
+## React UI development (build machine only)
+
+Both `/` (admin) and `/client` use React components in `frontend/src/`. The existing Vietnamese interface and CSS are retained. Node.js 20+ and npm are needed **only when changing the UI**, not on the appliance:
+
+```sh
+npm ci
+npm run build
+npm run build:check
+```
+
+The pinned `package-lock.json` makes the build reproducible. Commit the JSX sources together with the generated `src/print_appliance/static/app.js`, `client.js` and `THIRD_PARTY_LICENSES.txt`. Do not edit generated bundles by hand. `build:check` fails if a checked-in bundle or license file differs from the current sources/dependencies.
+
+The Python wheel includes the bundles and serves them under the existing self-only CSP. Deployment still uses Python/FastAPI alone: no npm install, Node process, CDN, Internet connection or inline scripts are needed to serve the UI. Runtime licenses are available at `/assets/THIRD_PARTY_LICENSES.txt`.
+
 ## Interface
 
 API v1 routes implemented:
@@ -115,6 +129,8 @@ PLAYWRIGHT_MODULE=/absolute/path/to/playwright \
 CHROME_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' \
 UI_BASE_URL=http://127.0.0.1:8081 node tests/browser/admin-ui.cjs
 ```
+
+Run `tests/browser/admin-safety.cjs` with the same environment variables for additional auth/CSRF, unsaved-settings, legacy-option/remapping, job-control and stale-session regressions. `tests/browser/client-safety.cjs` covers immutable 503/408 retries, submission-time 401 and BFCache request clearing. Both intercept every API and never print. For shared React component changes, run all four browser scripts plus `npm run build:check` and the Python tests. Optional `UI_ARTIFACT_DIR` captures desktop/mobile screenshots in the main admin/client suites.
 
 The production Mac checkout and EDATEC source must be at the same deployed Git commit. See [docs/git-deployment.md](docs/git-deployment.md). Credentials, backups and runtime data remain outside Git even though the repository is public.
 

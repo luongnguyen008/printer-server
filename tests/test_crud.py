@@ -389,9 +389,9 @@ def test_delete_is_atomic_with_job_admission(harness: Harness, target: str) -> N
 def test_packaged_admin_control_assets_are_served(harness):
     page = harness.api.get("/")
     assert page.status_code == 200
-    assert "/assets/controls.js" in page.text
-    assert "/assets/print-options.js" in page.text
-    for asset in ("app.js", "controls.js", "print-options.js", "style.css"):
+    assert "/assets/app.js" in page.text
+    assert 'id="root"' in page.text
+    for asset in ("app.js", "style.css", "THIRD_PARTY_LICENSES.txt"):
         response = harness.api.get(f"/assets/{asset}")
         assert response.status_code == 200
         assert response.content
@@ -402,9 +402,10 @@ def test_client_test_page_public_but_api_stays_scoped(harness):
     page = harness.api.get("/client")
     assert page.status_code == 200
     assert "/assets/client.js" in page.text
-    assert "/assets/print-options.js" in page.text
+    assert 'id="root"' in page.text
     assert harness.api.get("/assets/client.js").status_code == 200
-    assert harness.api.get("/assets/print-options.js").status_code == 200
+    assert harness.api.get("/assets/controls.js").status_code == 404
+    assert harness.api.get("/assets/print-options.js").status_code == 404
     assert harness.api.get("/api/v1/printers").status_code == 401
     assert harness.api.get("/api/v1/jobs").status_code == 401
     assert harness.api.get("/admin/api/printers").status_code == 401

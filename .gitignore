@@ -9,3 +9,6 @@ dist/
 *.sqlite3-wal
 *.sqlite3-shm
 .env
+
+# Offline React build dependencies; generated runtime bundles are tracked.
+node_modules/
