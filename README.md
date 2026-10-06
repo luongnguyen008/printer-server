@@ -121,7 +121,7 @@ See [docs/verification.md](docs/verification.md) for the measured local checks a
 
 ## Browser regression and Git deployment
 
-`tests/browser/admin-ui.cjs` checks the five tabs, integrated driver combobox against a mocked 16k-driver catalogue, field-help popovers, printer/client CRUD, delayed requests, duplicate prevention and 409/503 recovery. It intercepts all admin API calls and refuses non-loopback base URLs. Use an externally available Playwright installation; it is test tooling, not a frontend/CDN dependency:
+`tests/browser/admin-ui.cjs` checks the six tabs, integrated driver combobox against a mocked 16k-driver catalogue, field-help popovers, printer/client CRUD, delayed requests, duplicate prevention and 409/503 recovery. It intercepts all admin API calls and refuses non-loopback base URLs. Use an externally available Playwright installation; it is test tooling, not a frontend/CDN dependency:
 
 ```sh
 # Serve the local application on loopback with a disposable data directory first.
@@ -130,7 +130,21 @@ CHROME_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 UI_BASE_URL=http://127.0.0.1:8081 node tests/browser/admin-ui.cjs
 ```
 
-Run `tests/browser/admin-safety.cjs` with the same environment variables for additional auth/CSRF, unsaved-settings, legacy-option/remapping, job-control and stale-session regressions. `tests/browser/client-safety.cjs` covers immutable 503/408 retries, submission-time 401 and BFCache request clearing. Both intercept every API and never print. For shared React component changes, run all four browser scripts plus `npm run build:check` and the Python tests. Optional `UI_ARTIFACT_DIR` captures desktop/mobile screenshots in the main admin/client suites.
+Run `tests/browser/admin-safety.cjs` with the same environment variables for additional auth/CSRF, unsaved-settings, legacy-option/remapping, job-control and stale-session regressions. `tests/browser/client-safety.cjs` covers immutable 503/408 retries, submission-time 401 and BFCache request clearing. Both intercept every API and never print. `tests/browser/api-guide.cjs` tests offline schemas, cURL examples/copy fallback, search, tab reload and desktop/mobile, refusing all client calls/mutations. For shared React component changes, run these five scripts plus the isolated password test below, `npm run build:check` and the Python tests. Optional `UI_ARTIFACT_DIR` captures desktop/mobile screenshots in the main admin/client suites.
+
+For the password form's real FastAPI/SQLite browser test, start a disposable loopback server from the repo root:
+
+```sh
+uv run python -m tests.browser.serve_password
+```
+
+In another terminal, set `UI_TEST_FIXTURE` to the printed `/tmp/print-password-test-.../fixture.json` path and run `tests/browser/password-ui.cjs` with the same `PLAYWRIGHT_MODULE` / `CHROME_EXECUTABLE` settings. Its default base URL is `http://127.0.0.1:18086`. The server uses random test credentials, explicit FakeCups and a disabled worker; it never reads production data. Stop it afterward to remove the fixture/database.
+
+### Password and client API guide
+
+Use **Cấu hình → Đổi mật khẩu quản trị** with the current password, a new password of at least 12 characters and confirmation. Success signs out all admin sessions; client keys and print jobs remain intact. Five incorrect current-password checks in five minutes temporarily lock both login and password changes for five minutes. If the response is lost, verify by logging in rather than automatically resending. The existing CLI remains available for a forgotten password.
+
+The **API Guide** admin tab documents client requests, schemas, response codes/examples and copyable cURL for all six client endpoints. It is offline/read-only: no requests, real credentials or print controls. See [the API contract](docs/api.md) for authentication, idempotency and safety boundaries.
 
 The production Mac checkout and EDATEC source must be at the same deployed Git commit. See [docs/git-deployment.md](docs/git-deployment.md). Credentials, backups and runtime data remain outside Git even though the repository is public.
 

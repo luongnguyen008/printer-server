@@ -168,3 +168,18 @@ button.toast-close { flex-shrink: 0; padding: 0; min-height: 2rem; width: 2rem; 
 .toast-region { pointer-events: none; }
 .toast { pointer-events: auto; }
 .toast span { max-height: 8rem; overflow-y: auto; }
+
+/* Offline reference panels reuse the existing disclosure, table and code styles. */
+.change-password { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid var(--line); }
+.api-guide, .api-endpoint, .api-code { min-width: 0; }
+.api-endpoint { margin: .8rem 0; padding: .8rem; border: 1px solid var(--line); border-radius: 8px; }
+.api-endpoint > summary { overflow-wrap: anywhere; }
+.api-method { display: inline-block; padding: .1rem .5rem; border-radius: 4px; background: #e5f1ee; color: var(--accent); font-size: .85rem; }
+.api-method-post { background: #fff2da; color: #744a00; }
+.api-summary-title { display: block; margin-top: .25rem; color: var(--muted); font-size: .9rem; }
+.api-code { margin: .8rem 0; }
+.api-code .section-heading { flex-wrap: wrap; }
+.api-code pre { margin: .5rem 0; }
+.api-endpoint h3 { margin-top: 1rem; }
+.api-endpoint h4 { margin: 0; }
+.api-guide label { margin-top: .8rem; }

@@ -40,7 +40,7 @@ const schema={availability:'available',source:'ppd',schema_fingerprint:'schema-o
  };await page.route(`${base}/admin/api/**`,handler);
  const idle=()=>page.locator('#busy-status').waitFor({state:'hidden'}),modal=page.locator('#entity-modal');
  await page.goto(base);await page.locator('#printers article[data-id]').first().waitFor({state:'attached'});await idle();
- assert.equal(await page.getByRole('tab').count(),5);await page.getByRole('tab',{name:'Máy in',exact:true}).click();await page.keyboard.press('ArrowRight');assert.equal(await page.locator('#tab-clients').getAttribute('aria-selected'),'true');await page.keyboard.press('End');assert.equal(await page.locator('#tab-settings').getAttribute('aria-selected'),'true');await page.keyboard.press('Home');
+ assert.equal(await page.getByRole('tab').count(),6);await page.getByRole('tab',{name:'Máy in',exact:true}).click();await page.keyboard.press('ArrowRight');assert.equal(await page.locator('#tab-clients').getAttribute('aria-selected'),'true');await page.keyboard.press('End');assert.equal(await page.locator('#tab-api-guide').getAttribute('aria-selected'),'true');await page.keyboard.press('Home');
  await page.getByRole('tab',{name:'Máy in',exact:true}).click();await page.reload();await idle();
  await page.locator('#discover').click();assert.equal(await page.locator('#discover').isDisabled(),true);await idle();assert.equal(await modal.isVisible(),true);assert.equal(await page.locator('#import-form').isVisible(),false);
  const search=page.locator('#driver-search'),hidden=page.locator('#driver');await search.click();assert.ok(await page.locator('#driver-list [role="option"]').count()<=200);assert.equal(await hidden.inputValue(),'');

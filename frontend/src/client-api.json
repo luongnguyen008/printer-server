@@ -1,0 +1,820 @@
+{
+  "title": "Client API v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Printer": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "zpl"
+            ]
+          }
+        },
+        "default_options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Keyword và enum của schema máy in; không dịch giá trị khi gửi."
+        },
+        "allowed_options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ready",
+            "paused"
+          ]
+        },
+        "pause_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "formats",
+        "default_options",
+        "allowed_options",
+        "status",
+        "pause_reason"
+      ]
+    },
+    "Printers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Printer"
+      }
+    },
+    "Capabilities": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "printer_id": {
+          "type": "string"
+        },
+        "availability": {
+          "type": "string",
+          "enum": [
+            "available",
+            "partial",
+            "unknown",
+            "stale",
+            "unavailable"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mapping_fingerprint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schema_fingerprint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "ppd",
+            "ipp",
+            "unknown"
+          ]
+        },
+        "raw": {
+          "type": "boolean"
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ]
+          }
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "group": {
+                "type": "string"
+              },
+              "group_label": {
+                "type": "string"
+              },
+              "default": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "overridable": {
+                "type": "boolean"
+              },
+              "choices": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "label"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "name",
+              "choices",
+              "overridable"
+            ]
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "option1": {
+                "type": "string"
+              },
+              "choice1": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "option2": {
+                "type": "string"
+              },
+              "choice2": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "option1",
+              "choice1",
+              "option2",
+              "choice2"
+            ]
+          }
+        },
+        "ipp_attributes": {
+          "type": "object"
+        },
+        "default_options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Keyword và enum của schema máy in; không dịch giá trị khi gửi."
+        },
+        "allowed_options": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "schema_version",
+        "printer_id",
+        "availability",
+        "reason",
+        "mapping_fingerprint",
+        "schema_fingerprint",
+        "source",
+        "groups",
+        "options",
+        "constraints",
+        "ipp_attributes",
+        "default_options",
+        "allowed_options"
+      ]
+    },
+    "Submit": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string",
+          "format": "binary",
+          "description": "PDF hoặc UTF-8 ZPL; kích thước bị giới hạn bởi cấu hình thiết bị."
+        },
+        "printer_id": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "pdf",
+            "zpl"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "copies": {
+          "type": "string",
+          "default": "1",
+          "description": "Chuỗi số nguyên 1–100 trong multipart."
+        },
+        "options": {
+          "type": "string",
+          "default": "{}",
+          "description": "Chuỗi JSON object: chỉ keyword/enum được quản trị cấp cho máy này."
+        }
+      },
+      "required": [
+        "file",
+        "printer_id",
+        "format",
+        "title"
+      ]
+    },
+    "Accepted": {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "held",
+            "submitting",
+            "submitted",
+            "unknown",
+            "completed",
+            "failed",
+            "canceled"
+          ]
+        },
+        "deduplicated": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "job_id",
+        "status",
+        "deduplicated"
+      ]
+    },
+    "Replay": {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "held",
+            "submitting",
+            "submitted",
+            "unknown",
+            "completed",
+            "failed",
+            "canceled"
+          ]
+        },
+        "deduplicated": {
+          "type": "boolean",
+          "const": true
+        },
+        "history_expired": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "job_id",
+        "status",
+        "deduplicated",
+        "history_expired"
+      ]
+    },
+    "Job": {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "type": "string"
+        },
+        "printer_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "held",
+            "submitting",
+            "submitted",
+            "unknown",
+            "completed",
+            "failed",
+            "canceled"
+          ]
+        },
+        "accepted_at": {
+          "type": "string"
+        },
+        "updated_at": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "pdf",
+            "zpl"
+          ]
+        },
+        "copies": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "at": {
+                "type": "string"
+              },
+              "actor": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "at",
+              "actor",
+              "status",
+              "message"
+            ]
+          }
+        }
+      },
+      "required": [
+        "job_id",
+        "printer_id",
+        "status",
+        "accepted_at",
+        "updated_at",
+        "title",
+        "format",
+        "copies",
+        "reason"
+      ]
+    },
+    "Jobs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Job"
+      }
+    },
+    "Error": {
+      "type": "object",
+      "properties": {
+        "detail": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "detail"
+      ]
+    }
+  },
+  "endpoints": [
+    {
+      "id": "printers",
+      "method": "GET",
+      "path": "/api/v1/printers",
+      "title": "Danh sách máy được cấp",
+      "description": "Chỉ trả máy thuộc quyền của API key. Không tiết lộ URI, driver hay mật khẩu nội bộ. ready/paused là quyền xử lý, không xác nhận giấy đã ra.",
+      "parameters": [],
+      "responses": [
+        {
+          "status": 200,
+          "description": "Danh sách (có thể rỗng).",
+          "schema": "Printers",
+          "example": [
+            {
+              "id": "printer-example",
+              "name": "Máy in được cấp",
+              "formats": [
+                "pdf"
+              ],
+              "default_options": {
+                "PageSize": "A4"
+              },
+              "allowed_options": {
+                "PageSize": [
+                  "A4",
+                  "Letter"
+                ]
+              },
+              "status": "ready",
+              "pause_reason": null
+            }
+          ]
+        }
+      ],
+      "errors": [
+        {
+          "status": 401,
+          "description": "API key thiếu, sai, đã đổi hoặc đã thu hồi."
+        }
+      ]
+    },
+    {
+      "id": "capabilities",
+      "method": "GET",
+      "path": "/api/v1/printers/{printer_id}/capabilities",
+      "title": "Schema tùy chọn máy in",
+      "description": "Đọc schema trước khi gửi options. choices chỉ chứa enum được cấp; options=[] có thể nghĩa là không được phép ghi đè. availability khác available/partial cần điều tra, không suy diễn khả năng từ tên model. CUPS không sẵn sàng thường trả 200 với availability=unavailable.",
+      "parameters": [
+        {
+          "name": "printer_id",
+          "in": "path",
+          "required": true,
+          "description": "ID lấy từ GET /api/v1/printers."
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "description": "Schema máy và quyền ghi đè.",
+          "schema": "Capabilities",
+          "example": {
+            "schema_version": 1,
+            "printer_id": "printer-example",
+            "availability": "available",
+            "reason": null,
+            "mapping_fingerprint": "example-mapping-fingerprint",
+            "schema_fingerprint": "example-schema-fingerprint",
+            "source": "ppd",
+            "raw": false,
+            "groups": [
+              {
+                "id": "common",
+                "label": "Common"
+              },
+              {
+                "id": "advanced",
+                "label": "Advanced"
+              }
+            ],
+            "options": [
+              {
+                "name": "PageSize",
+                "label": "Page size",
+                "group": "common",
+                "group_label": "General",
+                "default": "A4",
+                "overridable": true,
+                "choices": [
+                  {
+                    "value": "A4",
+                    "label": "A4"
+                  },
+                  {
+                    "value": "Letter",
+                    "label": "Letter"
+                  }
+                ]
+              }
+            ],
+            "constraints": [],
+            "ipp_attributes": {},
+            "default_options": {
+              "PageSize": "A4"
+            },
+            "allowed_options": null
+          }
+        }
+      ],
+      "errors": [
+        {
+          "status": 401,
+          "description": "API key thiếu, sai, đã đổi hoặc đã thu hồi."
+        },
+        {
+          "status": 404,
+          "description": "Máy không tồn tại hoặc không được cấp."
+        },
+        {
+          "status": 503,
+          "description": "Không đọc được capability."
+        }
+      ]
+    },
+    {
+      "id": "submit",
+      "method": "POST",
+      "path": "/api/v1/jobs",
+      "title": "Gửi yêu cầu in",
+      "description": "multipart/form-data, không phải JSON body. Lệnh mới chỉ trả 202 sau khi được lưu bền vững. Có thể in ra giấy thật. Không gọi chỉ để kiểm tra kết nối.",
+      "parameters": [
+        {
+          "name": "Idempotency-Key",
+          "in": "header",
+          "required": true,
+          "description": "Một mã cho một yêu cầu mới. Giữ nguyên khi phát lại cùng nội dung.",
+          "pattern": "^[A-Za-z0-9._~-]{1,128}$"
+        }
+      ],
+      "bodySchema": "Submit",
+      "contentType": "multipart/form-data",
+      "requestExample": {
+        "file": "@./invoice.pdf",
+        "printer_id": "printer-example",
+        "format": "pdf",
+        "title": "Invoice example",
+        "copies": "1",
+        "options": "{}"
+      },
+      "responses": [
+        {
+          "status": 202,
+          "description": "Yêu cầu mới được lưu; chưa chứng minh đã in.",
+          "schema": "Accepted",
+          "example": {
+            "job_id": "job-example",
+            "status": "queued",
+            "deduplicated": false
+          }
+        },
+        {
+          "status": 200,
+          "description": "Phát lại cùng key/nội dung; không tạo job mới.",
+          "schema": "Replay",
+          "example": {
+            "job_id": "job-example",
+            "status": "queued",
+            "deduplicated": true,
+            "history_expired": false
+          }
+        }
+      ],
+      "errors": [
+        {
+          "status": 401,
+          "description": "API key thiếu, sai, đã đổi hoặc đã thu hồi."
+        },
+        {
+          "status": 403,
+          "description": "Máy không được cấp."
+        },
+        {
+          "status": 409,
+          "description": "Key đã dùng với nội dung khác; không đổi key để vượt qua."
+        },
+        {
+          "status": 413,
+          "description": "Vượt giới hạn tệp/body."
+        },
+        {
+          "status": 422,
+          "description": "Thiếu/sai field, chữ ký PDF/ZPL, format, copies, options hoặc request ID."
+        },
+        {
+          "status": 429,
+          "description": "Hàng đợi đầy."
+        },
+        {
+          "status": 503,
+          "description": "Không xác minh được capability máy."
+        },
+        {
+          "status": 507,
+          "description": "Không đủ đĩa hoặc không lưu được yêu cầu."
+        }
+      ]
+    },
+    {
+      "id": "jobs",
+      "method": "GET",
+      "path": "/api/v1/jobs",
+      "title": "Lịch sử của client",
+      "description": "Chỉ lệnh của client hiện tại, mới nhất trước. Poll mỗi 3–5 giây nếu còn lệnh hoạt động; ngừng khi terminal.",
+      "parameters": [
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "description": "Số lệnh; thiết bị kẹp giá trị vào 1–100.",
+          "default": 50
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "description": "Danh sách metadata, không trả file đã lưu.",
+          "schema": "Jobs",
+          "example": [
+            {
+              "job_id": "job-example",
+              "printer_id": "printer-example",
+              "status": "queued",
+              "accepted_at": "2026-10-06T09:00:00+00:00",
+              "updated_at": "2026-10-06T09:00:00+00:00",
+              "title": "Invoice example",
+              "format": "pdf",
+              "copies": 1,
+              "reason": null
+            }
+          ]
+        }
+      ],
+      "errors": [
+        {
+          "status": 401,
+          "description": "API key thiếu, sai, đã đổi hoặc đã thu hồi."
+        }
+      ]
+    },
+    {
+      "id": "job",
+      "method": "GET",
+      "path": "/api/v1/jobs/{job_id}",
+      "title": "Chi tiết và sự kiện lệnh",
+      "description": "Chỉ lệnh thuộc API key. completed là CUPS báo hoàn thành, không bảo đảm giấy đã ra. unknown cần người vận hành kiểm tra; không tự in lại.",
+      "parameters": [
+        {
+          "name": "job_id",
+          "in": "path",
+          "required": true,
+          "description": "ID trả từ lúc nhận lệnh hoặc lịch sử."
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "description": "Metadata và events.",
+          "schema": "Job",
+          "example": {
+            "job_id": "job-example",
+            "printer_id": "printer-example",
+            "status": "queued",
+            "accepted_at": "2026-10-06T09:00:00+00:00",
+            "updated_at": "2026-10-06T09:00:00+00:00",
+            "title": "Invoice example",
+            "format": "pdf",
+            "copies": 1,
+            "reason": null,
+            "events": [
+              {
+                "at": "2026-10-06T09:00:00+00:00",
+                "actor": "client",
+                "status": "queued",
+                "message": "Accepted durable request"
+              }
+            ]
+          }
+        }
+      ],
+      "errors": [
+        {
+          "status": 401,
+          "description": "API key thiếu, sai, đã đổi hoặc đã thu hồi."
+        },
+        {
+          "status": 404,
+          "description": "Lệnh không tồn tại, không thuộc client hoặc lịch sử đã bị dọn."
+        }
+      ]
+    },
+    {
+      "id": "cancel",
+      "method": "POST",
+      "path": "/api/v1/jobs/{job_id}/cancel",
+      "title": "Yêu cầu hủy lệnh",
+      "description": "Không có JSON body. Lệnh chưa giao có thể hủy chắc chắn; đã giao cần bằng chứng CUPS. Không thu hồi được giấy đã in; không phải xóa lịch sử. Sau hủy vẫn kiểm tra status/reason/events.",
+      "parameters": [
+        {
+          "name": "job_id",
+          "in": "path",
+          "required": true,
+          "description": "ID lệnh thuộc client."
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "description": "Trạng thái thực tế sau yêu cầu, không luôn là canceled.",
+          "schema": "Job",
+          "example": {
+            "job_id": "job-example",
+            "printer_id": "printer-example",
+            "status": "canceled",
+            "accepted_at": "2026-10-06T09:00:00+00:00",
+            "updated_at": "2026-10-06T09:00:00+00:00",
+            "title": "Invoice example",
+            "format": "pdf",
+            "copies": 1,
+            "reason": "Canceled before CUPS handoff",
+            "events": []
+          }
+        }
+      ],
+      "errors": [
+        {
+          "status": 401,
+          "description": "API key thiếu, sai, đã đổi hoặc đã thu hồi."
+        },
+        {
+          "status": 404,
+          "description": "Lệnh không tồn tại hoặc không thuộc client."
+        },
+        {
+          "status": 503,
+          "description": "Không xác minh được trạng thái CUPS; chưa báo canceled."
+        }
+      ]
+    }
+  ]
+}

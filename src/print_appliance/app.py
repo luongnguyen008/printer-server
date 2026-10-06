@@ -14,13 +14,19 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi import Body, Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import db as store
-from .auth import get_session, hash_session_token, make_session_values, verify_password
+from .auth import (
+    get_session,
+    hash_session_token,
+    make_session_values,
+    password_hash,
+    verify_password,
+)
 from .config import Settings
 from .cups import BackendUnavailable, CupsBackend, PyCupsBackend
 from .service import Appliance, hash_api_key
@@ -457,6 +463,80 @@ def create_app(
             if token:
                 db.execute("DELETE FROM sessions WHERE token_hash=?", (hash_session_token(token),))
         finally:
+            db.close()
+        response.delete_cookie(
+            COOKIE_NAME, path="/", httponly=True, secure=settings.secure_cookie, samesite="strict"
+        )
+        return {"authenticated": False}
+
+    @app.post("/admin/api/password")
+    def change_password(
+        response: Response,
+        data: Any = Body(...),
+        session: dict[str, str] = Depends(admin_mutation),
+    ) -> dict[str, bool]:
+        if not isinstance(data, dict):
+            raise HTTPException(422, "Password change requires a JSON object")
+        current = data.get("current_password")
+        new = data.get("new_password")
+        confirmation = data.get("confirm_password")
+        # Validate manually so error responses never echo password values.
+        if not isinstance(current, str) or not 1 <= len(current) <= 1024:
+            raise HTTPException(422, "Current password is required (maximum 1024 characters)")
+        if not isinstance(new, str) or not 12 <= len(new) <= 1024:
+            raise HTTPException(422, "New password must contain 12 to 1024 characters")
+        if not isinstance(confirmation, str) or confirmation != new:
+            raise HTTPException(422, "New password confirmation does not match")
+        if new == current:
+            raise HTTPException(422, "New password must differ from the current password")
+        db = appliance.db()
+        try:
+            now = time.time()
+            db.execute("BEGIN IMMEDIATE")
+            # Recheck under the write lock: another password change/reset may have
+            # revoked this session after the dependency authenticated it.
+            if not db.execute(
+                "SELECT 1 FROM sessions WHERE token_hash=? AND expires_at>?",
+                (session["token_hash"], now),
+            ).fetchone():
+                raise HTTPException(401, "Admin login required")
+            guard = db.execute("SELECT * FROM login_guard WHERE id=1").fetchone()
+            if guard["locked_until"] > now:
+                raise HTTPException(429, "Password change temporarily locked; try again later")
+            admin = db.execute("SELECT * FROM admin WHERE id=1").fetchone()
+            if not admin:
+                raise HTTPException(503, "Bootstrap the admin password with the CLI")
+            if not verify_password(current, admin["salt"], admin["password_hash"]):
+                # Share the login throttle so a stolen session cannot bypass it.
+                window, failures = guard["window_started"], guard["failures"]
+                if now - window > 300:
+                    window, failures = now, 0
+                failures += 1
+                db.execute(
+                    "UPDATE login_guard SET window_started=?,failures=?,locked_until=? WHERE id=1",
+                    (window, failures, now + 300 if failures >= 5 else 0),
+                )
+                db.execute("COMMIT")
+                # A wrong current password is not an expired session; keep the
+                # signed-in form available while giving no credential details.
+                raise HTTPException(400, "Current password is incorrect")
+            salt = secrets.token_bytes(16)
+            db.execute(
+                "UPDATE admin SET salt=?,password_hash=?,changed_at=? WHERE id=1",
+                (
+                    salt.hex(),
+                    password_hash(new, salt),
+                    datetime.now(UTC).isoformat(timespec="seconds"),
+                ),
+            )
+            db.execute("DELETE FROM sessions")
+            db.execute(
+                "UPDATE login_guard SET window_started=0,failures=0,locked_until=0 WHERE id=1"
+            )
+            db.execute("COMMIT")
+        finally:
+            if db.in_transaction:
+                db.execute("ROLLBACK")
             db.close()
         response.delete_cookie(
             COOKIE_NAME, path="/", httponly=True, secure=settings.secure_cookie, samesite="strict"

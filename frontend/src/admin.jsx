@@ -2,8 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BusyContext, Button, FieldLabel, Input, Modal, Notice, fieldHelp, formatBytes, useToasts } from './shared.jsx';
 import { AddPrinter, ApiKey, ClientForm, EditPrinter, EntityDetails, JobDetails } from './admin-forms.jsx';
+import { ChangePassword } from './change-password.jsx';
+import { ApiGuide } from './api-guide.jsx';
 
-const tabs = [['overview', 'Tổng quan'], ['printers', 'Máy in'], ['clients', 'Clients'], ['jobs', 'Lệnh in'], ['settings', 'Cấu hình']];
+const tabs = [['overview', 'Tổng quan'], ['printers', 'Máy in'], ['clients', 'Clients'], ['jobs', 'Lệnh in'], ['settings', 'Cấu hình'], ['api-guide', 'API Guide']];
 const hashTab = () => { const value = location.hash.startsWith('#tab=') ? location.hash.slice(5) : 'overview'; return tabs.some(([name]) => name === value) ? value : 'overview'; };
 const settingFields = [
   ['max_upload_bytes', 'Tệp tối đa (byte)', 65536, 536870912, fieldHelp.settingsUpload],
@@ -33,7 +35,7 @@ function AdminApp() {
     const data = await response.json().catch(() => ({}));
     if (epoch !== s.epoch || !s.alive) { const error = new Error('Phiên làm việc đã thay đổi. Hãy đăng nhập lại.'); error.stale = true; throw error; }
     if (response.status === 401) reset();
-    if (!response.ok) throw new Error(data.detail || `Request failed (${response.status})`);
+    if (!response.ok) { const error = new Error(data.detail || `Request failed (${response.status})`); error.status = response.status; throw error; }
     return data;
   };
   // Ref guard is synchronous: two submits in one render cannot race. Mutations never retry.
@@ -84,6 +86,9 @@ function AdminApp() {
     });
     return () => { session.current.alive = false; session.current.epoch++; removeEventListener('hashchange', onHash); };
   }, []);
+  useEffect(() => {
+    if (authenticated) document.getElementById(`tab-${tab}`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [tab, authenticated]);
   const notices = <Notice id="notice" {...toasts} />;
   let modalContent = null;
   if (modal?.kind === 'add-printer') modalContent = <AddPrinter discovery={discovery} drivers={drivers} printers={printers || []} run={run} save={async (payload, importing) => {
@@ -145,7 +150,16 @@ function AdminApp() {
         </section>
         <section id="view-settings" className="panel tab-panel" role="tabpanel" aria-labelledby="tab-settings" tabIndex={0} hidden={tab !== 'settings'}><h2>Giới hạn và lưu trữ</h2><form id="settings-form" className="settings-grid" onSubmit={event => {
           event.preventDefault(); const payload = Object.fromEntries(settingFields.map(([key]) => [key, Number(settings[key])])); run(async () => { await api('/admin/api/settings', { method: 'PUT', body: JSON.stringify(payload) }); settingsDirty.current = false; toasts.show('Đã lưu giới hạn.', 'success'); await loadSettings(); });
-        }}>{settingFields.map(([key, label, min, max, help]) => <div className="setting-field" key={key}><FieldLabel htmlFor={`setting-${key}`} explanation={help}>{label}</FieldLabel><Input id={`setting-${key}`} name={key} type="number" min={min} max={max} required value={settings[key] ?? ''} onChange={event => { settingsDirty.current = true; setSettings({ ...settings, [key]: event.target.value }); }} /></div>)}<Button type="submit">Lưu giới hạn</Button></form></section>
+        }}>{settingFields.map(([key, label, min, max, help]) => <div className="setting-field" key={key}><FieldLabel htmlFor={`setting-${key}`} explanation={help}>{label}</FieldLabel><Input id={`setting-${key}`} name={key} type="number" min={min} max={max} required value={settings[key] ?? ''} onChange={event => { settingsDirty.current = true; setSettings({ ...settings, [key]: event.target.value }); }} /></div>)}<Button type="submit">Lưu giới hạn</Button></form>
+          {authenticated && tab === 'settings' && <ChangePassword run={run} save={async payload => {
+            await api('/admin/api/password', { method: 'POST', body: JSON.stringify(payload) });
+            reset(); activateTab('overview'); toasts.show('Đã đổi mật khẩu. Tất cả phiên quản trị đã đăng xuất. Hãy đăng nhập bằng mật khẩu mới.', 'success');
+            requestAnimationFrame(() => document.getElementById('password')?.focus());
+          }} />}
+        </section>
+        <section id="view-api-guide" className="panel tab-panel api-guide" role="tabpanel" aria-labelledby="tab-api-guide" tabIndex={0} hidden={tab !== 'api-guide'}>
+          {authenticated && tab === 'api-guide' && <ApiGuide notice={toasts.show} />}
+        </section>
       </div>
     </main><footer><p>Chỉ kết nối CUPS cục bộ. Không đưa dịch vụ ra Internet; dùng TLS khi truy cập qua LAN.</p></footer>
     {modal && <Modal key={modal.key} title={modal.title} trigger={modal.trigger} busy={busy} onClose={close} readOnly={modal.kind === 'key' || modal.kind === 'job' || modal.kind.startsWith('details-')} toasts={notices}>{modalContent}</Modal>}

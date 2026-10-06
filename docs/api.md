@@ -73,6 +73,14 @@ Chỉ lệnh của client. Lệnh đang chờ có thể hủy chắc chắn; đ�
 
 `/` là trang quản trị cùng nguồn với app; OpenAPI/docs routes bị tắt. Admin routes dưới đây dùng session cookie riêng, không dùng API key client. Login nhận JSON `{"password":"…"}`, trả `csrf_token` và cookie `pa_admin` (HttpOnly, SameSite=Strict, 8 giờ). Mọi POST/PUT mutation ngoài login cần `X-CSRF-Token`; nếu Origin có mặt phải cùng origin. `PRINT_APPLIANCE_SECURE_COOKIE=1` bật cờ Secure. Năm lần sai mật khẩu trong cửa sổ 5 phút sẽ khóa login trong 5 phút. Bootstrap/reset bằng CLI, không có mật khẩu mặc định.
 
+Tab **API Guide** trong trang quản trị là tài liệu client chỉ đọc, phục vụ offline: sáu endpoint client, JSON schema request/response, ví dụ multipart PDF/ZPL, mã lỗi và cURL có nút sao chép. Không có “Try it out”, không gửi yêu cầu client hay in/hủy lệnh. Base URL lấy từ thiết bị hiện tại và có thể sửa cho ví dụ; chỉ dùng API key placeholder. cURL gửi in giữ `REQUEST_ID` đã tạo một lần, không có auto-retry. Trên HTTP không có Clipboard API, nút sao chép chọn code để dùng Ctrl+C/⌘C. Schemas được giữ trong `frontend/src/client-api.json` và kiểm tra với response thật qua FakeCups.
+
+### POST /admin/api/password
+
+Đổi mật khẩu trong **Cấu hình → Đổi mật khẩu quản trị**. Yêu cầu session quản trị, cùng origin và `X-CSRF-Token`; body JSON có `current_password`, `new_password`, `confirm_password`. Mật khẩu mới 12–1024 ký tự, phải khác mật khẩu nhập hiện tại và khớp confirmation; không tự cắt khoảng trắng. Server xác minh mật khẩu hiện tại rồi lưu salt/hash scrypt mới và thu hồi **mọi** session quản trị trong cùng transaction. Thành công trả 200 `{"authenticated":false}`, xóa cookie hiện tại và yêu cầu đăng nhập lại. API key client, máy và lệnh in không đổi.
+
+Sai mật khẩu hiện tại trả 400 nhưng giữ session; lỗi field/confirmation trả 422; chưa đăng nhập hoặc session đã bị thu hồi trả 401; sai CSRF/Origin trả 403. Dùng chung bộ giới hạn với login: năm lần sai trong cửa sổ 5 phút khóa kiểm tra mật khẩu 5 phút; khi bị khóa trả 429. Response và audit không chứa mật khẩu. Form không lưu mật khẩu vào browser storage, xóa nội dung khi gửi hoặc rời tab và không tự retry. Nếu mất phản hồi sau khi đổi, hãy đăng nhập lại để xác minh bằng mật khẩu mới/cũ hoặc reset bằng CLI; không tự gửi lại. Chỉ dùng LAN đáng tin cậy/TLS; HTTP không mã hóa mật khẩu.
+
 Admin routes đã triển khai:
 
 - `POST /admin/api/login`, `GET /admin/api/session`, `POST /admin/api/logout`.
@@ -92,6 +100,7 @@ Routes trên đã được cài đặt và test với adapter giả tường min
 
 ## Admin routes implemented
 
+- `POST /admin/api/password`: authenticated current-password change; JSON fields `current_password`, `new_password`, `confirm_password`. New password is 12–1024 characters. Success invalidates all admin sessions and expires the caller's cookie. See the password-change contract above.
 - `POST /admin/api/login`, `GET /admin/api/session`, `POST /admin/api/logout`. Login returns `csrf_token`; include `X-CSRF-Token` on all subsequent mutations.
 - `GET /admin/api/status`, `/discovery`, `/printers`, `/printers/{id}`, `/clients`, `/clients/{id}`, `/jobs?limit=100`, `/jobs/{job_id}`, `/settings`, `/audit?limit=100`.
 - `POST /admin/api/printers`: `name`, `device_uri`, `driver`, `formats`, `default_options`, `allowed_options`. Driver must be in CUPS discovery; discovered USB/DNS-SD or manually entered local network URI.
