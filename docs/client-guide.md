@@ -5,6 +5,16 @@
 3. Chọn máy, chọn PDF/ZPL, kiểm tra số bản và tùy chọn thực sự được cấp cho máy rồi bấm **Gửi lệnh in**. Đây là lệnh in thật, không phải xem trước. Các định dạng chỉ theo cấu hình máy; trang không chuyển PDF thành ZPL hay cài driver. Tùy chọn được sinh từ schema CUPS/driver riêng từng máy; “Dùng mặc định” bỏ hẳn ghi đè khỏi yêu cầu.
 4. Theo dõi **Lệnh của client**. Lệnh đang xử lý cập nhật mỗi 4 giây; nếu mất kết nối, bấm **Làm mới**. Lịch sử và máy in chỉ thuộc quyền của client đang dùng key.
 
+## Tích hợp API
+
+Mở **API Guide** trên trang client, hoặc vào thẳng `/client#api-guide`; đọc hướng dẫn không cần key.
+
+1. Mở **Thiết lập cURL**, copy biến môi trường và thay key placeholder trên máy của bạn.
+2. Chọn tác vụ: **Chọn máy in → Xem tùy chọn in → Gửi file → Theo dõi lệnh**. Copy cURL và so sánh response ví dụ; **Lịch sử / Hủy lệnh** có tác vụ riêng.
+3. Xem **Tham số request**, **Mã lỗi** hoặc **Schema & chi tiết kỹ thuật** khi cần. Trên mobile, nhóm tham số bắt đầu thu gọn.
+
+Hướng dẫn không gọi thử API hay lấy dữ liệu máy in. Không nhập key thật vào hướng dẫn. Chuyển tab không làm mất file/lệnh đang giữ trong trang in, nhưng tải lại vẫn xóa chúng.
+
 ## Khi có lỗi
 
 - **Không có máy:** nhờ quản trị cấp quyền trong tab Clients.

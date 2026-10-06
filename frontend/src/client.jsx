@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BusyContext, Button, Input, Notice, Select, useToasts } from './shared.jsx';
 import { PrintOptions, initialOptions, optionsError, optionsPayload, usableSchema } from './print-options.jsx';
+import { ApiGuide } from './api-guide.jsx';
 
 const KEY_STORAGE = 'print-appliance.client.api-key';
 const labels = { queued: 'Đang chờ', held: 'Đang giữ', submitting: 'Đang giao', submitted: 'Đã giao CUPS', completed: 'Hoàn thành (CUPS)', failed: 'Thất bại', canceled: 'Đã hủy', unknown: 'Chưa rõ kết quả' };
@@ -20,7 +21,14 @@ function requestId() {
 function ClientApp() {
   const toasts = useToasts(), fileInput = useRef(null), keyInput = useRef(null);
   const session = useRef({ key: '', epoch: 0, generation: 0, schemaEpoch: 0, pending: null, busy: false, reading: null, timer: null, controllers: new Set(), alive: true });
+  const [view, setView] = useState(() => location.hash === '#api-guide' ? 'api-guide' : 'print');
   const [busy, setBusy] = useState(false), [connected, setConnected] = useState(false), [candidate, setCandidate] = useState('');
+  const changeView = value => { setView(value); history.replaceState(null, '', value === 'api-guide' ? '#api-guide' : '#print'); };
+  useEffect(() => {
+    const syncView = () => setView(location.hash === '#api-guide' ? 'api-guide' : 'print');
+    addEventListener('hashchange', syncView);
+    return () => removeEventListener('hashchange', syncView);
+  }, []);
   const [printers, setPrinters] = useState([]), [printerId, setPrinterId] = useState(''), [format, setFormat] = useState('pdf');
   const [title, setTitle] = useState('In thử'), [copies, setCopies] = useState('1'), [pending, setPending] = useState(null);
   const [schema, setSchema] = useState(null), [options, setOptions] = useState(initialOptions({}, {}, true));
@@ -153,8 +161,15 @@ function ClientApp() {
   }, []);
   const selectedPrinter = printers.find(item => item.id === printerId);
   return <BusyContext.Provider value={busy}>
-    <header className="topbar"><div><p className="eyebrow">CLIENT API</p><h1>Gửi lệnh in</h1></div><a className="client-link" href="/">Quản trị</a></header>
-    <main className="client-main"><Notice id="client-notice" {...toasts} />
+    <header className="topbar"><div><p className="eyebrow">CLIENT API</p><h1>{view === 'api-guide' ? 'Tích hợp API' : 'Gửi lệnh in'}</h1></div><a className="client-link" href="/">Quản trị</a></header>
+    <main className={`client-main${view === 'api-guide' ? ' client-guide-main' : ''}`}><Notice id="client-notice" {...toasts} />
+      <nav className="tab-list" role="tablist" aria-label="Các chức năng client">{[['print', 'In tài liệu'], ['api-guide', 'API Guide']].map(([id, label], index) => <Button alwaysEnabled key={id} id={`client-tab-${id}`} role="tab" aria-selected={view === id} aria-controls={`client-panel-${id}`} tabIndex={view === id ? 0 : -1} onClick={() => changeView(id)} onKeyDown={event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault(); const target = event.key === 'Home' ? 'print' : event.key === 'End' ? 'api-guide' : index === 0 ? 'api-guide' : 'print';
+        changeView(target); document.getElementById(`client-tab-${target}`).focus();
+      }}>{label}</Button>)}</nav>
+      {view === 'api-guide' && pending && <p className="api-warning" role="status">Lệnh {pending.id} chưa xác nhận kết quả. File và ID vẫn được giữ trong tab này. <Button alwaysEnabled className="text-button" onClick={() => changeView('print')}>Quay lại kiểm tra lệnh in</Button></p>}
+      <div id="client-panel-print" className="tab-panel" role="tabpanel" aria-labelledby="client-tab-print" hidden={view !== 'print'}>
       <section id="key-panel" className="panel narrow" hidden={connected}><h2>Kết nối client</h2>
         <form id="key-form" autoComplete="off" onSubmit={event => { event.preventDefault(); action(() => connect(candidate.trim())); }}>
           <label htmlFor="api-key">API key</label><Input ref={keyInput} id="api-key" type="password" required autoComplete="off" maxLength={256} spellCheck={false} value={candidate} onChange={event => setCandidate(event.target.value)} />
@@ -197,6 +212,10 @@ function ClientApp() {
           <p className="muted">Tự cập nhật mỗi 4 giây khi có lệnh đang xử lý. “Hoàn thành” là CUPS báo hoàn thành, không bảo đảm giấy đã ra. “Chưa rõ kết quả” cần quản trị kiểm tra; không tự gửi lại.</p>
         </section>
       </div>
+      </div>
+      <section id="client-panel-api-guide" className="tab-panel api-guide" role="tabpanel" aria-labelledby="client-tab-api-guide" hidden={view !== 'api-guide'}>
+        <BusyContext.Provider value={false}>{view === 'api-guide' && <ApiGuide notice={toasts.show} />}</BusyContext.Provider>
+      </section>
     </main><footer>Chỉ dùng trên LAN đáng tin cậy. HTTP không mã hóa API key. Trang này không cài driver và không cấp quyền quản trị.</footer>
   </BusyContext.Provider>;
 }
