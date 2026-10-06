@@ -1,8 +1,10 @@
 # Print appliance (v1 implementation)
 
-**Hướng dẫn cài đặt, sử dụng và vận hành (tiếng Việt):** [Markdown](docs/technical-report.md) · [HTML offline](docs/technical-report.html) · [PDF có mục lục/số trang](docs/technical-report.pdf). Phần chính giải thích hệ thống và luồng sử dụng; phụ lục giữ lệnh cài Linux/EDATEC, cấu hình driver, API và bảo trì. Phần lấy source chỉ cần cài Git rồi clone. Phiên bản tài liệu 1.2; sản phẩm được mô tả 0.1.5.
+**Hướng dẫn cài đặt, sử dụng và vận hành (tiếng Việt):** [Markdown](docs/technical-report.md) · [HTML offline](docs/technical-report.html) · [PDF có mục lục/số trang](docs/technical-report.pdf). Phần chính giải thích hệ thống và luồng sử dụng; phụ lục giữ lệnh cài Linux/EDATEC, cấu hình driver, API và bảo trì. Phần lấy source chỉ cần cài Git rồi clone. Phiên bản tài liệu 1.3 (06/10/2026); sản phẩm được mô tả 0.1.5.
 
 A local, single-node print appliance using FastAPI, SQLite, a durable file spool and the system's **real CUPS service**. It is a new service on port 8081 by default; it does not interact with or replace `pi-print-gateway` on 8080. Odoo and other applications are clients, not dependencies of this service.
+
+All IP addresses/hostnames in documentation are examples, not authoritative device addresses. Obtain the actual LAN URL from the appliance administrator. `127.0.0.1` is loopback on the machine running the command, not the Pi's LAN address.
 
 ## Development: local-only, no printer connection
 

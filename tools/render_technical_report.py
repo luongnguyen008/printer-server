@@ -135,6 +135,7 @@ def refresh_navigation(source: str, path: Path) -> str:
     ]
     index_specs = {
         "API": ["3.1", "C.1"],
+        "API Guide": ["7.4"],
         "API key (khóa truy cập)": ["2.3", "7.1"],
         "Backup (sao lưu)": ["9.2", "D.2"],
         "Capability (khả năng in)": ["6.2", "B.2"],
@@ -144,6 +145,7 @@ def refresh_navigation(source: str, path: Path) -> str:
         "CUPS": ["3.2", "5.3"],
         "Dữ liệu bền vững": ["3.3", "5.1"],
         "Driver": ["3.2", "B.1.2"],
+        "Đổi mật khẩu quản trị": ["8.5", "C.3.1"],
         "Duplex (in hai mặt)": ["6.2", "B.2.1"],
         "FIFO": ["5.4"],
         "Fill / fit": ["6.3", "B.2.1"],
@@ -264,9 +266,9 @@ def render_document(source: Path, pages: dict[str, int] | None = None) -> str:
     body = re.sub(r'<a href="#([^"]+)">(.*?)</a>', reference, body, flags=re.S)
     return f"""<!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Hướng dẫn Print Appliance: tổng thể, cài đặt, sử dụng, API và vận hành; tài liệu 1.2, sản phẩm 0.1.5.">
-<title>Hướng dẫn Print Appliance — Tài liệu 1.2</title><style>{CSS}</style></head>
-<body><div class="shell"><header class="report-bar"><span>PRINT APPLIANCE · HƯỚNG DẪN</span><span>Tài liệu 1.2 · Sản phẩm 0.1.5 · Tiếng Việt</span></header>
+<meta name="description" content="Hướng dẫn Print Appliance: tổng thể, cài đặt, sử dụng, API và vận hành; tài liệu 1.3, sản phẩm 0.1.5.">
+<title>Hướng dẫn Print Appliance — Tài liệu 1.3</title><style>{CSS}</style></head>
+<body><div class="shell"><header class="report-bar"><span>PRINT APPLIANCE · HƯỚNG DẪN</span><span>Tài liệu 1.3 · Sản phẩm 0.1.5 · Tiếng Việt</span></header>
 <main>{body}</main><footer class="report-end">Nguồn: technical-report.md · Luong Nguyen · Print Appliance. Sơ đồ đã nhúng; không cần tải thư viện ngoài. Số trang tham chiếu PDF chuẩn đi kèm, không cam kết cho mọi thiết lập in HTML.</footer></div></body></html>
 """
 

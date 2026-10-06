@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Hướng dẫn Print Appliance: tổng thể, cài đặt, sử dụng, API và vận hành; tài liệu 1.2, sản phẩm 0.1.5.">
-<title>Hướng dẫn Print Appliance — Tài liệu 1.2</title><style>
+<meta name="description" content="Hướng dẫn Print Appliance: tổng thể, cài đặt, sử dụng, API và vận hành; tài liệu 1.3, sản phẩm 0.1.5.">
+<title>Hướng dẫn Print Appliance — Tài liệu 1.3</title><style>
 :root{color-scheme:light;--ink:#202832;--muted:#53616f;--line:#d9e1e8;--accent:#145a73}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif}
 .shell{max-width:1140px;margin:auto;padding:40px 42px 64px;background:white;min-height:100vh}
@@ -20,18 +20,20 @@ table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14px;table-lay
 @page{size:A4;margin:16mm 14mm 18mm}
 @media print{.index-list{font-size:9pt}.index-list li{margin:2pt 0;line-height:1.3}.report-bar{display:none}.report-cover{min-height:230mm;padding:24mm 0 0;break-after:page}.report-cover h1{font-size:30pt}.report-cover>p:first-of-type{font-size:15pt}.report-cover ul{padding:14pt;font-size:11pt}.front-title,h2{break-before:page}.page-reference{font-size:8pt}.table-caption{font-size:9pt}.figure-list,.table-list,.index-list{padding:0}.diagram-viewport{overflow:visible;border:none}.diagram-viewport svg{min-width:0;max-width:100%}.diagram-hint{display:none}figure+p:has(>em:only-child){font-size:9pt}body{background:white;font-size:10pt;line-height:1.45}.shell{padding:0;max-width:none}.report-bar{font-size:8pt}h1{font-size:24pt}h2{font-size:17pt;margin-top:26pt;padding-top:12pt}h3{font-size:13pt}h1,h2,h3,h4{break-after:avoid}p,li{orphans:3;widows:3}pre{font-size:8pt;padding:8pt;overflow:visible;break-inside:auto}pre code{font-size:8pt;white-space:pre-wrap;overflow-wrap:anywhere}table{font-size:8.5pt;table-layout:fixed}thead{display:table-header-group}tr{break-inside:avoid}th,td{padding:5pt}td code,th code{font-size:8pt}a{color:inherit}.toc{background:white}.toc>ul{columns:1}.toc li li{font-size:8pt}.report-end{font-size:8pt}blockquote{background:white}html{scroll-behavior:auto}}
 </style></head>
-<body><div class="shell"><header class="report-bar"><span>PRINT APPLIANCE · HƯỚNG DẪN</span><span>Tài liệu 1.2 · Sản phẩm 0.1.5 · Tiếng Việt</span></header>
+<body><div class="shell"><header class="report-bar"><span>PRINT APPLIANCE · HƯỚNG DẪN</span><span>Tài liệu 1.3 · Sản phẩm 0.1.5 · Tiếng Việt</span></header>
 <main><section class="report-cover"><h1 id="huong-dan-cai-at-su-dung-va-van-hanh-print-appliance">Hướng dẫn cài đặt, sử dụng và vận hành — Print Appliance</h1>
 <p><strong>Thiết bị tiếp nhận, điều phối và quản lý in trong mạng nội bộ</strong></p>
 <ul>
 <li><strong>Mã tài liệu:</strong> PA-TECH-VI.</li>
-<li><strong>Phiên bản tài liệu:</strong> 1.2.</li>
-<li><strong>Ngày phát hành:</strong> 04/10/2026.</li>
+<li><strong>Phiên bản tài liệu:</strong> 1.3.</li>
+<li><strong>Ngày phát hành:</strong> 06/10/2026.</li>
 <li><strong>Tác giả / đơn vị biên soạn:</strong> Luong Nguyen · Print Appliance.</li>
 <li><strong>Phiên bản sản phẩm được mô tả:</strong> 0.1.5.</li>
+<li><strong>Mốc chức năng đã triển khai:</strong> <code>9edebaaa0ba76ce1d4ec34491e99529f155fc19f</code> (06/10/2026).</li>
 <li><strong>Ngôn ngữ:</strong> Tiếng Việt.</li>
 <li><strong>Kho mã nguồn:</strong> https://github.com/luongnguyen008/printer-server.</li>
 </ul>
+<p><strong>Quy ước địa chỉ:</strong> mọi IP/hostname trong tài liệu chỉ là ví dụ, không xác nhận địa chỉ của thiết bị đã triển khai. <code>192.0.2.10</code> minh họa appliance, <code>192.0.2.20</code> minh họa máy in; thay bằng địa chỉ do quản trị cung cấp. <code>127.0.0.1</code> là loopback của máy đang chạy lệnh, không phải IP truy cập Pi từ máy khác.</p>
 <p>Tài liệu dành cho người tiếp nhận hệ thống, người quản trị và đơn vị muốn kết nối ứng dụng của mình với thiết bị in. Phần chính giải thích tổng thể theo luồng; các lệnh cài đặt và ví dụ kỹ thuật nằm ở phụ lục.</p>
 <blockquote>
 <p>Việc gửi yêu cầu in có thể làm máy in ra giấy thật. Chỉ thử khi đã được phép. Thao tác thay cấu hình, cài driver hoặc phục hồi dữ liệu cần kế hoạch và sao lưu phù hợp.</p>
@@ -68,9 +70,15 @@ table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14px;table-lay
 <td>Luong Nguyen</td>
 <td>Chuẩn hóa cấu trúc tài liệu; viết hướng dẫn theo luồng; giới thiệu khái niệm trước khi sử dụng; bỏ hướng dẫn lập trình/test/build; chuyển lệnh cài đặt và vận hành sang phụ lục; bổ sung PDF và tra cứu số trang.</td>
 </tr>
+<tr>
+<td>1.3</td>
+<td>06/10/2026</td>
+<td>Luong Nguyen</td>
+<td>Đồng bộ bản React offline đã triển khai: API Guide theo tác vụ trên Client/Admin, đổi mật khẩu và thu hồi mọi phiên quản trị; chuẩn hóa ví dụ địa chỉ, mốc kiểm tra và quy tắc giữ SSH key.</td>
+</tr>
 </tbody>
 </table></div>
-<p>Phiên bản tài liệu và phiên bản phần mềm là hai thông tin khác nhau. Bản 1.2 thay cách giải thích và trình bày; không nâng phần mềm trên thiết bị. Tài liệu được biên soạn có hỗ trợ công cụ trí tuệ nhân tạo (AI) và đối chiếu với mã nguồn, tài liệu dự án cùng các kết quả kiểm tra đã ghi nhận.</p>
+<p>Phiên bản tài liệu và phiên bản phần mềm là hai thông tin khác nhau. Bản 1.3 mô tả chức năng ở commit <code>9edebaa</code>, vẫn mang phiên bản sản phẩm 0.1.5. Commit chỉ cập nhật tài liệu có thể mới hơn mốc chức năng; đọc <code>SOURCE_COMMIT</code> để biết commit thực tế trên thiết bị. Tài liệu được biên soạn có hỗ trợ công cụ trí tuệ nhân tạo (AI) và đối chiếu với mã nguồn, tài liệu dự án cùng các kết quả kiểm tra đã ghi nhận.</p>
 <h2 id="table-of-contents" class="front-title">Mục lục</h2>
 
 <nav class="toc" aria-labelledby="table-of-contents">
@@ -118,107 +126,109 @@ table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14px;table-lay
 <li><a href="#71-chuan-bi-quyen-truoc-khi-gui"><span>7.1 Chuẩn bị quyền trước khi gửi</span><span class="page-reference" data-page-target="71-chuan-bi-quyen-truoc-khi-gui" title="Trang trong bản PDF chuẩn">20</span></a></li>
 <li><a href="#72-dung-trang-gui-thu"><span>7.2 Dùng trang gửi thử</span><span class="page-reference" data-page-target="72-dung-trang-gui-thu" title="Trang trong bản PDF chuẩn">20</span></a></li>
 <li><a href="#73-neu-mat-phan-hoi-hoac-tai-lai-trang"><span>7.3 Nếu mất phản hồi hoặc tải lại trang</span><span class="page-reference" data-page-target="73-neu-mat-phan-hoi-hoac-tai-lai-trang" title="Trang trong bản PDF chuẩn">21</span></a></li>
+<li><a href="#74-api-guide-cho-ung-dung-tich-hop"><span>7.4 API Guide cho ứng dụng tích hợp</span><span class="page-reference" data-page-target="74-api-guide-cho-ung-dung-tich-hop" title="Trang trong bản PDF chuẩn">21</span></a></li>
 </ul>
 </li>
-<li><a href="#8-van-hanh-va-xu-ly-tinh-huong-bat-thuong"><span>8. Vận hành và xử lý tình huống bất thường</span><span class="page-reference" data-page-target="8-van-hanh-va-xu-ly-tinh-huong-bat-thuong" title="Trang trong bản PDF chuẩn">22</span></a><ul>
-<li><a href="#81-kiem-tra-hang-ngay"><span>8.1 Kiểm tra hàng ngày</span><span class="page-reference" data-page-target="81-kiem-tra-hang-ngay" title="Trang trong bản PDF chuẩn">22</span></a></li>
-<li><a href="#82-dung-tiep-tuc-va-huy"><span>8.2 Dừng, tiếp tục và hủy</span><span class="page-reference" data-page-target="82-dung-tiep-tuc-va-huy" title="Trang trong bản PDF chuẩn">22</span></a></li>
-<li><a href="#83-oi-soat-chua-ro-ket-qua"><span>8.3 Đối soát chưa rõ kết quả</span><span class="page-reference" data-page-target="83-oi-soat-chua-ro-ket-qua" title="Trang trong bản PDF chuẩn">22</span></a></li>
-<li><a href="#84-tra-cuu-loi-theo-nhom"><span>8.4 Tra cứu lỗi theo nhóm</span><span class="page-reference" data-page-target="84-tra-cuu-loi-theo-nhom" title="Trang trong bản PDF chuẩn">23</span></a></li>
+<li><a href="#8-van-hanh-va-xu-ly-tinh-huong-bat-thuong"><span>8. Vận hành và xử lý tình huống bất thường</span><span class="page-reference" data-page-target="8-van-hanh-va-xu-ly-tinh-huong-bat-thuong" title="Trang trong bản PDF chuẩn">23</span></a><ul>
+<li><a href="#81-kiem-tra-hang-ngay"><span>8.1 Kiểm tra hàng ngày</span><span class="page-reference" data-page-target="81-kiem-tra-hang-ngay" title="Trang trong bản PDF chuẩn">23</span></a></li>
+<li><a href="#82-dung-tiep-tuc-va-huy"><span>8.2 Dừng, tiếp tục và hủy</span><span class="page-reference" data-page-target="82-dung-tiep-tuc-va-huy" title="Trang trong bản PDF chuẩn">23</span></a></li>
+<li><a href="#83-oi-soat-chua-ro-ket-qua"><span>8.3 Đối soát chưa rõ kết quả</span><span class="page-reference" data-page-target="83-oi-soat-chua-ro-ket-qua" title="Trang trong bản PDF chuẩn">23</span></a></li>
+<li><a href="#84-tra-cuu-loi-theo-nhom"><span>8.4 Tra cứu lỗi theo nhóm</span><span class="page-reference" data-page-target="84-tra-cuu-loi-theo-nhom" title="Trang trong bản PDF chuẩn">24</span></a></li>
+<li><a href="#85-oi-mat-khau-quan-tri"><span>8.5 Đổi mật khẩu quản trị</span><span class="page-reference" data-page-target="85-oi-mat-khau-quan-tri" title="Trang trong bản PDF chuẩn">24</span></a></li>
 </ul>
 </li>
-<li><a href="#9-sao-luu-cap-nhat-va-phuc-hoi"><span>9. Sao lưu, cập nhật và phục hồi</span><span class="page-reference" data-page-target="9-sao-luu-cap-nhat-va-phuc-hoi" title="Trang trong bản PDF chuẩn">24</span></a><ul>
-<li><a href="#91-truoc-moi-thay-oi-bao-tri"><span>9.1 Trước mọi thay đổi bảo trì</span><span class="page-reference" data-page-target="91-truoc-moi-thay-oi-bao-tri" title="Trang trong bản PDF chuẩn">24</span></a></li>
-<li><a href="#92-ban-sao-nao-u-cho-viec-phuc-hoi"><span>9.2 Bản sao nào đủ cho việc phục hồi?</span><span class="page-reference" data-page-target="92-ban-sao-nao-u-cho-viec-phuc-hoi" title="Trang trong bản PDF chuẩn">24</span></a></li>
-<li><a href="#93-cap-nhat-mot-phien-ban-thong-nhat"><span>9.3 Cập nhật một phiên bản thống nhất</span><span class="page-reference" data-page-target="93-cap-nhat-mot-phien-ban-thong-nhat" title="Trang trong bản PDF chuẩn">25</span></a></li>
+<li><a href="#9-sao-luu-cap-nhat-va-phuc-hoi"><span>9. Sao lưu, cập nhật và phục hồi</span><span class="page-reference" data-page-target="9-sao-luu-cap-nhat-va-phuc-hoi" title="Trang trong bản PDF chuẩn">25</span></a><ul>
+<li><a href="#91-truoc-moi-thay-oi-bao-tri"><span>9.1 Trước mọi thay đổi bảo trì</span><span class="page-reference" data-page-target="91-truoc-moi-thay-oi-bao-tri" title="Trang trong bản PDF chuẩn">25</span></a></li>
+<li><a href="#92-ban-sao-nao-u-cho-viec-phuc-hoi"><span>9.2 Bản sao nào đủ cho việc phục hồi?</span><span class="page-reference" data-page-target="92-ban-sao-nao-u-cho-viec-phuc-hoi" title="Trang trong bản PDF chuẩn">25</span></a></li>
+<li><a href="#93-cap-nhat-mot-phien-ban-thong-nhat"><span>9.3 Cập nhật một phiên bản thống nhất</span><span class="page-reference" data-page-target="93-cap-nhat-mot-phien-ban-thong-nhat" title="Trang trong bản PDF chuẩn">26</span></a></li>
 </ul>
 </li>
-<li><a href="#10-an-toan-gioi-han-va-ieu-kien-nghiem-thu"><span>10. An toàn, giới hạn và điều kiện nghiệm thu</span><span class="page-reference" data-page-target="10-an-toan-gioi-han-va-ieu-kien-nghiem-thu" title="Trang trong bản PDF chuẩn">27</span></a><ul>
-<li><a href="#101-nhung-bao-am-can-hieu-ung"><span>10.1 Những bảo đảm cần hiểu đúng</span><span class="page-reference" data-page-target="101-nhung-bao-am-can-hieu-ung" title="Trang trong bản PDF chuẩn">27</span></a></li>
-<li><a href="#102-bao-ve-quyen-va-du-lieu"><span>10.2 Bảo vệ quyền và dữ liệu</span><span class="page-reference" data-page-target="102-bao-ve-quyen-va-du-lieu" title="Trang trong bản PDF chuẩn">27</span></a></li>
-<li><a href="#103-nhung-gi-a-kiem-va-viec-con-phai-nghiem-thu"><span>10.3 Những gì đã kiểm và việc còn phải nghiệm thu</span><span class="page-reference" data-page-target="103-nhung-gi-a-kiem-va-viec-con-phai-nghiem-thu" title="Trang trong bản PDF chuẩn">27</span></a></li>
+<li><a href="#10-an-toan-gioi-han-va-ieu-kien-nghiem-thu"><span>10. An toàn, giới hạn và điều kiện nghiệm thu</span><span class="page-reference" data-page-target="10-an-toan-gioi-han-va-ieu-kien-nghiem-thu" title="Trang trong bản PDF chuẩn">28</span></a><ul>
+<li><a href="#101-nhung-bao-am-can-hieu-ung"><span>10.1 Những bảo đảm cần hiểu đúng</span><span class="page-reference" data-page-target="101-nhung-bao-am-can-hieu-ung" title="Trang trong bản PDF chuẩn">28</span></a></li>
+<li><a href="#102-bao-ve-quyen-va-du-lieu"><span>10.2 Bảo vệ quyền và dữ liệu</span><span class="page-reference" data-page-target="102-bao-ve-quyen-va-du-lieu" title="Trang trong bản PDF chuẩn">28</span></a></li>
+<li><a href="#103-nhung-gi-a-kiem-va-viec-con-phai-nghiem-thu"><span>10.3 Những gì đã kiểm và việc còn phải nghiệm thu</span><span class="page-reference" data-page-target="103-nhung-gi-a-kiem-va-viec-con-phai-nghiem-thu" title="Trang trong bản PDF chuẩn">28</span></a></li>
 </ul>
 </li>
-<li><a href="#phu-luc-a-lay-ma-nguon-va-cai-thiet-bi"><span>Phụ lục A — Lấy mã nguồn và cài thiết bị</span><span class="page-reference" data-page-target="phu-luc-a-lay-ma-nguon-va-cai-thiet-bi" title="Trang trong bản PDF chuẩn">28</span></a><ul>
-<li><a href="#a1-cai-git-va-clone-project"><span>A.1 Cài Git và clone project</span><span class="page-reference" data-page-target="a1-cai-git-va-clone-project" title="Trang trong bản PDF chuẩn">28</span></a></li>
-<li><a href="#a2-cai-moi-tren-linuxedatec"><span>A.2 Cài mới trên Linux/EDATEC</span><span class="page-reference" data-page-target="a2-cai-moi-tren-linuxedatec" title="Trang trong bản PDF chuẩn">29</span></a><ul>
-<li><a href="#a21-chuan-bi-mang-va-ssh"><span>A.2.1 Chuẩn bị mạng và SSH</span><span class="page-reference" data-page-target="a21-chuan-bi-mang-va-ssh" title="Trang trong bản PDF chuẩn">29</span></a></li>
-<li><a href="#a22-ghi-nhan-hien-trang-tren-linux-chi-oc"><span>A.2.2 Ghi nhận hiện trạng trên Linux (chỉ đọc)</span><span class="page-reference" data-page-target="a22-ghi-nhan-hien-trang-tren-linux-chi-oc" title="Trang trong bản PDF chuẩn">29</span></a></li>
-<li><a href="#a23-cai-dependency-he-thong"><span>A.2.3 Cài dependency hệ thống</span><span class="page-reference" data-page-target="a23-cai-dependency-he-thong" title="Trang trong bản PDF chuẩn">30</span></a></li>
-<li><a href="#a24-tao-user-va-thu-muc-moi"><span>A.2.4 Tạo user và thư mục mới</span><span class="page-reference" data-page-target="a24-tao-user-va-thu-muc-moi" title="Trang trong bản PDF chuẩn">30</span></a></li>
-<li><a href="#a25-cai-phan-mem-tu-project-tren-thiet-bi"><span>A.2.5 Cài phần mềm từ project trên thiết bị</span><span class="page-reference" data-page-target="a25-cai-phan-mem-tu-project-tren-thiet-bi" title="Trang trong bản PDF chuẩn">31</span></a></li>
-<li><a href="#a26-kiem-tra-cai-at-truoc-khi-chay"><span>A.2.6 Kiểm tra cài đặt trước khi chạy</span><span class="page-reference" data-page-target="a26-kiem-tra-cai-at-truoc-khi-chay" title="Trang trong bản PDF chuẩn">32</span></a></li>
-<li><a href="#a27-at-mat-khau-cai-service-loopback"><span>A.2.7 Đặt mật khẩu, cài service loopback</span><span class="page-reference" data-page-target="a27-at-mat-khau-cai-service-loopback" title="Trang trong bản PDF chuẩn">32</span></a></li>
-<li><a href="#a28-truy-cap-an-toan-tu-may-ca-nhan"><span>A.2.8 Truy cập an toàn từ máy cá nhân</span><span class="page-reference" data-page-target="a28-truy-cap-an-toan-tu-may-ca-nhan" title="Trang trong bản PDF chuẩn">32</span></a></li>
-<li><a href="#a29-chot-cai-at"><span>A.2.9 Chốt cài đặt</span><span class="page-reference" data-page-target="a29-chot-cai-at" title="Trang trong bản PDF chuẩn">33</span></a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a href="#phu-luc-b-driver-cau-hinh-may-va-gioi-han"><span>Phụ lục B — Driver, cấu hình máy và giới hạn</span><span class="page-reference" data-page-target="phu-luc-b-driver-cau-hinh-may-va-gioi-han" title="Trang trong bản PDF chuẩn">34</span></a><ul>
-<li><a href="#b1-cau-hinh-may-in-va-driver"><span>B.1 — Cấu hình máy in và driver</span><span class="page-reference" data-page-target="b1-cau-hinh-may-in-va-driver" title="Trang trong bản PDF chuẩn">34</span></a><ul>
-<li><a href="#b11-kiem-tra-ket-noi-truoc"><span>B.1.1 Kiểm tra kết nối trước</span><span class="page-reference" data-page-target="b11-kiem-tra-ket-noi-truoc" title="Trang trong bản PDF chuẩn">34</span></a></li>
-<li><a href="#b12-driver-canon-lbp6230dw-tren-arm64"><span>B.1.2 Driver Canon LBP6230dw trên ARM64</span><span class="page-reference" data-page-target="b12-driver-canon-lbp6230dw-tren-arm64" title="Trang trong bản PDF chuẩn">34</span></a></li>
-<li><a href="#b13-them-may-trong-ui"><span>B.1.3 Thêm máy trong UI</span><span class="page-reference" data-page-target="b13-them-may-trong-ui" title="Trang trong bản PDF chuẩn">36</span></a></li>
-<li><a href="#b14-sua-va-xoa"><span>B.1.4 Sửa và xóa</span><span class="page-reference" data-page-target="b14-sua-va-xoa" title="Trang trong bản PDF chuẩn">36</span></a></li>
-</ul>
-</li>
-<li><a href="#b2-tuy-chon-in-theo-capability"><span>B.2 — Tùy chọn in theo capability</span><span class="page-reference" data-page-target="b2-tuy-chon-in-theo-capability" title="Trang trong bản PDF chuẩn">36</span></a><ul>
-<li><a href="#b21-kho-giay-duplex-va-can-pdf"><span>B.2.1 Khổ giấy, duplex và căn PDF</span><span class="page-reference" data-page-target="b21-kho-giay-duplex-va-can-pdf" title="Trang trong bản PDF chuẩn">37</span></a></li>
-<li><a href="#b22-schema-unavailable-hoac-stale"><span>B.2.2 Schema unavailable hoặc stale</span><span class="page-reference" data-page-target="b22-schema-unavailable-hoac-stale" title="Trang trong bản PDF chuẩn">37</span></a></li>
-</ul>
-</li>
-<li><a href="#b3-cau-hinh-runtime-va-gioi-han"><span>B.3 — Cấu hình runtime và giới hạn</span><span class="page-reference" data-page-target="b3-cau-hinh-runtime-va-gioi-han" title="Trang trong bản PDF chuẩn">38</span></a><ul>
-<li><a href="#b31-bien-moi-truongcli"><span>B.3.1 Biến môi trường/CLI</span><span class="page-reference" data-page-target="b31-bien-moi-truongcli" title="Trang trong bản PDF chuẩn">38</span></a></li>
-<li><a href="#b32-gioi-han-qua-web"><span>B.3.2 Giới hạn qua web</span><span class="page-reference" data-page-target="b32-gioi-han-qua-web" title="Trang trong bản PDF chuẩn">38</span></a></li>
+<li><a href="#phu-luc-a-lay-ma-nguon-va-cai-thiet-bi"><span>Phụ lục A — Lấy mã nguồn và cài thiết bị</span><span class="page-reference" data-page-target="phu-luc-a-lay-ma-nguon-va-cai-thiet-bi" title="Trang trong bản PDF chuẩn">29</span></a><ul>
+<li><a href="#a1-cai-git-va-clone-project"><span>A.1 Cài Git và clone project</span><span class="page-reference" data-page-target="a1-cai-git-va-clone-project" title="Trang trong bản PDF chuẩn">29</span></a></li>
+<li><a href="#a2-cai-moi-tren-linuxedatec"><span>A.2 Cài mới trên Linux/EDATEC</span><span class="page-reference" data-page-target="a2-cai-moi-tren-linuxedatec" title="Trang trong bản PDF chuẩn">30</span></a><ul>
+<li><a href="#a21-chuan-bi-mang-va-ssh"><span>A.2.1 Chuẩn bị mạng và SSH</span><span class="page-reference" data-page-target="a21-chuan-bi-mang-va-ssh" title="Trang trong bản PDF chuẩn">30</span></a></li>
+<li><a href="#a22-ghi-nhan-hien-trang-tren-linux-chi-oc"><span>A.2.2 Ghi nhận hiện trạng trên Linux (chỉ đọc)</span><span class="page-reference" data-page-target="a22-ghi-nhan-hien-trang-tren-linux-chi-oc" title="Trang trong bản PDF chuẩn">30</span></a></li>
+<li><a href="#a23-cai-dependency-he-thong"><span>A.2.3 Cài dependency hệ thống</span><span class="page-reference" data-page-target="a23-cai-dependency-he-thong" title="Trang trong bản PDF chuẩn">31</span></a></li>
+<li><a href="#a24-tao-user-va-thu-muc-moi"><span>A.2.4 Tạo user và thư mục mới</span><span class="page-reference" data-page-target="a24-tao-user-va-thu-muc-moi" title="Trang trong bản PDF chuẩn">31</span></a></li>
+<li><a href="#a25-cai-phan-mem-tu-project-tren-thiet-bi"><span>A.2.5 Cài phần mềm từ project trên thiết bị</span><span class="page-reference" data-page-target="a25-cai-phan-mem-tu-project-tren-thiet-bi" title="Trang trong bản PDF chuẩn">32</span></a></li>
+<li><a href="#a26-kiem-tra-cai-at-truoc-khi-chay"><span>A.2.6 Kiểm tra cài đặt trước khi chạy</span><span class="page-reference" data-page-target="a26-kiem-tra-cai-at-truoc-khi-chay" title="Trang trong bản PDF chuẩn">33</span></a></li>
+<li><a href="#a27-at-mat-khau-cai-service-loopback"><span>A.2.7 Đặt mật khẩu, cài service loopback</span><span class="page-reference" data-page-target="a27-at-mat-khau-cai-service-loopback" title="Trang trong bản PDF chuẩn">33</span></a></li>
+<li><a href="#a28-truy-cap-an-toan-tu-may-ca-nhan"><span>A.2.8 Truy cập an toàn từ máy cá nhân</span><span class="page-reference" data-page-target="a28-truy-cap-an-toan-tu-may-ca-nhan" title="Trang trong bản PDF chuẩn">33</span></a></li>
+<li><a href="#a29-chot-cai-at"><span>A.2.9 Chốt cài đặt</span><span class="page-reference" data-page-target="a29-chot-cai-at" title="Trang trong bản PDF chuẩn">34</span></a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a href="#phu-luc-c-api-va-vi-du-tich-hop"><span>Phụ lục C — API và ví dụ tích hợp</span><span class="page-reference" data-page-target="phu-luc-c-api-va-vi-du-tich-hop" title="Trang trong bản PDF chuẩn">39</span></a><ul>
-<li><a href="#c1-api-client-hop-ong-va-ket-qua"><span>C.1 — API client: hợp đồng và kết quả</span><span class="page-reference" data-page-target="c1-api-client-hop-ong-va-ket-qua" title="Trang trong bản PDF chuẩn">39</span></a><ul>
-<li><a href="#c11-multipart-cua-job-moi"><span>C.1.1 Multipart của job mới</span><span class="page-reference" data-page-target="c11-multipart-cua-job-moi" title="Trang trong bản PDF chuẩn">40</span></a></li>
-<li><a href="#c12-ma-loi"><span>C.1.2 Mã lỗi</span><span class="page-reference" data-page-target="c12-ma-loi" title="Trang trong bản PDF chuẩn">41</span></a></li>
+<li><a href="#phu-luc-b-driver-cau-hinh-may-va-gioi-han"><span>Phụ lục B — Driver, cấu hình máy và giới hạn</span><span class="page-reference" data-page-target="phu-luc-b-driver-cau-hinh-may-va-gioi-han" title="Trang trong bản PDF chuẩn">35</span></a><ul>
+<li><a href="#b1-cau-hinh-may-in-va-driver"><span>B.1 — Cấu hình máy in và driver</span><span class="page-reference" data-page-target="b1-cau-hinh-may-in-va-driver" title="Trang trong bản PDF chuẩn">35</span></a><ul>
+<li><a href="#b11-kiem-tra-ket-noi-truoc"><span>B.1.1 Kiểm tra kết nối trước</span><span class="page-reference" data-page-target="b11-kiem-tra-ket-noi-truoc" title="Trang trong bản PDF chuẩn">35</span></a></li>
+<li><a href="#b12-driver-canon-lbp6230dw-tren-arm64"><span>B.1.2 Driver Canon LBP6230dw trên ARM64</span><span class="page-reference" data-page-target="b12-driver-canon-lbp6230dw-tren-arm64" title="Trang trong bản PDF chuẩn">35</span></a></li>
+<li><a href="#b13-them-may-trong-ui"><span>B.1.3 Thêm máy trong UI</span><span class="page-reference" data-page-target="b13-them-may-trong-ui" title="Trang trong bản PDF chuẩn">37</span></a></li>
+<li><a href="#b14-sua-va-xoa"><span>B.1.4 Sửa và xóa</span><span class="page-reference" data-page-target="b14-sua-va-xoa" title="Trang trong bản PDF chuẩn">37</span></a></li>
 </ul>
 </li>
-<li><a href="#c2-goi-api-tu-macos-va-windows"><span>C.2 — Gọi API từ macOS và Windows</span><span class="page-reference" data-page-target="c2-goi-api-tu-macos-va-windows" title="Trang trong bản PDF chuẩn">42</span></a><ul>
-<li><a href="#c21-macos-bien-key-va-danh-sach"><span>C.2.1 macOS: biến, key và danh sách</span><span class="page-reference" data-page-target="c21-macos-bien-key-va-danh-sach" title="Trang trong bản PDF chuẩn">42</span></a></li>
-<li><a href="#c22-windows-powershell-goi-bang-curlexe"><span>C.2.2 Windows PowerShell: gọi bằng curl.exe</span><span class="page-reference" data-page-target="c22-windows-powershell-goi-bang-curlexe" title="Trang trong bản PDF chuẩn">43</span></a></li>
-<li><a href="#c23-pdf-options-va-zpl"><span>C.2.3 PDF options và ZPL</span><span class="page-reference" data-page-target="c23-pdf-options-va-zpl" title="Trang trong bản PDF chuẩn">44</span></a></li>
+<li><a href="#b2-tuy-chon-in-theo-capability"><span>B.2 — Tùy chọn in theo capability</span><span class="page-reference" data-page-target="b2-tuy-chon-in-theo-capability" title="Trang trong bản PDF chuẩn">37</span></a><ul>
+<li><a href="#b21-kho-giay-duplex-va-can-pdf"><span>B.2.1 Khổ giấy, duplex và căn PDF</span><span class="page-reference" data-page-target="b21-kho-giay-duplex-va-can-pdf" title="Trang trong bản PDF chuẩn">38</span></a></li>
+<li><a href="#b22-schema-unavailable-hoac-stale"><span>B.2.2 Schema unavailable hoặc stale</span><span class="page-reference" data-page-target="b22-schema-unavailable-hoac-stale" title="Trang trong bản PDF chuẩn">38</span></a></li>
 </ul>
 </li>
-<li><a href="#c3-api-quan-tri-va-tich-hop-odoopda"><span>C.3 — API quản trị và tích hợp Odoo/PDA</span><span class="page-reference" data-page-target="c3-api-quan-tri-va-tich-hop-odoopda" title="Trang trong bản PDF chuẩn">44</span></a><ul>
-<li><a href="#c31-quan-tri"><span>C.3.1 Quản trị</span><span class="page-reference" data-page-target="c31-quan-tri" title="Trang trong bản PDF chuẩn">44</span></a></li>
-<li><a href="#c32-mau-luong-tich-hop"><span>C.3.2 Mẫu luồng tích hợp</span><span class="page-reference" data-page-target="c32-mau-luong-tich-hop" title="Trang trong bản PDF chuẩn">45</span></a></li>
+<li><a href="#b3-cau-hinh-runtime-va-gioi-han"><span>B.3 — Cấu hình runtime và giới hạn</span><span class="page-reference" data-page-target="b3-cau-hinh-runtime-va-gioi-han" title="Trang trong bản PDF chuẩn">39</span></a><ul>
+<li><a href="#b31-bien-moi-truongcli"><span>B.3.1 Biến môi trường/CLI</span><span class="page-reference" data-page-target="b31-bien-moi-truongcli" title="Trang trong bản PDF chuẩn">39</span></a></li>
+<li><a href="#b32-gioi-han-qua-web"><span>B.3.2 Giới hạn qua web</span><span class="page-reference" data-page-target="b32-gioi-han-qua-web" title="Trang trong bản PDF chuẩn">39</span></a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a href="#phu-luc-d-runbook-van-hanh-va-bao-tri"><span>Phụ lục D — Runbook vận hành và bảo trì</span><span class="page-reference" data-page-target="phu-luc-d-runbook-van-hanh-va-bao-tri" title="Trang trong bản PDF chuẩn">46</span></a><ul>
-<li><a href="#d1-van-hanh-hang-ngay-va-xu-ly-su-co"><span>D.1 — Vận hành hàng ngày và xử lý sự cố</span><span class="page-reference" data-page-target="d1-van-hanh-hang-ngay-va-xu-ly-su-co" title="Trang trong bản PDF chuẩn">46</span></a><ul>
-<li><a href="#d11-cac-kiem-tra-thuong-dung-tren-linux"><span>D.1.1 Các kiểm tra thường dùng trên Linux</span><span class="page-reference" data-page-target="d11-cac-kiem-tra-thuong-dung-tren-linux" title="Trang trong bản PDF chuẩn">46</span></a></li>
-<li><a href="#d12-pause-resume-cancel"><span>D.1.2 Pause, resume, cancel</span><span class="page-reference" data-page-target="d12-pause-resume-cancel" title="Trang trong bản PDF chuẩn">46</span></a></li>
-<li><a href="#d13-unknown-va-job-identity"><span>D.1.3 Unknown và job identity</span><span class="page-reference" data-page-target="d13-unknown-va-job-identity" title="Trang trong bản PDF chuẩn">47</span></a></li>
-<li><a href="#d14-bang-loi-nhanh"><span>D.1.4 Bảng lỗi nhanh</span><span class="page-reference" data-page-target="d14-bang-loi-nhanh" title="Trang trong bản PDF chuẩn">47</span></a></li>
+<li><a href="#phu-luc-c-api-va-vi-du-tich-hop"><span>Phụ lục C — API và ví dụ tích hợp</span><span class="page-reference" data-page-target="phu-luc-c-api-va-vi-du-tich-hop" title="Trang trong bản PDF chuẩn">40</span></a><ul>
+<li><a href="#c1-api-client-hop-ong-va-ket-qua"><span>C.1 — API client: hợp đồng và kết quả</span><span class="page-reference" data-page-target="c1-api-client-hop-ong-va-ket-qua" title="Trang trong bản PDF chuẩn">40</span></a><ul>
+<li><a href="#c11-multipart-cua-job-moi"><span>C.1.1 Multipart của job mới</span><span class="page-reference" data-page-target="c11-multipart-cua-job-moi" title="Trang trong bản PDF chuẩn">41</span></a></li>
+<li><a href="#c12-ma-loi"><span>C.1.2 Mã lỗi</span><span class="page-reference" data-page-target="c12-ma-loi" title="Trang trong bản PDF chuẩn">42</span></a></li>
 </ul>
 </li>
-<li><a href="#d2-sao-luu-va-phuc-hoi"><span>D.2 — Sao lưu và phục hồi</span><span class="page-reference" data-page-target="d2-sao-luu-va-phuc-hoi" title="Trang trong bản PDF chuẩn">48</span></a><ul>
-<li><a href="#d21-backup-sqlite-online"><span>D.2.1 Backup SQLite online</span><span class="page-reference" data-page-target="d21-backup-sqlite-online" title="Trang trong bản PDF chuẩn">48</span></a></li>
-<li><a href="#d22-backup-ay-u-khi-a-maintenance"><span>D.2.2 Backup đầy đủ khi đã maintenance</span><span class="page-reference" data-page-target="d22-backup-ay-u-khi-a-maintenance" title="Trang trong bản PDF chuẩn">48</span></a></li>
-<li><a href="#d23-restore-co-kiem-soat"><span>D.2.3 Restore có kiểm soát</span><span class="page-reference" data-page-target="d23-restore-co-kiem-soat" title="Trang trong bản PDF chuẩn">49</span></a></li>
+<li><a href="#c2-goi-api-tu-macos-va-windows"><span>C.2 — Gọi API từ macOS và Windows</span><span class="page-reference" data-page-target="c2-goi-api-tu-macos-va-windows" title="Trang trong bản PDF chuẩn">43</span></a><ul>
+<li><a href="#c21-macos-bien-key-va-danh-sach"><span>C.2.1 macOS: biến, key và danh sách</span><span class="page-reference" data-page-target="c21-macos-bien-key-va-danh-sach" title="Trang trong bản PDF chuẩn">43</span></a></li>
+<li><a href="#c22-windows-powershell-goi-bang-curlexe"><span>C.2.2 Windows PowerShell: gọi bằng curl.exe</span><span class="page-reference" data-page-target="c22-windows-powershell-goi-bang-curlexe" title="Trang trong bản PDF chuẩn">44</span></a></li>
+<li><a href="#c23-pdf-options-va-zpl"><span>C.2.3 PDF options và ZPL</span><span class="page-reference" data-page-target="c23-pdf-options-va-zpl" title="Trang trong bản PDF chuẩn">45</span></a></li>
 </ul>
 </li>
-<li><a href="#d3-cap-nhat-va-quay-lai-phien-ban-truoc"><span>D.3 Cập nhật và quay lại phiên bản trước</span><span class="page-reference" data-page-target="d3-cap-nhat-va-quay-lai-phien-ban-truoc" title="Trang trong bản PDF chuẩn">50</span></a></li>
+<li><a href="#c3-api-quan-tri-va-tich-hop-odoopda"><span>C.3 — API quản trị và tích hợp Odoo/PDA</span><span class="page-reference" data-page-target="c3-api-quan-tri-va-tich-hop-odoopda" title="Trang trong bản PDF chuẩn">45</span></a><ul>
+<li><a href="#c31-quan-tri"><span>C.3.1 Quản trị</span><span class="page-reference" data-page-target="c31-quan-tri" title="Trang trong bản PDF chuẩn">45</span></a></li>
+<li><a href="#c32-mau-luong-tich-hop"><span>C.3.2 Mẫu luồng tích hợp</span><span class="page-reference" data-page-target="c32-mau-luong-tich-hop" title="Trang trong bản PDF chuẩn">46</span></a></li>
 </ul>
 </li>
-<li><a href="#phu-luc-e-thuat-ngu-va-viet-tat-bo-sung"><span>Phụ lục E — Thuật ngữ và viết tắt bổ sung</span><span class="page-reference" data-page-target="phu-luc-e-thuat-ngu-va-viet-tat-bo-sung" title="Trang trong bản PDF chuẩn">52</span></a></li>
-<li><a href="#phu-luc-f-checklist-ban-giao-va-su-dung-tai-lieu"><span>Phụ lục F — Checklist bàn giao và sử dụng tài liệu</span><span class="page-reference" data-page-target="phu-luc-f-checklist-ban-giao-va-su-dung-tai-lieu" title="Trang trong bản PDF chuẩn">54</span></a><ul>
-<li><a href="#f1-checklist-chay-tu-au"><span>F.1 — Checklist chạy từ đầu</span><span class="page-reference" data-page-target="f1-checklist-chay-tu-au" title="Trang trong bản PDF chuẩn">54</span></a></li>
-<li><a href="#f2-oc-va-tra-cuu-tai-lieu"><span>F.2 Đọc và tra cứu tài liệu</span><span class="page-reference" data-page-target="f2-oc-va-tra-cuu-tai-lieu" title="Trang trong bản PDF chuẩn">54</span></a></li>
 </ul>
 </li>
-<li><a href="#tai-lieu-tham-khao"><span>Tài liệu tham khảo</span><span class="page-reference" data-page-target="tai-lieu-tham-khao" title="Trang trong bản PDF chuẩn">55</span></a></li>
-<li><a href="#chi-muc-tra-cuu"><span>Chỉ mục tra cứu</span><span class="page-reference" data-page-target="chi-muc-tra-cuu" title="Trang trong bản PDF chuẩn">56</span></a></li>
+<li><a href="#phu-luc-d-runbook-van-hanh-va-bao-tri"><span>Phụ lục D — Runbook vận hành và bảo trì</span><span class="page-reference" data-page-target="phu-luc-d-runbook-van-hanh-va-bao-tri" title="Trang trong bản PDF chuẩn">47</span></a><ul>
+<li><a href="#d1-van-hanh-hang-ngay-va-xu-ly-su-co"><span>D.1 — Vận hành hàng ngày và xử lý sự cố</span><span class="page-reference" data-page-target="d1-van-hanh-hang-ngay-va-xu-ly-su-co" title="Trang trong bản PDF chuẩn">47</span></a><ul>
+<li><a href="#d11-cac-kiem-tra-thuong-dung-tren-linux"><span>D.1.1 Các kiểm tra thường dùng trên Linux</span><span class="page-reference" data-page-target="d11-cac-kiem-tra-thuong-dung-tren-linux" title="Trang trong bản PDF chuẩn">47</span></a></li>
+<li><a href="#d12-pause-resume-cancel"><span>D.1.2 Pause, resume, cancel</span><span class="page-reference" data-page-target="d12-pause-resume-cancel" title="Trang trong bản PDF chuẩn">47</span></a></li>
+<li><a href="#d13-unknown-va-job-identity"><span>D.1.3 Unknown và job identity</span><span class="page-reference" data-page-target="d13-unknown-va-job-identity" title="Trang trong bản PDF chuẩn">48</span></a></li>
+<li><a href="#d14-bang-loi-nhanh"><span>D.1.4 Bảng lỗi nhanh</span><span class="page-reference" data-page-target="d14-bang-loi-nhanh" title="Trang trong bản PDF chuẩn">48</span></a></li>
+</ul>
+</li>
+<li><a href="#d2-sao-luu-va-phuc-hoi"><span>D.2 — Sao lưu và phục hồi</span><span class="page-reference" data-page-target="d2-sao-luu-va-phuc-hoi" title="Trang trong bản PDF chuẩn">49</span></a><ul>
+<li><a href="#d21-backup-sqlite-online"><span>D.2.1 Backup SQLite online</span><span class="page-reference" data-page-target="d21-backup-sqlite-online" title="Trang trong bản PDF chuẩn">49</span></a></li>
+<li><a href="#d22-backup-ay-u-khi-a-maintenance"><span>D.2.2 Backup đầy đủ khi đã maintenance</span><span class="page-reference" data-page-target="d22-backup-ay-u-khi-a-maintenance" title="Trang trong bản PDF chuẩn">49</span></a></li>
+<li><a href="#d23-restore-co-kiem-soat"><span>D.2.3 Restore có kiểm soát</span><span class="page-reference" data-page-target="d23-restore-co-kiem-soat" title="Trang trong bản PDF chuẩn">50</span></a></li>
+</ul>
+</li>
+<li><a href="#d3-cap-nhat-va-quay-lai-phien-ban-truoc"><span>D.3 Cập nhật và quay lại phiên bản trước</span><span class="page-reference" data-page-target="d3-cap-nhat-va-quay-lai-phien-ban-truoc" title="Trang trong bản PDF chuẩn">51</span></a></li>
+</ul>
+</li>
+<li><a href="#phu-luc-e-thuat-ngu-va-viet-tat-bo-sung"><span>Phụ lục E — Thuật ngữ và viết tắt bổ sung</span><span class="page-reference" data-page-target="phu-luc-e-thuat-ngu-va-viet-tat-bo-sung" title="Trang trong bản PDF chuẩn">53</span></a></li>
+<li><a href="#phu-luc-f-checklist-ban-giao-va-su-dung-tai-lieu"><span>Phụ lục F — Checklist bàn giao và sử dụng tài liệu</span><span class="page-reference" data-page-target="phu-luc-f-checklist-ban-giao-va-su-dung-tai-lieu" title="Trang trong bản PDF chuẩn">55</span></a><ul>
+<li><a href="#f1-checklist-chay-tu-au"><span>F.1 — Checklist chạy từ đầu</span><span class="page-reference" data-page-target="f1-checklist-chay-tu-au" title="Trang trong bản PDF chuẩn">55</span></a></li>
+<li><a href="#f2-oc-va-tra-cuu-tai-lieu"><span>F.2 Đọc và tra cứu tài liệu</span><span class="page-reference" data-page-target="f2-oc-va-tra-cuu-tai-lieu" title="Trang trong bản PDF chuẩn">55</span></a></li>
+</ul>
+</li>
+<li><a href="#tai-lieu-tham-khao"><span>Tài liệu tham khảo</span><span class="page-reference" data-page-target="tai-lieu-tham-khao" title="Trang trong bản PDF chuẩn">56</span></a></li>
+<li><a href="#chi-muc-tra-cuu"><span>Chỉ mục tra cứu</span><span class="page-reference" data-page-target="chi-muc-tra-cuu" title="Trang trong bản PDF chuẩn">57</span></a></li>
 </ul>
 </nav>
 
@@ -234,9 +244,9 @@ table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14px;table-lay
 <li><a href="#figure-5"><span>Hình 5 — Hàng đợi theo máy</span><span class="page-reference" data-page-target="figure-5" title="Trang trong bản PDF chuẩn">17</span></a></li>
 <li><a href="#figure-6"><span>Hình 6 — Lựa chọn và quyền sử dụng</span><span class="page-reference" data-page-target="figure-6" title="Trang trong bản PDF chuẩn">19</span></a></li>
 <li><a href="#figure-7"><span>Hình 7 — Cấp quyền và gửi lệnh</span><span class="page-reference" data-page-target="figure-7" title="Trang trong bản PDF chuẩn">21</span></a></li>
-<li><a href="#figure-8"><span>Hình 8 — Đối soát chưa rõ kết quả</span><span class="page-reference" data-page-target="figure-8" title="Trang trong bản PDF chuẩn">23</span></a></li>
-<li><a href="#figure-9"><span>Hình 9 — Sao lưu và phục hồi</span><span class="page-reference" data-page-target="figure-9" title="Trang trong bản PDF chuẩn">25</span></a></li>
-<li><a href="#figure-10"><span>Hình 10 — Cập nhật và rollback</span><span class="page-reference" data-page-target="figure-10" title="Trang trong bản PDF chuẩn">26</span></a></li>
+<li><a href="#figure-8"><span>Hình 8 — Đối soát chưa rõ kết quả</span><span class="page-reference" data-page-target="figure-8" title="Trang trong bản PDF chuẩn">24</span></a></li>
+<li><a href="#figure-9"><span>Hình 9 — Sao lưu và phục hồi</span><span class="page-reference" data-page-target="figure-9" title="Trang trong bản PDF chuẩn">26</span></a></li>
+<li><a href="#figure-10"><span>Hình 10 — Cập nhật và rollback</span><span class="page-reference" data-page-target="figure-10" title="Trang trong bản PDF chuẩn">27</span></a></li>
 </ul>
 </nav>
 
@@ -248,15 +258,15 @@ table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14px;table-lay
 <li><a href="#table-2"><span>Bảng 2 — Thuật ngữ cốt lõi</span><span class="page-reference" data-page-target="table-2" title="Trang trong bản PDF chuẩn">10</span></a></li>
 <li><a href="#table-3"><span>Bảng 3 — Môi trường và vai trò triển khai</span><span class="page-reference" data-page-target="table-3" title="Trang trong bản PDF chuẩn">13</span></a></li>
 <li><a href="#table-4"><span>Bảng 4 — Trạng thái của lệnh in</span><span class="page-reference" data-page-target="table-4" title="Trang trong bản PDF chuẩn">15</span></a></li>
-<li><a href="#table-5"><span>Bảng 5 — Ví dụ tùy chọn và giới hạn driver</span><span class="page-reference" data-page-target="table-5" title="Trang trong bản PDF chuẩn">37</span></a></li>
-<li><a href="#table-6"><span>Bảng 6 — Biến cấu hình runtime</span><span class="page-reference" data-page-target="table-6" title="Trang trong bản PDF chuẩn">38</span></a></li>
-<li><a href="#table-7"><span>Bảng 7 — Giới hạn có thể chỉnh qua web</span><span class="page-reference" data-page-target="table-7" title="Trang trong bản PDF chuẩn">38</span></a></li>
-<li><a href="#table-8"><span>Bảng 8 — Các API của client</span><span class="page-reference" data-page-target="table-8" title="Trang trong bản PDF chuẩn">39</span></a></li>
-<li><a href="#table-9"><span>Bảng 9 — Trường của một yêu cầu in</span><span class="page-reference" data-page-target="table-9" title="Trang trong bản PDF chuẩn">40</span></a></li>
-<li><a href="#table-10"><span>Bảng 10 — Mã phản hồi và cách xử lý</span><span class="page-reference" data-page-target="table-10" title="Trang trong bản PDF chuẩn">41</span></a></li>
-<li><a href="#table-11"><span>Bảng 11 — Nhóm API quản trị</span><span class="page-reference" data-page-target="table-11" title="Trang trong bản PDF chuẩn">44</span></a></li>
-<li><a href="#table-12"><span>Bảng 12 — Bảng tra cứu sự cố</span><span class="page-reference" data-page-target="table-12" title="Trang trong bản PDF chuẩn">47</span></a></li>
-<li><a href="#table-13"><span>Bảng 13 — Thuật ngữ kỹ thuật bổ sung</span><span class="page-reference" data-page-target="table-13" title="Trang trong bản PDF chuẩn">52</span></a></li>
+<li><a href="#table-5"><span>Bảng 5 — Ví dụ tùy chọn và giới hạn driver</span><span class="page-reference" data-page-target="table-5" title="Trang trong bản PDF chuẩn">38</span></a></li>
+<li><a href="#table-6"><span>Bảng 6 — Biến cấu hình runtime</span><span class="page-reference" data-page-target="table-6" title="Trang trong bản PDF chuẩn">39</span></a></li>
+<li><a href="#table-7"><span>Bảng 7 — Giới hạn có thể chỉnh qua web</span><span class="page-reference" data-page-target="table-7" title="Trang trong bản PDF chuẩn">39</span></a></li>
+<li><a href="#table-8"><span>Bảng 8 — Các API của client</span><span class="page-reference" data-page-target="table-8" title="Trang trong bản PDF chuẩn">40</span></a></li>
+<li><a href="#table-9"><span>Bảng 9 — Trường của một yêu cầu in</span><span class="page-reference" data-page-target="table-9" title="Trang trong bản PDF chuẩn">41</span></a></li>
+<li><a href="#table-10"><span>Bảng 10 — Mã phản hồi và cách xử lý</span><span class="page-reference" data-page-target="table-10" title="Trang trong bản PDF chuẩn">42</span></a></li>
+<li><a href="#table-11"><span>Bảng 11 — Nhóm API quản trị</span><span class="page-reference" data-page-target="table-11" title="Trang trong bản PDF chuẩn">45</span></a></li>
+<li><a href="#table-12"><span>Bảng 12 — Bảng tra cứu sự cố</span><span class="page-reference" data-page-target="table-12" title="Trang trong bản PDF chuẩn">48</span></a></li>
+<li><a href="#table-13"><span>Bảng 13 — Thuật ngữ kỹ thuật bổ sung</span><span class="page-reference" data-page-target="table-13" title="Trang trong bản PDF chuẩn">53</span></a></li>
 </ul>
 </nav>
 
@@ -637,7 +647,7 @@ table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14px;table-lay
 <p><strong>Thu hồi khóa</strong> ngăn yêu cầu mới dùng khóa đó; không tự hủy lệnh đã được nhận. <strong>Đổi khóa</strong> cấp khóa thay thế, cần cập nhật ứng dụng đang dùng. Lịch sử và dữ liệu chống trùng không bị xóa chỉ vì xóa client.</p>
 <h3 id="72-dung-trang-gui-thu">7.2 Dùng trang gửi thử</h3>
 <p>Trang quản trị ở <code>/</code>; trang gửi thử ở <code>/client</code>. Dấu <code>/</code> biểu thị đường dẫn trên cùng địa chỉ web của thiết bị. Trang gửi thử dùng khóa client, không dùng mật khẩu quản trị.</p>
-<p>Dùng địa chỉ thiết bị do người quản trị cung cấp. Ví dụ <code>http://192.168.88.228:8081/</code> là trang quản trị, thêm <code>client</code> sau dấu <code>/</code> để mở trang gửi thử; IP này chỉ là ví dụ.</p>
+<p>Dùng địa chỉ thiết bị do người quản trị cung cấp. Ví dụ <code>http://192.0.2.10:8081/</code> là trang quản trị, thêm <code>client</code> sau dấu <code>/</code> để mở trang gửi thử; IP này chỉ là ví dụ.</p>
 <ol>
 <li>Mở trang <code>/client</code>, nhập khóa truy cập và bấm <strong>Kết nối</strong>.</li>
 <li>Chọn một máy được cấp. Danh sách rỗng thì kiểm quyền, không đổi khóa vô cớ.</li>
@@ -673,8 +683,17 @@ table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14px;table-lay
 </svg></div><span class="diagram-hint">Màn hình nhỏ: vuốt ngang trong sơ đồ; dùng phím mũi tên khi vùng sơ đồ có focus.</span></figure>
 <p><em>Hình 7 — Kết nối, quyền sử dụng máy và kết quả in là ba điều khác nhau. Trang gửi thử chỉ có quyền của client.</em></p>
 <h3 id="73-neu-mat-phan-hoi-hoac-tai-lai-trang">7.3 Nếu mất phản hồi hoặc tải lại trang</h3>
-<p>Mất phản hồi không chứng minh thiết bị chưa nhận. Khi còn giữ tab và dữ liệu gốc, dùng chức năng gửi lại cùng yêu cầu: mã, file và tham số không đổi.</p>
+<p>Mất phản hồi không chứng minh thiết bị chưa nhận. Khi còn giữ tab và dữ liệu gốc, dùng <strong>Gửi lại cùng yêu cầu</strong>: mã, file và tham số không đổi. Chuyển giữa <strong>In tài liệu</strong> và <strong>API Guide</strong> vẫn giữ file, lựa chọn và yêu cầu chưa xác nhận trong bộ nhớ; không tự gửi lại lệnh.</p>
 <p>Tải lại chỉ giữ kết nối, không giữ an toàn giao dịch đang gửi. Nếu mất dữ liệu request, kiểm tra lịch sử và nhờ quản trị đối soát trước khi tạo thao tác in mới. Không tự đổi mã yêu cầu để vượt một xung đột.</p>
+<h3 id="74-api-guide-cho-ung-dung-tich-hop">7.4 API Guide cho ứng dụng tích hợp</h3>
+<p>Mở tab <strong>API Guide</strong> trên trang Client, hoặc vào thẳng <code>/client#api-guide</code>; không cần nhập key để đọc. Trang quản trị cũng có cùng hướng dẫn. Nội dung là ví dụ giả được đóng gói sẵn, không lấy dữ liệu máy hay lệnh thật.</p>
+<ol>
+<li>Mở <strong>Thiết lập cURL</strong>, sao chép biến môi trường và thay placeholder trên máy tích hợp; không nhập key thật vào hướng dẫn.</li>
+<li>Chọn tác vụ <strong>Chọn máy in → Xem tùy chọn in → Gửi file → Theo dõi lệnh</strong>. <strong>Xem lịch sử</strong> và <strong>Hủy lệnh</strong> là hai tác vụ riêng.</li>
+<li>Kiểm trường bắt buộc, sao chép cURL, rồi đối chiếu response. Ví dụ gửi file có PDF/ZPL và hai kết quả: lệnh mới 202 hoặc nhận lại cùng yêu cầu 200.</li>
+<li>Mở <strong>Mã lỗi</strong> hoặc <strong>Schema &amp; chi tiết kỹ thuật</strong> khi cần. Trên mobile, mở <strong>Tham số request</strong> để xem nhóm trường đang thu gọn.</li>
+</ol>
+<p>Hướng dẫn không có chức năng gọi thử API. Chạy cURL trên máy tích hợp có thể in hoặc hủy lệnh thật. Tạo REQUEST_ID một lần; khi mất phản hồi chỉ gửi lại cùng ID, file, filename và mọi trường, không dùng tự động retry hoặc đổi ID để thử. Nếu nút sao chép chỉ chọn code trên HTTP, dùng Ctrl+C hoặc ⌘C.</p>
 <h2 id="8-van-hanh-va-xu-ly-tinh-huong-bat-thuong">8. Vận hành và xử lý tình huống bất thường</h2>
 <h3 id="81-kiem-tra-hang-ngay">8.1 Kiểm tra hàng ngày</h3>
 <p>Kiểm tra service chạy, dung lượng còn đủ, máy và cấu hình đúng, rồi xem lệnh giữ/chưa rõ kết quả. <strong>Service</strong> là chương trình được hệ điều hành quản lý để chạy liên tục; không cần giữ Terminal của máy cá nhân mở để thiết bị tiếp tục nhận lệnh.</p>
@@ -709,6 +728,10 @@ table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14px;table-lay
 <h3 id="84-tra-cuu-loi-theo-nhom">8.4 Tra cứu lỗi theo nhóm</h3>
 <p>Không mở được web: kiểm địa chỉ thiết bị, mạng và service. Không thấy máy trên trang client: kiểm quyền máy trước khi đổi khóa. Không thấy driver: kiểm package đúng dòng máy và kiến trúc. Lệnh bị giữ: đọc lý do, cấu hình và snapshot. Lệnh unknown: dùng đối soát, không gửi lại.</p>
 <p><strong>Mã lỗi</strong> giúp chọn bước kiểm tiếp theo, không thay việc đọc lý do cụ thể. Phụ lục C giải thích lỗi API; phụ lục D có bảng tra cứu và các lệnh chẩn đoán.</p>
+<h3 id="85-oi-mat-khau-quan-tri">8.5 Đổi mật khẩu quản trị</h3>
+<p>Vào <strong>Cấu hình → Đổi mật khẩu quản trị</strong>. Nhập mật khẩu hiện tại, mật khẩu mới 12–1024 ký tự khác mật khẩu cũ và xác nhận trùng khớp. Khoảng trắng không tự bị cắt.</p>
+<p>Thành công sẽ đăng xuất <strong>mọi phiên quản trị</strong>; đăng nhập lại bằng mật khẩu mới. API key client, máy và lệnh in không đổi. Năm lần kiểm sai mật khẩu hiện tại trong năm phút sẽ khóa kiểm tra mật khẩu và đăng nhập năm phút.</p>
+<p>Form xóa nội dung khi gửi hoặc rời tab, không lưu vào browser storage và không tự gửi lại. Nếu mất phản hồi, xác minh bằng đăng nhập thay vì gửi lại thao tác đổi mật khẩu. Quên mật khẩu thì nhờ người có quyền SSH dùng CLI ở phụ lục D. HTTP không mã hóa mật khẩu; chỉ dùng LAN đáng tin cậy hoặc HTTPS.</p>
 <h2 id="9-sao-luu-cap-nhat-va-phuc-hoi">9. Sao lưu, cập nhật và phục hồi</h2>
 <h3 id="91-truoc-moi-thay-oi-bao-tri">9.1 Trước mọi thay đổi bảo trì</h3>
 <p><strong>Bảo trì có kế hoạch</strong> là thời điểm đã được phép thay đổi hệ thống, biết các lệnh đang tồn tại và cách quay lại khi lỗi. Kiểm cả hàng đợi của app và CUPS; unknown vẫn là lệnh chưa kết thúc dù CUPS không còn lệnh chờ.</p>
@@ -777,7 +800,9 @@ table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14px;table-lay
 <p><strong>TLS</strong> là cơ chế mã hóa kết nối mạng; địa chỉ bắt đầu bằng HTTPS sử dụng lớp bảo vệ này. HTTP trong LAN không mặc nhiên bảo vệ khỏi nghe lén. Vận hành phải có kiểm soát mạng; không mở router/Internet ngoài phạm vi được phê duyệt.</p>
 <p>Chỉ cấp quyền gửi file cho ứng dụng đáng tin. Driver là phần mềm chạy trên hệ điều hành, còn PDF/ZPL có thể gây hành vi ngoài việc in một trang thông thường. Kiểm tra trường dữ liệu không phải một bộ kiểm tra an toàn toàn diện cho nội dung file.</p>
 <h3 id="103-nhung-gi-a-kiem-va-viec-con-phai-nghiem-thu">10.3 Những gì đã kiểm và việc còn phải nghiệm thu</h3>
-<p>Đã kiểm phần mềm bằng thử nghiệm tự động, giao diện trình duyệt và các lần triển khai trên EDATEC. Đã xác minh khả năng đọc cấu hình CUPS và dữ liệu đối soát. Người dùng báo Canon LBP6230dw đã in ra giấy; đây là xác nhận người dùng, không phải quan sát tự động của toàn bộ thử nghiệm.</p>
+<p>Mốc chức năng <code>9edebaa</code> đã triển khai trên Raspberry Pi/EDATEC ngày 06/10/2026; địa chỉ truy cập thực tế do quản trị thiết bị cung cấp. Giao diện React và các thư viện cần thiết nằm trong wheel, dùng offline; thiết bị không cần Node hoặc CDN. Trang quản trị có sáu tab; Client có <strong>In tài liệu / API Guide</strong>.</p>
+<p>Đã kiểm 124 test Python, sáu bộ kiểm tra trình duyệt qua wheel cài riêng và cURL/schema của hướng dẫn. Test mất phản hồi rồi gửi lại cùng ID chỉ tạo một lệnh lưu bền, dùng FakeCups với worker tắt. Test đổi mật khẩu/thu hồi phiên dùng dữ liệu và mật khẩu tạm, không đổi mật khẩu thật trên Pi.</p>
+<p>Sau triển khai đã đối chiếu commit, hash package/asset, CSP chỉ dùng nguồn tại chỗ và dữ liệu/cấu hình CUPS giữ nguyên. Giao diện Client công khai được kiểm tra desktop/mobile không đăng nhập; phần quản trị dùng GET giả lập để kiểm hiển thị, không phải kiểm đăng nhập thật. Không gửi lệnh in mới trong lần cập nhật này. Đã xác minh khả năng đọc cấu hình CUPS và dữ liệu đối soát. Người dùng báo Canon LBP6230dw đã in ra giấy; đây là xác nhận người dùng, không phải quan sát tự động của toàn bộ thử nghiệm.</p>
 <p>Vẫn cần nghiệm thu theo dòng máy và nơi triển khai: PDF/ZPL thực tế, số bản, duplex, scaling, lỗi giấy, mất kết nối, restart, mất điện, hủy sau giao và backup/rollback. <strong>Scaling</strong> là cách điều chỉnh tỷ lệ nội dung, đã giải thích bằng fit/fill ở mục 6.</p>
 <p>Không có cloud, nhiều thiết bị phối hợp, gửi thông báo kết quả tự động cho client hoặc hệ thống quản lý cả đội thiết bị. App không cài driver qua web và không giữ file để in lại từ lịch sử. Chọn giải pháp dựa trên nhu cầu LAN hiện tại, không suy ra tính năng chưa triển khai.</p>
 <!-- BACK-MATTER-START -->
@@ -815,13 +840,13 @@ git clone https://github.com/luongnguyen008/printer-server.git
 <h4 id="a21-chuan-bi-mang-va-ssh">A.2.1 Chuẩn bị mạng và SSH</h4>
 <p>Địa chỉ <strong>IP</strong> xác định một thiết bị trên mạng. Ghi IP thiết bị quản lý in, IP máy in, tài khoản SSH và phạm vi được phép thay đổi. Nhờ người quản trị mạng giữ các địa chỉ ổn định; tránh đổi IP sau khi cấu hình. Cùng tên Wi-Fi hoặc băng tần không chứng minh các thiết bị được phép liên lạc; mạng dành cho khách có thể chặn kết nối giữa chúng.</p>
 <p>Mac, Terminal:</p>
-<pre><code class="language-bash">ApplianceHost=192.168.88.228
+<pre><code class="language-bash">ApplianceHost=192.0.2.10
 SshUser=pi
 SshTarget=&quot;$SshUser@$ApplianceHost&quot;
 ssh &quot;$SshTarget&quot;
 </code></pre>
 <p>Windows, PowerShell: kiểm tra <code>ssh</code> và <code>scp</code> có sẵn bằng <code>Get-Command ssh, scp</code>. Nếu chưa có, mở phần Optional features (Tính năng tùy chọn) của Windows và cài <strong>OpenSSH Client</strong> rồi mở PowerShell mới. Sau đó:</p>
-<pre><code class="language-powershell">$ApplianceHost = '192.168.88.228'
+<pre><code class="language-powershell">$ApplianceHost = '192.0.2.10'
 $SshUser = 'pi'
 $SshTarget = &quot;$SshUser@$ApplianceHost&quot;
 ssh $SshTarget
@@ -870,7 +895,7 @@ sudo install -d -o root -g print-appliance -m 0750 /opt/print-appliance
 <p>Đừng thay user hiện có hoặc thêm tài khoản web vào root/sudo không mật khẩu. User <code>print-appliance</code> không cần đăng nhập SSH.</p>
 <h4 id="a25-cai-phan-mem-tu-project-tren-thiet-bi">A.2.5 Cài phần mềm từ project trên thiết bị</h4>
 <p>Các lệnh sau chạy trong SSH Linux. Không cần build hay chuyển gói từ Mac/Windows. <strong>Commit</strong> là một mốc mã nguồn cụ thể; đoạn dưới chọn mốc sản phẩm 0.1.5 đã được hướng dẫn này mô tả để không vô tình cài phiên bản khác về sau.</p>
-<pre><code class="language-bash">APP_COMMIT=056e2e7823d8e4579a02aab027d6a2dad678549f
+<pre><code class="language-bash">APP_COMMIT=9edebaaa0ba76ce1d4ec34491e99529f155fc19f
 sudo git clone https://github.com/luongnguyen008/printer-server.git /opt/print-appliance/source
 sudo git -C /opt/print-appliance/source checkout --detach &quot;$APP_COMMIT&quot;
 sudo /usr/bin/python3 -m venv --system-site-packages /opt/print-appliance/.venv
@@ -922,7 +947,7 @@ curl -sS --retry 8 --retry-connrefused --retry-delay 1 -o /dev/null -w '%{http_c
 </code></pre>
 <p>Nhập drop-in, thay IP bằng địa chỉ đã reservation:</p>
 <pre><code class="language-ini">[Service]
-Environment=PRINT_APPLIANCE_HOST=192.168.88.228
+Environment=PRINT_APPLIANCE_HOST=192.0.2.10
 Environment=PRINT_APPLIANCE_SECURE_COOKIE=0
 </code></pre>
 <p>Sau khi xác nhận không có lệnh đang xử lý:</p>
@@ -943,13 +968,13 @@ systemctl is-active print-appliance cups
 <h3 id="b1-cau-hinh-may-in-va-driver">B.1 — Cấu hình máy in và driver</h3>
 <h4 id="b11-kiem-tra-ket-noi-truoc">B.1.1 Kiểm tra kết nối trước</h4>
 <p>Trên Windows:</p>
-<pre><code class="language-powershell">Test-NetConnection 192.168.88.210 -Port 9100
-Test-NetConnection 192.168.88.210 -Port 631
+<pre><code class="language-powershell">Test-NetConnection 192.0.2.20 -Port 9100
+Test-NetConnection 192.0.2.20 -Port 631
 </code></pre>
 <p>Trên Mac/WSL:</p>
-<pre><code class="language-bash">ping -c 3 192.168.88.210
-nc -vz -w 3 192.168.88.210 9100
-nc -vz -w 3 192.168.88.210 631
+<pre><code class="language-bash">ping -c 3 192.0.2.20
+nc -vz -w 3 192.0.2.20 9100
+nc -vz -w 3 192.0.2.20 631
 </code></pre>
 <p><code>nc</code> có thể cần package riêng trong WSL. Kiểm tra quan trọng nhất vẫn là <strong>từ appliance tới máy in</strong>, vì máy cá nhân kết nối được không chứng minh EDATEC kết nối được. Port đóng không luôn là lỗi: model có thể chỉ hỗ trợ một giao thức. Ping bị chặn cũng không chứng minh máy offline.</p>
 <p>Không chọn <code>socket://...:9100</code> chỉ vì port mở nếu chưa biết ngôn ngữ/driver model. <code>IPP</code>, <code>IPPS</code>, <code>socket</code>, <code>LPD</code>, USB và DNS-SD có ý nghĩa khác nhau.</p>
@@ -1144,7 +1169,7 @@ lpinfo -m | grep -i 'LBP6230'
 <p><strong>Cookie</strong> lưu trạng thái phiên trình duyệt; <strong>CSRF</strong> là rủi ro một trang khác gây thao tác thay người đang đăng nhập. Token CSRF bảo vệ các thao tác quản trị. <strong>CORS</strong> là quy tắc cho request từ một origin khác; <strong>origin</strong> gồm giao thức, host và port. Host là tên/địa chỉ máy của dịch vụ. Client keys, admin sessions và các quyền không thay thế nhau.</p>
 <p><strong>Odoo</strong> là phần mềm quản lý nghiệp vụ có thể tạo tài liệu để gửi in; <strong>PDA</strong> là thiết bị cầm tay, thường có chức năng quét mã. Chúng là ví dụ nguồn yêu cầu, không thành phần bắt buộc của Print Appliance.</p>
 <h3 id="c1-api-client-hop-ong-va-ket-qua">C.1 — API client: hợp đồng và kết quả</h3>
-<p>Base URL mẫu: <code>http://192.168.88.228:8081</code>. Mọi API client cần:</p>
+<p>Base URL mẫu: <code>http://192.0.2.10:8081</code>. Mọi API client cần:</p>
 <pre><code class="language-text">Authorization: Bearer &lt;API_KEY&gt;
 </code></pre>
 <div class="report-table" id="table-8"><p class="table-caption">Bảng 8 — Các API của client</p><table>
@@ -1322,7 +1347,7 @@ lpinfo -m | grep -i 'LBP6230'
 <p>Các ví dụ sau gửi <strong>một file đã có</strong>. Không dùng PDF giả chỉ gồm header để in thật. Kiểm tra máy/driver và thông báo người vận hành trước POST.</p>
 <h4 id="c21-macos-bien-key-va-danh-sach">C.2.1 macOS: biến, key và danh sách</h4>
 <p>Trong Terminal, dùng Bash để đọc key không echo (nếu Terminal đang chạy zsh thì gõ <code>bash</code> trước):</p>
-<pre><code class="language-bash">BaseUrl=http://192.168.88.228:8081
+<pre><code class="language-bash">BaseUrl=http://192.0.2.10:8081
 read -r -s -p 'Client API key: ' ApiKey
 printf '\n'
 curl -sS &quot;$BaseUrl/api/v1/printers&quot; -H &quot;Authorization: Bearer $ApiKey&quot;
@@ -1361,7 +1386,7 @@ curl -sS &quot;$BaseUrl/api/v1/jobs/$JobId&quot; -H &quot;Authorization: Bearer 
 </code></pre>
 <h4 id="c22-windows-powershell-goi-bang-curlexe">C.2.2 Windows PowerShell: gọi bằng curl.exe</h4>
 <p>Dùng <code>curl.exe</code>, không <code>curl</code> alias của Windows PowerShell 5.1. Không dùng cú pháp <code>export</code>, <code>read</code> hoặc dấu <code>\</code> nối dòng của Bash trong PowerShell.</p>
-<pre><code class="language-powershell">$BaseUrl = 'http://192.168.88.228:8081'
+<pre><code class="language-powershell">$BaseUrl = 'http://192.0.2.10:8081'
 $Secret = Read-Host 'Client API key' -AsSecureString
 $Ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Secret)
 try { $ApiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($Ptr) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($Ptr) }
@@ -1410,7 +1435,7 @@ Remove-Variable ApiKey, Secret -ErrorAction SilentlyContinue
 <tbody>
 <tr>
 <td>Auth</td>
-<td><code>POST /admin/api/login</code>, <code>GET /admin/api/session</code>, <code>POST /admin/api/logout</code></td>
+<td><code>POST /admin/api/login</code>, <code>GET /admin/api/session</code>, <code>POST /admin/api/logout</code>, <code>POST /admin/api/password</code></td>
 </tr>
 <tr>
 <td>Status</td>
@@ -1435,6 +1460,7 @@ Remove-Variable ApiKey, Secret -ErrorAction SilentlyContinue
 </tbody>
 </table></div>
 <p><code>PUT</code> client với <code>printer_ids</code> thay toàn bộ grant list. Nếu chỉ đổi tên, chỉ gửi <code>{"name":"..."}</code> để tránh ghi lại grants cũ sau một thu hồi đồng thời. Key không xuất hiện trong list/history/audit. Resolve cần <code>outcome</code> terminal và reason 8–1000 ký tự, không submit lại.</p>
+<p><code>POST /admin/api/password</code> dùng session và CSRF, body có <code>current_password</code>, <code>new_password</code>, <code>confirm_password</code>. Mật khẩu mới 12–1024 ký tự, khác hiện tại và khớp xác nhận. Thành công trả 200 với <code>authenticated:false</code>, xóa cookie và thu hồi mọi session; sai mật khẩu hiện tại trả 400 giữ session, lỗi trường 422, khóa kiểm tra 429. Không tự gửi lại nếu mất phản hồi; xác minh bằng đăng nhập.</p>
 <p>Thường dùng UI cho admin để khỏi tự giữ cookie/CSRF. Client tích hợp nghiệp vụ chỉ dùng API client. Không gọi SQL trực tiếp như một API quản trị.</p>
 <h4 id="c32-mau-luong-tich-hop">C.3.2 Mẫu luồng tích hợp</h4>
 <ol>
@@ -1663,7 +1689,7 @@ sudo git -C /opt/print-appliance/source checkout --detach &quot;$PREVIOUS_COMMIT
 sudo env VIRTUAL_ENV=/opt/print-appliance/.venv /opt/print-appliance/tools/uv sync --project /opt/print-appliance/source --active --frozen --no-dev --no-editable --python /usr/bin/python3
 </code></pre>
 <p>Nếu đã có migration hoặc dữ liệu không tương thích, dùng kế hoạch phục hồi dữ liệu có đối soát ở D.2, không áp rollback phần mềm để thử. Đặc biệt không hạ 0.1.2+ về 0.1.1 trên DB có soft-delete. Không phục hồi backup cũ nếu chưa đối soát các lệnh nhận sau backup. Internet hoặc các gói cài được lưu sẵn có thể cần để cài lại môi trường.</p>
-<p>Sau xác minh mới start và cập nhật SOURCE_COMMIT. Dọn chính SSH key tạm đã tạo cho việc bảo trì nếu có, giữ các key khác. Không đưa token GitHub cá nhân lên thiết bị cho repository public.</p>
+<p>Sau xác minh mới start và cập nhật SOURCE_COMMIT. Giữ deployment SSH key và authorization cho đến khi chủ thiết bị yêu cầu xóa; không tự dọn key sau cập nhật. Chỉ dọn staging tạm sau kiểm tra thành công, giữ wheel rollback và backup được bảo vệ. Không đưa token GitHub cá nhân lên thiết bị cho repository public.</p>
 <h2 id="phu-luc-e-thuat-ngu-va-viet-tat-bo-sung">Phụ lục E — Thuật ngữ và viết tắt bổ sung</h2>
 <p>Phần chính giải thích khái niệm khi xuất hiện; bảng này dùng tra cứu các từ kỹ thuật trong phụ lục. Tên kỹ thuật được giữ để đối chiếu đúng giao diện, lệnh và lỗi; không phải thành phần mà người dùng phải tự lập trình.</p>
 <div class="report-table" id="table-13"><p class="table-caption">Bảng 13 — Thuật ngữ kỹ thuật bổ sung</p><table>
@@ -1848,55 +1874,57 @@ sudo env VIRTUAL_ENV=/opt/print-appliance/.venv /opt/print-appliance/tools/uv sy
 <h2 id="tai-lieu-tham-khao">Tài liệu tham khảo</h2>
 <p>Hướng dẫn có thể đọc độc lập. Các nguồn dưới đây phục vụ kiểm chứng và bảo trì, không phải yêu cầu người đọc phải mở thêm để hiểu phần chính. Mốc phần mềm được đối chiếu là 0.1.5; các kết quả triển khai và in giấy được phân biệt với kiểm thử giả lập.</p>
 <ol>
-<li><strong>Mã nguồn Print Appliance</strong>, mốc <code>056e2e7</code>: <a href="https://github.com/luongnguyen008/printer-server/tree/056e2e7823d8e4579a02aab027d6a2dad678549f">repository theo commit</a>. Nguồn xác định API, cấu hình và hành vi đã triển khai.</li>
-<li><strong>Thuật ngữ miền nghiệp vụ</strong>: <a href="https://github.com/luongnguyen008/printer-server/blob/056e2e7823d8e4579a02aab027d6a2dad678549f/CONTEXT.md">CONTEXT.md</a>. Cơ sở phân biệt client, máy đăng ký, lệnh, snapshot, completed và unknown.</li>
-<li><strong>Quyết định kiến trúc</strong>: <a href="https://github.com/luongnguyen008/printer-server/blob/056e2e7823d8e4579a02aab027d6a2dad678549f/docs/adr/0001-local-appliance-and-cups.md">ADR về appliance và CUPS</a>. Nguồn phạm vi LAN và giới hạn giao dịch với máy in vật lý.</li>
+<li><strong>Mã nguồn Print Appliance</strong>, mốc <code>9edebaa</code>: <a href="https://github.com/luongnguyen008/printer-server/tree/9edebaaa0ba76ce1d4ec34491e99529f155fc19f">repository theo commit</a>. Nguồn xác định API, cấu hình và hành vi đã triển khai.</li>
+<li><strong>Thuật ngữ miền nghiệp vụ</strong>: <a href="https://github.com/luongnguyen008/printer-server/blob/9edebaaa0ba76ce1d4ec34491e99529f155fc19f/CONTEXT.md">CONTEXT.md</a>. Cơ sở phân biệt client, máy đăng ký, lệnh, snapshot, completed và unknown.</li>
+<li><strong>Quyết định kiến trúc</strong>: <a href="https://github.com/luongnguyen008/printer-server/blob/9edebaaa0ba76ce1d4ec34491e99529f155fc19f/docs/adr/0001-local-appliance-and-cups.md">ADR về appliance và CUPS</a>. Nguồn phạm vi LAN và giới hạn giao dịch với máy in vật lý.</li>
 <li><strong>CUPS/OpenPrinting</strong>: <a href="https://openprinting.github.io/cups/">CUPS</a> và <a href="https://github.com/OpenPrinting/pycups">pycups</a>. Nguồn hệ thống in và thư viện kết nối; không thay kiểm quyền trên thiết bị thực.</li>
 <li><strong>Canon UFRII LT V5.10</strong>: <a href="https://pdisp01.c-wss.com/gdl/WWUFORedirectTarget.do?id=MDEwMDAwNTk1MDEx&amp;cmp=ACB&amp;lang=EN">bundle đã được kiểm tra</a>. Kiểm package ARM64 và PPD model trước cài; download có thể thay đổi và chịu license Canon.</li>
 <li><strong>uv</strong>: <a href="https://docs.astral.sh/uv/">tài liệu chính thức</a>. Nguồn quản lý Python, môi trường và dependencies có khóa phiên bản.</li>
 <li><strong>Microsoft WSL</strong>: <a href="https://learn.microsoft.com/windows/wsl/install">hướng dẫn cài WSL</a>. Nguồn điều kiện Windows/WSL; không phải chứng nhận in qua USB trong WSL.</li>
 <li><strong>Tài liệu dự án và kết quả kiểm tra</strong>: design/API/operations/verification theo mốc phần mềm trong repository. Hướng dẫn nêu rõ kiểm thử local, đọc CUPS thật và kết quả giấy do người dùng xác nhận.</li>
 </ol>
-<p>Ngày biên soạn/đối chiếu: 04/10/2026. Quyền sử dụng mã ứng dụng, dependency và driver là các quyền riêng; xem license của chủ repository trước tái phân phối.</p>
+<p>Ngày cập nhật/đối chiếu: 06/10/2026. Quyền sử dụng mã ứng dụng, dependency và driver là các quyền riêng; xem license của chủ repository trước tái phân phối.</p>
 <h2 id="chi-muc-tra-cuu">Chỉ mục tra cứu</h2>
 <p>Chỉ mục chọn các khái niệm quan trọng, sắp theo chữ cái. Liên kết tới mục giải thích hoặc hướng dẫn; số trang trong HTML/PDF là trang bắt đầu mục được tham chiếu, không phải mọi lần từ khóa xuất hiện.</p>
 <nav class="index-list" aria-labelledby="chi-muc-tra-cuu">
 <ul>
-<li><strong>API:</strong> <a href="#31-ung-dung-gui-yeu-cau-qua-au"><span>3.1</span><span class="page-reference" data-page-target="31-ung-dung-gui-yeu-cau-qua-au" title="Trang trong bản PDF chuẩn">11</span></a>; <a href="#c1-api-client-hop-ong-va-ket-qua"><span>C.1</span><span class="page-reference" data-page-target="c1-api-client-hop-ong-va-ket-qua" title="Trang trong bản PDF chuẩn">39</span></a></li>
+<li><strong>API:</strong> <a href="#31-ung-dung-gui-yeu-cau-qua-au"><span>3.1</span><span class="page-reference" data-page-target="31-ung-dung-gui-yeu-cau-qua-au" title="Trang trong bản PDF chuẩn">11</span></a>; <a href="#c1-api-client-hop-ong-va-ket-qua"><span>C.1</span><span class="page-reference" data-page-target="c1-api-client-hop-ong-va-ket-qua" title="Trang trong bản PDF chuẩn">40</span></a></li>
+<li><strong>API Guide:</strong> <a href="#74-api-guide-cho-ung-dung-tich-hop"><span>7.4</span><span class="page-reference" data-page-target="74-api-guide-cho-ung-dung-tich-hop" title="Trang trong bản PDF chuẩn">21</span></a></li>
 <li><strong>API key (khóa truy cập):</strong> <a href="#23-khoa-truy-cap-va-hai-loai-ma"><span>2.3</span><span class="page-reference" data-page-target="23-khoa-truy-cap-va-hai-loai-ma" title="Trang trong bản PDF chuẩn">9</span></a>; <a href="#71-chuan-bi-quyen-truoc-khi-gui"><span>7.1</span><span class="page-reference" data-page-target="71-chuan-bi-quyen-truoc-khi-gui" title="Trang trong bản PDF chuẩn">20</span></a></li>
-<li><strong>Backup (sao lưu):</strong> <a href="#92-ban-sao-nao-u-cho-viec-phuc-hoi"><span>9.2</span><span class="page-reference" data-page-target="92-ban-sao-nao-u-cho-viec-phuc-hoi" title="Trang trong bản PDF chuẩn">24</span></a>; <a href="#d2-sao-luu-va-phuc-hoi"><span>D.2</span><span class="page-reference" data-page-target="d2-sao-luu-va-phuc-hoi" title="Trang trong bản PDF chuẩn">48</span></a></li>
-<li><strong>Capability (khả năng in):</strong> <a href="#62-kha-nang-mac-inh-va-quyen-lua-chon"><span>6.2</span><span class="page-reference" data-page-target="62-kha-nang-mac-inh-va-quyen-lua-chon" title="Trang trong bản PDF chuẩn">18</span></a>; <a href="#b2-tuy-chon-in-theo-capability"><span>B.2</span><span class="page-reference" data-page-target="b2-tuy-chon-in-theo-capability" title="Trang trong bản PDF chuẩn">36</span></a></li>
+<li><strong>Backup (sao lưu):</strong> <a href="#92-ban-sao-nao-u-cho-viec-phuc-hoi"><span>9.2</span><span class="page-reference" data-page-target="92-ban-sao-nao-u-cho-viec-phuc-hoi" title="Trang trong bản PDF chuẩn">25</span></a>; <a href="#d2-sao-luu-va-phuc-hoi"><span>D.2</span><span class="page-reference" data-page-target="d2-sao-luu-va-phuc-hoi" title="Trang trong bản PDF chuẩn">49</span></a></li>
+<li><strong>Capability (khả năng in):</strong> <a href="#62-kha-nang-mac-inh-va-quyen-lua-chon"><span>6.2</span><span class="page-reference" data-page-target="62-kha-nang-mac-inh-va-quyen-lua-chon" title="Trang trong bản PDF chuẩn">18</span></a>; <a href="#b2-tuy-chon-in-theo-capability"><span>B.2</span><span class="page-reference" data-page-target="b2-tuy-chon-in-theo-capability" title="Trang trong bản PDF chuẩn">37</span></a></li>
 <li><strong>Client:</strong> <a href="#21-nguoi-gui-nguoi-quan-tri-va-may-in"><span>2.1</span><span class="page-reference" data-page-target="21-nguoi-gui-nguoi-quan-tri-va-may-in" title="Trang trong bản PDF chuẩn">9</span></a>; <a href="#71-chuan-bi-quyen-truoc-khi-gui"><span>7.1</span><span class="page-reference" data-page-target="71-chuan-bi-quyen-truoc-khi-gui" title="Trang trong bản PDF chuẩn">20</span></a></li>
-<li><strong>Completed (hoàn thành):</strong> <a href="#52-cac-trang-thai-can-phan-biet"><span>5.2</span><span class="page-reference" data-page-target="52-cac-trang-thai-can-phan-biet" title="Trang trong bản PDF chuẩn">14</span></a>; <a href="#101-nhung-bao-am-can-hieu-ung"><span>10.1</span><span class="page-reference" data-page-target="101-nhung-bao-am-can-hieu-ung" title="Trang trong bản PDF chuẩn">27</span></a></li>
-<li><strong>Correlation (dấu đối soát):</strong> <a href="#53-giao-xuong-cups-va-theo-doi"><span>5.3</span><span class="page-reference" data-page-target="53-giao-xuong-cups-va-theo-doi" title="Trang trong bản PDF chuẩn">16</span></a>; <a href="#83-oi-soat-chua-ro-ket-qua"><span>8.3</span><span class="page-reference" data-page-target="83-oi-soat-chua-ro-ket-qua" title="Trang trong bản PDF chuẩn">22</span></a></li>
+<li><strong>Completed (hoàn thành):</strong> <a href="#52-cac-trang-thai-can-phan-biet"><span>5.2</span><span class="page-reference" data-page-target="52-cac-trang-thai-can-phan-biet" title="Trang trong bản PDF chuẩn">14</span></a>; <a href="#101-nhung-bao-am-can-hieu-ung"><span>10.1</span><span class="page-reference" data-page-target="101-nhung-bao-am-can-hieu-ung" title="Trang trong bản PDF chuẩn">28</span></a></li>
+<li><strong>Correlation (dấu đối soát):</strong> <a href="#53-giao-xuong-cups-va-theo-doi"><span>5.3</span><span class="page-reference" data-page-target="53-giao-xuong-cups-va-theo-doi" title="Trang trong bản PDF chuẩn">16</span></a>; <a href="#83-oi-soat-chua-ro-ket-qua"><span>8.3</span><span class="page-reference" data-page-target="83-oi-soat-chua-ro-ket-qua" title="Trang trong bản PDF chuẩn">23</span></a></li>
 <li><strong>CUPS:</strong> <a href="#32-phan-mem-nao-noi-chuyen-voi-may-in"><span>3.2</span><span class="page-reference" data-page-target="32-phan-mem-nao-noi-chuyen-voi-may-in" title="Trang trong bản PDF chuẩn">11</span></a>; <a href="#53-giao-xuong-cups-va-theo-doi"><span>5.3</span><span class="page-reference" data-page-target="53-giao-xuong-cups-va-theo-doi" title="Trang trong bản PDF chuẩn">16</span></a></li>
-<li><strong>Driver:</strong> <a href="#32-phan-mem-nao-noi-chuyen-voi-may-in"><span>3.2</span><span class="page-reference" data-page-target="32-phan-mem-nao-noi-chuyen-voi-may-in" title="Trang trong bản PDF chuẩn">11</span></a>; <a href="#b12-driver-canon-lbp6230dw-tren-arm64"><span>B.1.2</span><span class="page-reference" data-page-target="b12-driver-canon-lbp6230dw-tren-arm64" title="Trang trong bản PDF chuẩn">34</span></a></li>
+<li><strong>Đổi mật khẩu quản trị:</strong> <a href="#85-oi-mat-khau-quan-tri"><span>8.5</span><span class="page-reference" data-page-target="85-oi-mat-khau-quan-tri" title="Trang trong bản PDF chuẩn">24</span></a>; <a href="#c31-quan-tri"><span>C.3.1</span><span class="page-reference" data-page-target="c31-quan-tri" title="Trang trong bản PDF chuẩn">45</span></a></li>
+<li><strong>Driver:</strong> <a href="#32-phan-mem-nao-noi-chuyen-voi-may-in"><span>3.2</span><span class="page-reference" data-page-target="32-phan-mem-nao-noi-chuyen-voi-may-in" title="Trang trong bản PDF chuẩn">11</span></a>; <a href="#b12-driver-canon-lbp6230dw-tren-arm64"><span>B.1.2</span><span class="page-reference" data-page-target="b12-driver-canon-lbp6230dw-tren-arm64" title="Trang trong bản PDF chuẩn">35</span></a></li>
 <li><strong>Dữ liệu bền vững:</strong> <a href="#33-du-lieu-va-hai-uong-truy-cap"><span>3.3</span><span class="page-reference" data-page-target="33-du-lieu-va-hai-uong-truy-cap" title="Trang trong bản PDF chuẩn">11</span></a>; <a href="#51-tiep-nhan-va-chong-gui-trung"><span>5.1</span><span class="page-reference" data-page-target="51-tiep-nhan-va-chong-gui-trung" title="Trang trong bản PDF chuẩn">14</span></a></li>
-<li><strong>Duplex (in hai mặt):</strong> <a href="#62-kha-nang-mac-inh-va-quyen-lua-chon"><span>6.2</span><span class="page-reference" data-page-target="62-kha-nang-mac-inh-va-quyen-lua-chon" title="Trang trong bản PDF chuẩn">18</span></a>; <a href="#b21-kho-giay-duplex-va-can-pdf"><span>B.2.1</span><span class="page-reference" data-page-target="b21-kho-giay-duplex-va-can-pdf" title="Trang trong bản PDF chuẩn">37</span></a></li>
+<li><strong>Duplex (in hai mặt):</strong> <a href="#62-kha-nang-mac-inh-va-quyen-lua-chon"><span>6.2</span><span class="page-reference" data-page-target="62-kha-nang-mac-inh-va-quyen-lua-chon" title="Trang trong bản PDF chuẩn">18</span></a>; <a href="#b21-kho-giay-duplex-va-can-pdf"><span>B.2.1</span><span class="page-reference" data-page-target="b21-kho-giay-duplex-va-can-pdf" title="Trang trong bản PDF chuẩn">38</span></a></li>
 <li><strong>FIFO:</strong> <a href="#54-thu-tu-xu-ly-giua-cac-may"><span>5.4</span><span class="page-reference" data-page-target="54-thu-tu-xu-ly-giua-cac-may" title="Trang trong bản PDF chuẩn">16</span></a></li>
-<li><strong>Fill / fit:</strong> <a href="#63-kho-giay-va-cach-at-noi-dung-pdf"><span>6.3</span><span class="page-reference" data-page-target="63-kho-giay-va-cach-at-noi-dung-pdf" title="Trang trong bản PDF chuẩn">19</span></a>; <a href="#b21-kho-giay-duplex-va-can-pdf"><span>B.2.1</span><span class="page-reference" data-page-target="b21-kho-giay-duplex-va-can-pdf" title="Trang trong bản PDF chuẩn">37</span></a></li>
-<li><strong>Git và clone project:</strong> <a href="#a1-cai-git-va-clone-project"><span>A.1</span><span class="page-reference" data-page-target="a1-cai-git-va-clone-project" title="Trang trong bản PDF chuẩn">28</span></a></li>
+<li><strong>Fill / fit:</strong> <a href="#63-kho-giay-va-cach-at-noi-dung-pdf"><span>6.3</span><span class="page-reference" data-page-target="63-kho-giay-va-cach-at-noi-dung-pdf" title="Trang trong bản PDF chuẩn">19</span></a>; <a href="#b21-kho-giay-duplex-va-can-pdf"><span>B.2.1</span><span class="page-reference" data-page-target="b21-kho-giay-duplex-va-can-pdf" title="Trang trong bản PDF chuẩn">38</span></a></li>
+<li><strong>Git và clone project:</strong> <a href="#a1-cai-git-va-clone-project"><span>A.1</span><span class="page-reference" data-page-target="a1-cai-git-va-clone-project" title="Trang trong bản PDF chuẩn">29</span></a></li>
 <li><strong>Hàng đợi:</strong> <a href="#22-lenh-in-va-cau-hinh-giu-cho-lenh"><span>2.2</span><span class="page-reference" data-page-target="22-lenh-in-va-cau-hinh-giu-cho-lenh" title="Trang trong bản PDF chuẩn">9</span></a>; <a href="#54-thu-tu-xu-ly-giua-cac-may"><span>5.4</span><span class="page-reference" data-page-target="54-thu-tu-xu-ly-giua-cac-may" title="Trang trong bản PDF chuẩn">16</span></a></li>
-<li><strong>HTTP / HTTPS:</strong> <a href="#31-ung-dung-gui-yeu-cau-qua-au"><span>3.1</span><span class="page-reference" data-page-target="31-ung-dung-gui-yeu-cau-qua-au" title="Trang trong bản PDF chuẩn">11</span></a>; <a href="#102-bao-ve-quyen-va-du-lieu"><span>10.2</span><span class="page-reference" data-page-target="102-bao-ve-quyen-va-du-lieu" title="Trang trong bản PDF chuẩn">27</span></a></li>
-<li><strong>Hủy lệnh:</strong> <a href="#82-dung-tiep-tuc-va-huy"><span>8.2</span><span class="page-reference" data-page-target="82-dung-tiep-tuc-va-huy" title="Trang trong bản PDF chuẩn">22</span></a>; <a href="#d12-pause-resume-cancel"><span>D.1.2</span><span class="page-reference" data-page-target="d12-pause-resume-cancel" title="Trang trong bản PDF chuẩn">46</span></a></li>
+<li><strong>HTTP / HTTPS:</strong> <a href="#31-ung-dung-gui-yeu-cau-qua-au"><span>3.1</span><span class="page-reference" data-page-target="31-ung-dung-gui-yeu-cau-qua-au" title="Trang trong bản PDF chuẩn">11</span></a>; <a href="#102-bao-ve-quyen-va-du-lieu"><span>10.2</span><span class="page-reference" data-page-target="102-bao-ve-quyen-va-du-lieu" title="Trang trong bản PDF chuẩn">28</span></a></li>
+<li><strong>Hủy lệnh:</strong> <a href="#82-dung-tiep-tuc-va-huy"><span>8.2</span><span class="page-reference" data-page-target="82-dung-tiep-tuc-va-huy" title="Trang trong bản PDF chuẩn">23</span></a>; <a href="#d12-pause-resume-cancel"><span>D.1.2</span><span class="page-reference" data-page-target="d12-pause-resume-cancel" title="Trang trong bản PDF chuẩn">47</span></a></li>
 <li><strong>Khóa truy cập:</strong> <a href="#23-khoa-truy-cap-va-hai-loai-ma"><span>2.3</span><span class="page-reference" data-page-target="23-khoa-truy-cap-va-hai-loai-ma" title="Trang trong bản PDF chuẩn">9</span></a>; <a href="#71-chuan-bi-quyen-truoc-khi-gui"><span>7.1</span><span class="page-reference" data-page-target="71-chuan-bi-quyen-truoc-khi-gui" title="Trang trong bản PDF chuẩn">20</span></a></li>
 <li><strong>Lệnh in và mã lệnh:</strong> <a href="#22-lenh-in-va-cau-hinh-giu-cho-lenh"><span>2.2</span><span class="page-reference" data-page-target="22-lenh-in-va-cau-hinh-giu-cho-lenh" title="Trang trong bản PDF chuẩn">9</span></a>; <a href="#52-cac-trang-thai-can-phan-biet"><span>5.2</span><span class="page-reference" data-page-target="52-cac-trang-thai-can-phan-biet" title="Trang trong bản PDF chuẩn">14</span></a></li>
-<li><strong>Linux / EDATEC:</strong> <a href="#42-kiem-tra-truoc-khi-trien-khai"><span>4.2</span><span class="page-reference" data-page-target="42-kiem-tra-truoc-khi-trien-khai" title="Trang trong bản PDF chuẩn">13</span></a>; <a href="#a2-cai-moi-tren-linuxedatec"><span>A.2</span><span class="page-reference" data-page-target="a2-cai-moi-tren-linuxedatec" title="Trang trong bản PDF chuẩn">29</span></a></li>
-<li><strong>Mã lỗi:</strong> <a href="#c12-ma-loi"><span>C.1.2</span><span class="page-reference" data-page-target="c12-ma-loi" title="Trang trong bản PDF chuẩn">41</span></a>; <a href="#d14-bang-loi-nhanh"><span>D.1.4</span><span class="page-reference" data-page-target="d14-bang-loi-nhanh" title="Trang trong bản PDF chuẩn">47</span></a></li>
+<li><strong>Linux / EDATEC:</strong> <a href="#42-kiem-tra-truoc-khi-trien-khai"><span>4.2</span><span class="page-reference" data-page-target="42-kiem-tra-truoc-khi-trien-khai" title="Trang trong bản PDF chuẩn">13</span></a>; <a href="#a2-cai-moi-tren-linuxedatec"><span>A.2</span><span class="page-reference" data-page-target="a2-cai-moi-tren-linuxedatec" title="Trang trong bản PDF chuẩn">30</span></a></li>
+<li><strong>Mã lỗi:</strong> <a href="#c12-ma-loi"><span>C.1.2</span><span class="page-reference" data-page-target="c12-ma-loi" title="Trang trong bản PDF chuẩn">42</span></a>; <a href="#d14-bang-loi-nhanh"><span>D.1.4</span><span class="page-reference" data-page-target="d14-bang-loi-nhanh" title="Trang trong bản PDF chuẩn">48</span></a></li>
 <li><strong>Mã yêu cầu / chống trùng:</strong> <a href="#23-khoa-truy-cap-va-hai-loai-ma"><span>2.3</span><span class="page-reference" data-page-target="23-khoa-truy-cap-va-hai-loai-ma" title="Trang trong bản PDF chuẩn">9</span></a>; <a href="#51-tiep-nhan-va-chong-gui-trung"><span>5.1</span><span class="page-reference" data-page-target="51-tiep-nhan-va-chong-gui-trung" title="Trang trong bản PDF chuẩn">14</span></a></li>
 <li><strong>Mặc định và ghi đè:</strong> <a href="#62-kha-nang-mac-inh-va-quyen-lua-chon"><span>6.2</span><span class="page-reference" data-page-target="62-kha-nang-mac-inh-va-quyen-lua-chon" title="Trang trong bản PDF chuẩn">18</span></a>; <a href="#63-kho-giay-va-cach-at-noi-dung-pdf"><span>6.3</span><span class="page-reference" data-page-target="63-kho-giay-va-cach-at-noi-dung-pdf" title="Trang trong bản PDF chuẩn">19</span></a></li>
 <li><strong>Máy in đăng ký:</strong> <a href="#21-nguoi-gui-nguoi-quan-tri-va-may-in"><span>2.1</span><span class="page-reference" data-page-target="21-nguoi-gui-nguoi-quan-tri-va-may-in" title="Trang trong bản PDF chuẩn">9</span></a>; <a href="#61-hai-cach-ua-may-vao-he-thong"><span>6.1</span><span class="page-reference" data-page-target="61-hai-cach-ua-may-vao-he-thong" title="Trang trong bản PDF chuẩn">18</span></a></li>
-<li><strong>Offline:</strong> <a href="#82-dung-tiep-tuc-va-huy"><span>8.2</span><span class="page-reference" data-page-target="82-dung-tiep-tuc-va-huy" title="Trang trong bản PDF chuẩn">22</span></a>; <a href="#d14-bang-loi-nhanh"><span>D.1.4</span><span class="page-reference" data-page-target="d14-bang-loi-nhanh" title="Trang trong bản PDF chuẩn">47</span></a></li>
+<li><strong>Offline:</strong> <a href="#82-dung-tiep-tuc-va-huy"><span>8.2</span><span class="page-reference" data-page-target="82-dung-tiep-tuc-va-huy" title="Trang trong bản PDF chuẩn">23</span></a>; <a href="#d14-bang-loi-nhanh"><span>D.1.4</span><span class="page-reference" data-page-target="d14-bang-loi-nhanh" title="Trang trong bản PDF chuẩn">48</span></a></li>
 <li><strong>PDF:</strong> <a href="#34-file-pdf-va-noi-dung-zpl"><span>3.4</span><span class="page-reference" data-page-target="34-file-pdf-va-noi-dung-zpl" title="Trang trong bản PDF chuẩn">12</span></a>; <a href="#63-kho-giay-va-cach-at-noi-dung-pdf"><span>6.3</span><span class="page-reference" data-page-target="63-kho-giay-va-cach-at-noi-dung-pdf" title="Trang trong bản PDF chuẩn">19</span></a></li>
-<li><strong>Quyền sử dụng máy:</strong> <a href="#71-chuan-bi-quyen-truoc-khi-gui"><span>7.1</span><span class="page-reference" data-page-target="71-chuan-bi-quyen-truoc-khi-gui" title="Trang trong bản PDF chuẩn">20</span></a>; <a href="#c31-quan-tri"><span>C.3.1</span><span class="page-reference" data-page-target="c31-quan-tri" title="Trang trong bản PDF chuẩn">44</span></a></li>
-<li><strong>Restore (phục hồi):</strong> <a href="#92-ban-sao-nao-u-cho-viec-phuc-hoi"><span>9.2</span><span class="page-reference" data-page-target="92-ban-sao-nao-u-cho-viec-phuc-hoi" title="Trang trong bản PDF chuẩn">24</span></a>; <a href="#d23-restore-co-kiem-soat"><span>D.2.3</span><span class="page-reference" data-page-target="d23-restore-co-kiem-soat" title="Trang trong bản PDF chuẩn">49</span></a></li>
-<li><strong>Resume (tiếp tục):</strong> <a href="#82-dung-tiep-tuc-va-huy"><span>8.2</span><span class="page-reference" data-page-target="82-dung-tiep-tuc-va-huy" title="Trang trong bản PDF chuẩn">22</span></a>; <a href="#d12-pause-resume-cancel"><span>D.1.2</span><span class="page-reference" data-page-target="d12-pause-resume-cancel" title="Trang trong bản PDF chuẩn">46</span></a></li>
-<li><strong>Rollback:</strong> <a href="#93-cap-nhat-mot-phien-ban-thong-nhat"><span>9.3</span><span class="page-reference" data-page-target="93-cap-nhat-mot-phien-ban-thong-nhat" title="Trang trong bản PDF chuẩn">25</span></a>; <a href="#d3-cap-nhat-va-quay-lai-phien-ban-truoc"><span>D.3</span><span class="page-reference" data-page-target="d3-cap-nhat-va-quay-lai-phien-ban-truoc" title="Trang trong bản PDF chuẩn">50</span></a></li>
+<li><strong>Quyền sử dụng máy:</strong> <a href="#71-chuan-bi-quyen-truoc-khi-gui"><span>7.1</span><span class="page-reference" data-page-target="71-chuan-bi-quyen-truoc-khi-gui" title="Trang trong bản PDF chuẩn">20</span></a>; <a href="#c31-quan-tri"><span>C.3.1</span><span class="page-reference" data-page-target="c31-quan-tri" title="Trang trong bản PDF chuẩn">45</span></a></li>
+<li><strong>Restore (phục hồi):</strong> <a href="#92-ban-sao-nao-u-cho-viec-phuc-hoi"><span>9.2</span><span class="page-reference" data-page-target="92-ban-sao-nao-u-cho-viec-phuc-hoi" title="Trang trong bản PDF chuẩn">25</span></a>; <a href="#d23-restore-co-kiem-soat"><span>D.2.3</span><span class="page-reference" data-page-target="d23-restore-co-kiem-soat" title="Trang trong bản PDF chuẩn">50</span></a></li>
+<li><strong>Resume (tiếp tục):</strong> <a href="#82-dung-tiep-tuc-va-huy"><span>8.2</span><span class="page-reference" data-page-target="82-dung-tiep-tuc-va-huy" title="Trang trong bản PDF chuẩn">23</span></a>; <a href="#d12-pause-resume-cancel"><span>D.1.2</span><span class="page-reference" data-page-target="d12-pause-resume-cancel" title="Trang trong bản PDF chuẩn">47</span></a></li>
+<li><strong>Rollback:</strong> <a href="#93-cap-nhat-mot-phien-ban-thong-nhat"><span>9.3</span><span class="page-reference" data-page-target="93-cap-nhat-mot-phien-ban-thong-nhat" title="Trang trong bản PDF chuẩn">26</span></a>; <a href="#d3-cap-nhat-va-quay-lai-phien-ban-truoc"><span>D.3</span><span class="page-reference" data-page-target="d3-cap-nhat-va-quay-lai-phien-ban-truoc" title="Trang trong bản PDF chuẩn">51</span></a></li>
 <li><strong>SessionStorage:</strong> <a href="#72-dung-trang-gui-thu"><span>7.2</span><span class="page-reference" data-page-target="72-dung-trang-gui-thu" title="Trang trong bản PDF chuẩn">20</span></a></li>
 <li><strong>Snapshot:</strong> <a href="#22-lenh-in-va-cau-hinh-giu-cho-lenh"><span>2.2</span><span class="page-reference" data-page-target="22-lenh-in-va-cau-hinh-giu-cho-lenh" title="Trang trong bản PDF chuẩn">9</span></a>; <a href="#64-sua-hoac-go-ang-ky"><span>6.4</span><span class="page-reference" data-page-target="64-sua-hoac-go-ang-ky" title="Trang trong bản PDF chuẩn">19</span></a></li>
-<li><strong>Thu hồi và đổi khóa:</strong> <a href="#71-chuan-bi-quyen-truoc-khi-gui"><span>7.1</span><span class="page-reference" data-page-target="71-chuan-bi-quyen-truoc-khi-gui" title="Trang trong bản PDF chuẩn">20</span></a>; <a href="#c31-quan-tri"><span>C.3.1</span><span class="page-reference" data-page-target="c31-quan-tri" title="Trang trong bản PDF chuẩn">44</span></a></li>
-<li><strong>TLS:</strong> <a href="#102-bao-ve-quyen-va-du-lieu"><span>10.2</span><span class="page-reference" data-page-target="102-bao-ve-quyen-va-du-lieu" title="Trang trong bản PDF chuẩn">27</span></a></li>
-<li><strong>Unknown (chưa rõ kết quả):</strong> <a href="#52-cac-trang-thai-can-phan-biet"><span>5.2</span><span class="page-reference" data-page-target="52-cac-trang-thai-can-phan-biet" title="Trang trong bản PDF chuẩn">14</span></a>; <a href="#83-oi-soat-chua-ro-ket-qua"><span>8.3</span><span class="page-reference" data-page-target="83-oi-soat-chua-ro-ket-qua" title="Trang trong bản PDF chuẩn">22</span></a></li>
-<li><strong>ZPL:</strong> <a href="#34-file-pdf-va-noi-dung-zpl"><span>3.4</span><span class="page-reference" data-page-target="34-file-pdf-va-noi-dung-zpl" title="Trang trong bản PDF chuẩn">12</span></a>; <a href="#c23-pdf-options-va-zpl"><span>C.2.3</span><span class="page-reference" data-page-target="c23-pdf-options-va-zpl" title="Trang trong bản PDF chuẩn">44</span></a></li>
+<li><strong>Thu hồi và đổi khóa:</strong> <a href="#71-chuan-bi-quyen-truoc-khi-gui"><span>7.1</span><span class="page-reference" data-page-target="71-chuan-bi-quyen-truoc-khi-gui" title="Trang trong bản PDF chuẩn">20</span></a>; <a href="#c31-quan-tri"><span>C.3.1</span><span class="page-reference" data-page-target="c31-quan-tri" title="Trang trong bản PDF chuẩn">45</span></a></li>
+<li><strong>TLS:</strong> <a href="#102-bao-ve-quyen-va-du-lieu"><span>10.2</span><span class="page-reference" data-page-target="102-bao-ve-quyen-va-du-lieu" title="Trang trong bản PDF chuẩn">28</span></a></li>
+<li><strong>Unknown (chưa rõ kết quả):</strong> <a href="#52-cac-trang-thai-can-phan-biet"><span>5.2</span><span class="page-reference" data-page-target="52-cac-trang-thai-can-phan-biet" title="Trang trong bản PDF chuẩn">14</span></a>; <a href="#83-oi-soat-chua-ro-ket-qua"><span>8.3</span><span class="page-reference" data-page-target="83-oi-soat-chua-ro-ket-qua" title="Trang trong bản PDF chuẩn">23</span></a></li>
+<li><strong>ZPL:</strong> <a href="#34-file-pdf-va-noi-dung-zpl"><span>3.4</span><span class="page-reference" data-page-target="34-file-pdf-va-noi-dung-zpl" title="Trang trong bản PDF chuẩn">12</span></a>; <a href="#c23-pdf-options-va-zpl"><span>C.2.3</span><span class="page-reference" data-page-target="c23-pdf-options-va-zpl" title="Trang trong bản PDF chuẩn">45</span></a></li>
 </ul>
 </nav></main><footer class="report-end">Nguồn: technical-report.md · Luong Nguyen · Print Appliance. Sơ đồ đã nhúng; không cần tải thư viện ngoài. Số trang tham chiếu PDF chuẩn đi kèm, không cam kết cho mọi thiết lập in HTML.</footer></div></body></html>

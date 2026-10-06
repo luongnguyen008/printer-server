@@ -72,7 +72,7 @@ def test_canonical_pdf_page_references_are_current():
         data["source_sha256"]
         == hashlib.sha256(SOURCE.read_text(encoding="utf-8").encode("utf-8")).hexdigest()
     )
-    assert data["document_version"] == "1.2"
+    assert data["document_version"] == "1.3"
     assert data["product_version"] == "0.1.5"
     assert 10 < data["page_count"] < 100
     assert all(isinstance(n, int) and 1 <= n <= data["page_count"] for n in data["pages"].values())
@@ -83,6 +83,21 @@ def test_canonical_pdf_page_references_are_current():
         )
     with SOURCE.with_suffix(".pdf").open("rb") as file:
         assert file.read(5) == b"%PDF-"
+
+
+def test_current_guide_features_and_example_addresses():
+    source = SOURCE.read_text()
+    assert "### 7.4 API Guide cho ứng dụng tích hợp" in source
+    assert "### 8.5 Đổi mật khẩu quản trị" in source
+    assert "/client#api-guide" in source
+    assert "`POST /admin/api/password`" in source
+    assert "9edebaaa0ba76ce1d4ec34491e99529f155fc19f" in source
+    assert "mọi IP/hostname trong tài liệu chỉ là ví dụ" in source
+    assert not re.search(r"\b192\.168\.\d+\.\d+\b", source)
+    assert "Giữ deployment SSH key và authorization" in source
+    html = SOURCE.with_suffix(".html").read_text()
+    assert "Tài liệu 1.3" in html
+    assert "Tài liệu 1.2" not in html
 
 
 def test_pdf_checkout_preserves_binary_bytes():

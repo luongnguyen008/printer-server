@@ -3,12 +3,15 @@
 **Thiết bị tiếp nhận, điều phối và quản lý in trong mạng nội bộ**
 
 - **Mã tài liệu:** PA-TECH-VI.
-- **Phiên bản tài liệu:** 1.2.
-- **Ngày phát hành:** 04/10/2026.
+- **Phiên bản tài liệu:** 1.3.
+- **Ngày phát hành:** 06/10/2026.
 - **Tác giả / đơn vị biên soạn:** Luong Nguyen · Print Appliance.
 - **Phiên bản sản phẩm được mô tả:** 0.1.5.
+- **Mốc chức năng đã triển khai:** `9edebaaa0ba76ce1d4ec34491e99529f155fc19f` (06/10/2026).
 - **Ngôn ngữ:** Tiếng Việt.
 - **Kho mã nguồn:** https://github.com/luongnguyen008/printer-server.
+
+**Quy ước địa chỉ:** mọi IP/hostname trong tài liệu chỉ là ví dụ, không xác nhận địa chỉ của thiết bị đã triển khai. `192.0.2.10` minh họa appliance, `192.0.2.20` minh họa máy in; thay bằng địa chỉ do quản trị cung cấp. `127.0.0.1` là loopback của máy đang chạy lệnh, không phải IP truy cập Pi từ máy khác.
 
 Tài liệu dành cho người tiếp nhận hệ thống, người quản trị và đơn vị muốn kết nối ứng dụng của mình với thiết bị in. Phần chính giải thích tổng thể theo luồng; các lệnh cài đặt và ví dụ kỹ thuật nằm ở phụ lục.
 
@@ -27,8 +30,9 @@ Tài liệu dành cho người tiếp nhận hệ thống, người quản trị
 | 1.0 | 04/10/2026 | Luong Nguyen | Hướng dẫn đầu tiên: tổng thể, cài đặt, API và vận hành. Mốc tài liệu: bdb1c2b. |
 | 1.1 | 04/10/2026 | Luong Nguyen | Bổ sung 10 sơ đồ luồng và hình SVG đọc offline. Mốc tài liệu: 4e37b18. |
 | 1.2 | 04/10/2026 | Luong Nguyen | Chuẩn hóa cấu trúc tài liệu; viết hướng dẫn theo luồng; giới thiệu khái niệm trước khi sử dụng; bỏ hướng dẫn lập trình/test/build; chuyển lệnh cài đặt và vận hành sang phụ lục; bổ sung PDF và tra cứu số trang. |
+| 1.3 | 06/10/2026 | Luong Nguyen | Đồng bộ bản React offline đã triển khai: API Guide theo tác vụ trên Client/Admin, đổi mật khẩu và thu hồi mọi phiên quản trị; chuẩn hóa ví dụ địa chỉ, mốc kiểm tra và quy tắc giữ SSH key. |
 
-Phiên bản tài liệu và phiên bản phần mềm là hai thông tin khác nhau. Bản 1.2 thay cách giải thích và trình bày; không nâng phần mềm trên thiết bị. Tài liệu được biên soạn có hỗ trợ công cụ trí tuệ nhân tạo (AI) và đối chiếu với mã nguồn, tài liệu dự án cùng các kết quả kiểm tra đã ghi nhận.
+Phiên bản tài liệu và phiên bản phần mềm là hai thông tin khác nhau. Bản 1.3 mô tả chức năng ở commit `9edebaa`, vẫn mang phiên bản sản phẩm 0.1.5. Commit chỉ cập nhật tài liệu có thể mới hơn mốc chức năng; đọc `SOURCE_COMMIT` để biết commit thực tế trên thiết bị. Tài liệu được biên soạn có hỗ trợ công cụ trí tuệ nhân tạo (AI) và đối chiếu với mã nguồn, tài liệu dự án cùng các kết quả kiểm tra đã ghi nhận.
 
 <h2 id="table-of-contents" class="front-title">Mục lục</h2>
 
@@ -64,11 +68,13 @@ Phiên bản tài liệu và phiên bản phần mềm là hai thông tin khác 
     - [7.1 Chuẩn bị quyền trước khi gửi](#71-chuan-bi-quyen-truoc-khi-gui)
     - [7.2 Dùng trang gửi thử](#72-dung-trang-gui-thu)
     - [7.3 Nếu mất phản hồi hoặc tải lại trang](#73-neu-mat-phan-hoi-hoac-tai-lai-trang)
+    - [7.4 API Guide cho ứng dụng tích hợp](#74-api-guide-cho-ung-dung-tich-hop)
 - [8. Vận hành và xử lý tình huống bất thường](#8-van-hanh-va-xu-ly-tinh-huong-bat-thuong)
     - [8.1 Kiểm tra hàng ngày](#81-kiem-tra-hang-ngay)
     - [8.2 Dừng, tiếp tục và hủy](#82-dung-tiep-tuc-va-huy)
     - [8.3 Đối soát chưa rõ kết quả](#83-oi-soat-chua-ro-ket-qua)
     - [8.4 Tra cứu lỗi theo nhóm](#84-tra-cuu-loi-theo-nhom)
+    - [8.5 Đổi mật khẩu quản trị](#85-oi-mat-khau-quan-tri)
 - [9. Sao lưu, cập nhật và phục hồi](#9-sao-luu-cap-nhat-va-phuc-hoi)
     - [9.1 Trước mọi thay đổi bảo trì](#91-truoc-moi-thay-oi-bao-tri)
     - [9.2 Bản sao nào đủ cho việc phục hồi?](#92-ban-sao-nao-u-cho-viec-phuc-hoi)
@@ -486,7 +492,7 @@ Không có quyền máy thì client vẫn có thể xác thực nhưng không c�
 
 Trang quản trị ở `/`; trang gửi thử ở `/client`. Dấu `/` biểu thị đường dẫn trên cùng địa chỉ web của thiết bị. Trang gửi thử dùng khóa client, không dùng mật khẩu quản trị.
 
-Dùng địa chỉ thiết bị do người quản trị cung cấp. Ví dụ `http://192.168.88.228:8081/` là trang quản trị, thêm `client` sau dấu `/` để mở trang gửi thử; IP này chỉ là ví dụ.
+Dùng địa chỉ thiết bị do người quản trị cung cấp. Ví dụ `http://192.0.2.10:8081/` là trang quản trị, thêm `client` sau dấu `/` để mở trang gửi thử; IP này chỉ là ví dụ.
 
 1. Mở trang `/client`, nhập khóa truy cập và bấm **Kết nối**.
 2. Chọn một máy được cấp. Danh sách rỗng thì kiểm quyền, không đổi khóa vô cớ.
@@ -508,9 +514,22 @@ _Hình 7 — Kết nối, quyền sử dụng máy và kết quả in là ba đi
 
 ### 7.3 Nếu mất phản hồi hoặc tải lại trang
 
-Mất phản hồi không chứng minh thiết bị chưa nhận. Khi còn giữ tab và dữ liệu gốc, dùng chức năng gửi lại cùng yêu cầu: mã, file và tham số không đổi.
+Mất phản hồi không chứng minh thiết bị chưa nhận. Khi còn giữ tab và dữ liệu gốc, dùng **Gửi lại cùng yêu cầu**: mã, file và tham số không đổi. Chuyển giữa **In tài liệu** và **API Guide** vẫn giữ file, lựa chọn và yêu cầu chưa xác nhận trong bộ nhớ; không tự gửi lại lệnh.
 
 Tải lại chỉ giữ kết nối, không giữ an toàn giao dịch đang gửi. Nếu mất dữ liệu request, kiểm tra lịch sử và nhờ quản trị đối soát trước khi tạo thao tác in mới. Không tự đổi mã yêu cầu để vượt một xung đột.
+
+<a name="74-api-guide-cho-ung-dung-tich-hop" class="heading-anchor"></a>
+
+### 7.4 API Guide cho ứng dụng tích hợp
+
+Mở tab **API Guide** trên trang Client, hoặc vào thẳng `/client#api-guide`; không cần nhập key để đọc. Trang quản trị cũng có cùng hướng dẫn. Nội dung là ví dụ giả được đóng gói sẵn, không lấy dữ liệu máy hay lệnh thật.
+
+1. Mở **Thiết lập cURL**, sao chép biến môi trường và thay placeholder trên máy tích hợp; không nhập key thật vào hướng dẫn.
+2. Chọn tác vụ **Chọn máy in → Xem tùy chọn in → Gửi file → Theo dõi lệnh**. **Xem lịch sử** và **Hủy lệnh** là hai tác vụ riêng.
+3. Kiểm trường bắt buộc, sao chép cURL, rồi đối chiếu response. Ví dụ gửi file có PDF/ZPL và hai kết quả: lệnh mới 202 hoặc nhận lại cùng yêu cầu 200.
+4. Mở **Mã lỗi** hoặc **Schema & chi tiết kỹ thuật** khi cần. Trên mobile, mở **Tham số request** để xem nhóm trường đang thu gọn.
+
+Hướng dẫn không có chức năng gọi thử API. Chạy cURL trên máy tích hợp có thể in hoặc hủy lệnh thật. Tạo REQUEST_ID một lần; khi mất phản hồi chỉ gửi lại cùng ID, file, filename và mọi trường, không dùng tự động retry hoặc đổi ID để thử. Nếu nút sao chép chỉ chọn code trên HTTP, dùng Ctrl+C hoặc ⌘C.
 
 <a name="8-van-hanh-va-xu-ly-tinh-huong-bat-thuong" class="heading-anchor"></a>
 
@@ -555,6 +574,16 @@ _Hình 8 — Danh tính và kết quả đều phải được xác minh. Unknow
 Không mở được web: kiểm địa chỉ thiết bị, mạng và service. Không thấy máy trên trang client: kiểm quyền máy trước khi đổi khóa. Không thấy driver: kiểm package đúng dòng máy và kiến trúc. Lệnh bị giữ: đọc lý do, cấu hình và snapshot. Lệnh unknown: dùng đối soát, không gửi lại.
 
 **Mã lỗi** giúp chọn bước kiểm tiếp theo, không thay việc đọc lý do cụ thể. Phụ lục C giải thích lỗi API; phụ lục D có bảng tra cứu và các lệnh chẩn đoán.
+
+<a name="85-oi-mat-khau-quan-tri" class="heading-anchor"></a>
+
+### 8.5 Đổi mật khẩu quản trị
+
+Vào **Cấu hình → Đổi mật khẩu quản trị**. Nhập mật khẩu hiện tại, mật khẩu mới 12–1024 ký tự khác mật khẩu cũ và xác nhận trùng khớp. Khoảng trắng không tự bị cắt.
+
+Thành công sẽ đăng xuất **mọi phiên quản trị**; đăng nhập lại bằng mật khẩu mới. API key client, máy và lệnh in không đổi. Năm lần kiểm sai mật khẩu hiện tại trong năm phút sẽ khóa kiểm tra mật khẩu và đăng nhập năm phút.
+
+Form xóa nội dung khi gửi hoặc rời tab, không lưu vào browser storage và không tự gửi lại. Nếu mất phản hồi, xác minh bằng đăng nhập thay vì gửi lại thao tác đổi mật khẩu. Quên mật khẩu thì nhờ người có quyền SSH dùng CLI ở phụ lục D. HTTP không mã hóa mật khẩu; chỉ dùng LAN đáng tin cậy hoặc HTTPS.
 
 <a name="9-sao-luu-cap-nhat-va-phuc-hoi" class="heading-anchor"></a>
 
@@ -626,7 +655,11 @@ Chỉ cấp quyền gửi file cho ứng dụng đáng tin. Driver là phần m�
 
 ### 10.3 Những gì đã kiểm và việc còn phải nghiệm thu
 
-Đã kiểm phần mềm bằng thử nghiệm tự động, giao diện trình duyệt và các lần triển khai trên EDATEC. Đã xác minh khả năng đọc cấu hình CUPS và dữ liệu đối soát. Người dùng báo Canon LBP6230dw đã in ra giấy; đây là xác nhận người dùng, không phải quan sát tự động của toàn bộ thử nghiệm.
+Mốc chức năng `9edebaa` đã triển khai trên Raspberry Pi/EDATEC ngày 06/10/2026; địa chỉ truy cập thực tế do quản trị thiết bị cung cấp. Giao diện React và các thư viện cần thiết nằm trong wheel, dùng offline; thiết bị không cần Node hoặc CDN. Trang quản trị có sáu tab; Client có **In tài liệu / API Guide**.
+
+Đã kiểm 124 test Python, sáu bộ kiểm tra trình duyệt qua wheel cài riêng và cURL/schema của hướng dẫn. Test mất phản hồi rồi gửi lại cùng ID chỉ tạo một lệnh lưu bền, dùng FakeCups với worker tắt. Test đổi mật khẩu/thu hồi phiên dùng dữ liệu và mật khẩu tạm, không đổi mật khẩu thật trên Pi.
+
+Sau triển khai đã đối chiếu commit, hash package/asset, CSP chỉ dùng nguồn tại chỗ và dữ liệu/cấu hình CUPS giữ nguyên. Giao diện Client công khai được kiểm tra desktop/mobile không đăng nhập; phần quản trị dùng GET giả lập để kiểm hiển thị, không phải kiểm đăng nhập thật. Không gửi lệnh in mới trong lần cập nhật này. Đã xác minh khả năng đọc cấu hình CUPS và dữ liệu đối soát. Người dùng báo Canon LBP6230dw đã in ra giấy; đây là xác nhận người dùng, không phải quan sát tự động của toàn bộ thử nghiệm.
 
 Vẫn cần nghiệm thu theo dòng máy và nơi triển khai: PDF/ZPL thực tế, số bản, duplex, scaling, lỗi giấy, mất kết nối, restart, mất điện, hủy sau giao và backup/rollback. **Scaling** là cách điều chỉnh tỷ lệ nội dung, đã giải thích bằng fit/fill ở mục 6.
 
@@ -703,7 +736,7 @@ Các tên cần biết trước khi chạy lệnh: **Debian** là bản phân ph
 Mac, Terminal:
 
 ```bash
-ApplianceHost=192.168.88.228
+ApplianceHost=192.0.2.10
 SshUser=pi
 SshTarget="$SshUser@$ApplianceHost"
 ssh "$SshTarget"
@@ -712,7 +745,7 @@ ssh "$SshTarget"
 Windows, PowerShell: kiểm tra `ssh` và `scp` có sẵn bằng `Get-Command ssh, scp`. Nếu chưa có, mở phần Optional features (Tính năng tùy chọn) của Windows và cài **OpenSSH Client** rồi mở PowerShell mới. Sau đó:
 
 ```powershell
-$ApplianceHost = '192.168.88.228'
+$ApplianceHost = '192.0.2.10'
 $SshUser = 'pi'
 $SshTarget = "$SshUser@$ApplianceHost"
 ssh $SshTarget
@@ -799,7 +832,7 @@ sudo install -d -o root -g print-appliance -m 0750 /opt/print-appliance
 Các lệnh sau chạy trong SSH Linux. Không cần build hay chuyển gói từ Mac/Windows. **Commit** là một mốc mã nguồn cụ thể; đoạn dưới chọn mốc sản phẩm 0.1.5 đã được hướng dẫn này mô tả để không vô tình cài phiên bản khác về sau.
 
 ```bash
-APP_COMMIT=056e2e7823d8e4579a02aab027d6a2dad678549f
+APP_COMMIT=9edebaaa0ba76ce1d4ec34491e99529f155fc19f
 sudo git clone https://github.com/luongnguyen008/printer-server.git /opt/print-appliance/source
 sudo git -C /opt/print-appliance/source checkout --detach "$APP_COMMIT"
 sudo /usr/bin/python3 -m venv --system-site-packages /opt/print-appliance/.venv
@@ -897,7 +930,7 @@ Nhập drop-in, thay IP bằng địa chỉ đã reservation:
 
 ```ini
 [Service]
-Environment=PRINT_APPLIANCE_HOST=192.168.88.228
+Environment=PRINT_APPLIANCE_HOST=192.0.2.10
 Environment=PRINT_APPLIANCE_SECURE_COOKIE=0
 ```
 
@@ -944,16 +977,16 @@ Không mặc nhiên thay queue cũ hoặc driver đang dùng. Hướng dẫn cà
 Trên Windows:
 
 ```powershell
-Test-NetConnection 192.168.88.210 -Port 9100
-Test-NetConnection 192.168.88.210 -Port 631
+Test-NetConnection 192.0.2.20 -Port 9100
+Test-NetConnection 192.0.2.20 -Port 631
 ```
 
 Trên Mac/WSL:
 
 ```bash
-ping -c 3 192.168.88.210
-nc -vz -w 3 192.168.88.210 9100
-nc -vz -w 3 192.168.88.210 631
+ping -c 3 192.0.2.20
+nc -vz -w 3 192.0.2.20 9100
+nc -vz -w 3 192.0.2.20 631
 ```
 
 `nc` có thể cần package riêng trong WSL. Kiểm tra quan trọng nhất vẫn là **từ appliance tới máy in**, vì máy cá nhân kết nối được không chứng minh EDATEC kết nối được. Port đóng không luôn là lỗi: model có thể chỉ hỗ trợ một giao thức. Ping bị chặn cũng không chứng minh máy offline.
@@ -1159,7 +1192,7 @@ Job chưa kết thúc tính cả `unknown`. Khi hàng đợi đầy hoặc disk 
 
 ### C.1 — API client: hợp đồng và kết quả
 
-Base URL mẫu: `http://192.168.88.228:8081`. Mọi API client cần:
+Base URL mẫu: `http://192.0.2.10:8081`. Mọi API client cần:
 
 ```text
 Authorization: Bearer <API_KEY>
@@ -1285,7 +1318,7 @@ Các ví dụ sau gửi **một file đã có**. Không dùng PDF giả chỉ g�
 Trong Terminal, dùng Bash để đọc key không echo (nếu Terminal đang chạy zsh thì gõ `bash` trước):
 
 ```bash
-BaseUrl=http://192.168.88.228:8081
+BaseUrl=http://192.0.2.10:8081
 read -r -s -p 'Client API key: ' ApiKey
 printf '\n'
 curl -sS "$BaseUrl/api/v1/printers" -H "Authorization: Bearer $ApiKey"
@@ -1354,7 +1387,7 @@ unset ApiKey
 Dùng `curl.exe`, không `curl` alias của Windows PowerShell 5.1. Không dùng cú pháp `export`, `read` hoặc dấu `\` nối dòng của Bash trong PowerShell.
 
 ```powershell
-$BaseUrl = 'http://192.168.88.228:8081'
+$BaseUrl = 'http://192.0.2.10:8081'
 $Secret = Read-Host 'Client API key' -AsSecureString
 $Ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Secret)
 try { $ApiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($Ptr) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($Ptr) }
@@ -1428,7 +1461,7 @@ Admin dùng cookie `pa_admin`, session phía server hết hạn sau 8 giờ và 
 
 | Nhóm | Route chính |
 | --- | --- |
-| Auth | `POST /admin/api/login`, `GET /admin/api/session`, `POST /admin/api/logout` |
+| Auth | `POST /admin/api/login`, `GET /admin/api/session`, `POST /admin/api/logout`, `POST /admin/api/password` |
 | Status | `GET /admin/api/status`, `/discovery`, `/audit?limit=100` |
 | Printer | `GET/POST /admin/api/printers`, `GET/PUT/DELETE .../{id}`, `GET .../{id}/capabilities`, `POST .../import`, `POST .../{id}/pause`, `.../resume` |
 | Client | `GET/POST /admin/api/clients`, `GET/PUT/DELETE .../{id}`, `PUT .../{id}/printers`, `POST .../{id}/rotate-key`, `.../revoke` |
@@ -1436,6 +1469,8 @@ Admin dùng cookie `pa_admin`, session phía server hết hạn sau 8 giờ và 
 | Settings | `GET/PUT /admin/api/settings` |
 
 `PUT` client với `printer_ids` thay toàn bộ grant list. Nếu chỉ đổi tên, chỉ gửi `{"name":"..."}` để tránh ghi lại grants cũ sau một thu hồi đồng thời. Key không xuất hiện trong list/history/audit. Resolve cần `outcome` terminal và reason 8–1000 ký tự, không submit lại.
+
+`POST /admin/api/password` dùng session và CSRF, body có `current_password`, `new_password`, `confirm_password`. Mật khẩu mới 12–1024 ký tự, khác hiện tại và khớp xác nhận. Thành công trả 200 với `authenticated:false`, xóa cookie và thu hồi mọi session; sai mật khẩu hiện tại trả 400 giữ session, lỗi trường 422, khóa kiểm tra 429. Không tự gửi lại nếu mất phản hồi; xác minh bằng đăng nhập.
 
 Thường dùng UI cho admin để khỏi tự giữ cookie/CSRF. Client tích hợp nghiệp vụ chỉ dùng API client. Không gọi SQL trực tiếp như một API quản trị.
 
@@ -1703,7 +1738,7 @@ sudo env VIRTUAL_ENV=/opt/print-appliance/.venv /opt/print-appliance/tools/uv sy
 
 Nếu đã có migration hoặc dữ liệu không tương thích, dùng kế hoạch phục hồi dữ liệu có đối soát ở D.2, không áp rollback phần mềm để thử. Đặc biệt không hạ 0.1.2+ về 0.1.1 trên DB có soft-delete. Không phục hồi backup cũ nếu chưa đối soát các lệnh nhận sau backup. Internet hoặc các gói cài được lưu sẵn có thể cần để cài lại môi trường.
 
-Sau xác minh mới start và cập nhật SOURCE_COMMIT. Dọn chính SSH key tạm đã tạo cho việc bảo trì nếu có, giữ các key khác. Không đưa token GitHub cá nhân lên thiết bị cho repository public.
+Sau xác minh mới start và cập nhật SOURCE_COMMIT. Giữ deployment SSH key và authorization cho đến khi chủ thiết bị yêu cầu xóa; không tự dọn key sau cập nhật. Chỉ dọn staging tạm sau kiểm tra thành công, giữ wheel rollback và backup được bảo vệ. Không đưa token GitHub cá nhân lên thiết bị cho repository public.
 
 <a name="phu-luc-e-thuat-ngu-va-viet-tat-bo-sung" class="heading-anchor"></a>
 
@@ -1789,16 +1824,16 @@ Mã nguồn chỉ cần cài Git rồi clone theo phụ lục A.1. Tài liệu n
 
 Hướng dẫn có thể đọc độc lập. Các nguồn dưới đây phục vụ kiểm chứng và bảo trì, không phải yêu cầu người đọc phải mở thêm để hiểu phần chính. Mốc phần mềm được đối chiếu là 0.1.5; các kết quả triển khai và in giấy được phân biệt với kiểm thử giả lập.
 
-1. **Mã nguồn Print Appliance**, mốc `056e2e7`: [repository theo commit](https://github.com/luongnguyen008/printer-server/tree/056e2e7823d8e4579a02aab027d6a2dad678549f). Nguồn xác định API, cấu hình và hành vi đã triển khai.
-2. **Thuật ngữ miền nghiệp vụ**: [CONTEXT.md](https://github.com/luongnguyen008/printer-server/blob/056e2e7823d8e4579a02aab027d6a2dad678549f/CONTEXT.md). Cơ sở phân biệt client, máy đăng ký, lệnh, snapshot, completed và unknown.
-3. **Quyết định kiến trúc**: [ADR về appliance và CUPS](https://github.com/luongnguyen008/printer-server/blob/056e2e7823d8e4579a02aab027d6a2dad678549f/docs/adr/0001-local-appliance-and-cups.md). Nguồn phạm vi LAN và giới hạn giao dịch với máy in vật lý.
+1. **Mã nguồn Print Appliance**, mốc `9edebaa`: [repository theo commit](https://github.com/luongnguyen008/printer-server/tree/9edebaaa0ba76ce1d4ec34491e99529f155fc19f). Nguồn xác định API, cấu hình và hành vi đã triển khai.
+2. **Thuật ngữ miền nghiệp vụ**: [CONTEXT.md](https://github.com/luongnguyen008/printer-server/blob/9edebaaa0ba76ce1d4ec34491e99529f155fc19f/CONTEXT.md). Cơ sở phân biệt client, máy đăng ký, lệnh, snapshot, completed và unknown.
+3. **Quyết định kiến trúc**: [ADR về appliance và CUPS](https://github.com/luongnguyen008/printer-server/blob/9edebaaa0ba76ce1d4ec34491e99529f155fc19f/docs/adr/0001-local-appliance-and-cups.md). Nguồn phạm vi LAN và giới hạn giao dịch với máy in vật lý.
 4. **CUPS/OpenPrinting**: [CUPS](https://openprinting.github.io/cups/) và [pycups](https://github.com/OpenPrinting/pycups). Nguồn hệ thống in và thư viện kết nối; không thay kiểm quyền trên thiết bị thực.
 5. **Canon UFRII LT V5.10**: [bundle đã được kiểm tra](https://pdisp01.c-wss.com/gdl/WWUFORedirectTarget.do?id=MDEwMDAwNTk1MDEx&cmp=ACB&lang=EN). Kiểm package ARM64 và PPD model trước cài; download có thể thay đổi và chịu license Canon.
 6. **uv**: [tài liệu chính thức](https://docs.astral.sh/uv/). Nguồn quản lý Python, môi trường và dependencies có khóa phiên bản.
 7. **Microsoft WSL**: [hướng dẫn cài WSL](https://learn.microsoft.com/windows/wsl/install). Nguồn điều kiện Windows/WSL; không phải chứng nhận in qua USB trong WSL.
 8. **Tài liệu dự án và kết quả kiểm tra**: design/API/operations/verification theo mốc phần mềm trong repository. Hướng dẫn nêu rõ kiểm thử local, đọc CUPS thật và kết quả giấy do người dùng xác nhận.
 
-Ngày biên soạn/đối chiếu: 04/10/2026. Quyền sử dụng mã ứng dụng, dependency và driver là các quyền riêng; xem license của chủ repository trước tái phân phối.
+Ngày cập nhật/đối chiếu: 06/10/2026. Quyền sử dụng mã ứng dụng, dependency và driver là các quyền riêng; xem license của chủ repository trước tái phân phối.
 
 <a name="chi-muc-tra-cuu" class="heading-anchor"></a>
 
@@ -1808,6 +1843,7 @@ Chỉ mục chọn các khái niệm quan trọng, sắp theo chữ cái. Liên 
 
 <!-- BEGIN INDEX -->
 - **API:** [3.1](#31-ung-dung-gui-yeu-cau-qua-au); [C.1](#c1-api-client-hop-ong-va-ket-qua)
+- **API Guide:** [7.4](#74-api-guide-cho-ung-dung-tich-hop)
 - **API key (khóa truy cập):** [2.3](#23-khoa-truy-cap-va-hai-loai-ma); [7.1](#71-chuan-bi-quyen-truoc-khi-gui)
 - **Backup (sao lưu):** [9.2](#92-ban-sao-nao-u-cho-viec-phuc-hoi); [D.2](#d2-sao-luu-va-phuc-hoi)
 - **Capability (khả năng in):** [6.2](#62-kha-nang-mac-inh-va-quyen-lua-chon); [B.2](#b2-tuy-chon-in-theo-capability)
@@ -1815,6 +1851,7 @@ Chỉ mục chọn các khái niệm quan trọng, sắp theo chữ cái. Liên 
 - **Completed (hoàn thành):** [5.2](#52-cac-trang-thai-can-phan-biet); [10.1](#101-nhung-bao-am-can-hieu-ung)
 - **Correlation (dấu đối soát):** [5.3](#53-giao-xuong-cups-va-theo-doi); [8.3](#83-oi-soat-chua-ro-ket-qua)
 - **CUPS:** [3.2](#32-phan-mem-nao-noi-chuyen-voi-may-in); [5.3](#53-giao-xuong-cups-va-theo-doi)
+- **Đổi mật khẩu quản trị:** [8.5](#85-oi-mat-khau-quan-tri); [C.3.1](#c31-quan-tri)
 - **Driver:** [3.2](#32-phan-mem-nao-noi-chuyen-voi-may-in); [B.1.2](#b12-driver-canon-lbp6230dw-tren-arm64)
 - **Dữ liệu bền vững:** [3.3](#33-du-lieu-va-hai-uong-truy-cap); [5.1](#51-tiep-nhan-va-chong-gui-trung)
 - **Duplex (in hai mặt):** [6.2](#62-kha-nang-mac-inh-va-quyen-lua-chon); [B.2.1](#b21-kho-giay-duplex-va-can-pdf)

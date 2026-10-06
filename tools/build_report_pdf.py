@@ -146,7 +146,7 @@ def main() -> None:
                 if i:
                     sheet.insert_text(
                         (40, 26),
-                        "Print Appliance | User Guide 1.2",
+                        "Print Appliance | User Guide 1.3",
                         fontsize=8,
                         color=(0.33, 0.38, 0.43),
                     )
@@ -166,7 +166,7 @@ def main() -> None:
                 {
                     "title": "Hướng dẫn cài đặt, sử dụng và vận hành — Print Appliance",
                     "author": "Luong Nguyen · Print Appliance",
-                    "subject": "Tài liệu 1.2; sản phẩm 0.1.5; phát hành 04/10/2026",
+                    "subject": "Tài liệu 1.3; sản phẩm 0.1.5; phát hành 06/10/2026",
                     "creator": "Print Appliance documentation tools",
                 }
             )
@@ -181,7 +181,7 @@ def main() -> None:
         map_file.write_text(
             json.dumps(
                 {
-                    "document_version": "1.2",
+                    "document_version": "1.3",
                     "product_version": "0.1.5",
                     "source_sha256": hashlib.sha256(
                         source.read_text(encoding="utf-8").encode("utf-8")

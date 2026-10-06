@@ -2,9 +2,24 @@
 
 ## Current deployment
 
-EDATEC dùng Debian 12 ARM64/Python 3.11, `print-appliance` trên LAN `192.168.88.228:8081`. IP là cấu hình triển khai, không hardcode trong sản phẩm. Gateway cũ đã gỡ có phép và sao lưu riêng; giữ nguyên CUPS/driver/queue hiện có. Canon LBP6230dw dùng Canon UFRII LT ARM64/CNRCUPSLBP6230ZNK.ppd; người dùng xác nhận in ra giấy. Đọc được trạng thái/schema không thay thế test duplex/offline/copies/cancel trên phần cứng.
+EDATEC/Raspberry Pi dùng Debian 12 ARM64/Python 3.11, service `print-appliance` trên LAN đã được phép. Mọi IP/hostname trong tài liệu chỉ là ví dụ, không phải địa chỉ đúng của thiết bị. Lấy địa chỉ thực từ quản trị để thay `<APPLIANCE_IP>` trong `http://<APPLIANCE_IP>:8081`; IP/bind là cấu hình triển khai, không hardcode trong sản phẩm. Gateway cũ đã gỡ có phép và sao lưu riêng; giữ nguyên CUPS/driver/queue hiện có. Canon LBP6230dw dùng Canon UFRII LT ARM64/CNRCUPSLBP6230ZNK.ppd; người dùng xác nhận in ra giấy. Đọc được trạng thái/schema không thay thế test duplex/offline/copies/cancel trên phần cứng.
 
 Đổi input macOS sang ABC/U.S. khi nhập mật khẩu SSH. Không đăng credentials, backup/API key lên Git/log/chat. Xem [Git deployment](git-deployment.md): cùng commit và wheel trên Mac/EDATEC.
+
+Mốc chức năng đã kiểm ngày 06/10/2026 là `9edebaa` (sản phẩm 0.1.5): UI React offline, đổi mật khẩu và API Guide theo tác vụ. Commit tài liệu có thể mới hơn mà package runtime không đổi; đọc `/opt/print-appliance/SOURCE_COMMIT` để biết commit đang chạy. Xem [verification](verification.md) cho bằng chứng local và kiểm tra Pi tách biệt.
+
+## Web và hướng dẫn tích hợp
+
+- Trang quản trị `/` có sáu tab: Tổng quan, Máy in, Clients, Lệnh in, Cấu hình, API Guide.
+- Trang Client `/client` có **In tài liệu / API Guide**. `/client#api-guide` đọc được trước khi nhập key, chỉ dùng ví dụ giả; không lấy dữ liệu thật hay gọi thử API.
+- Hướng dẫn có sáu tác vụ với request/cURL/response, các phần schema/lỗi mở khi cần. Chuyển tab giữ file và yêu cầu chưa xác nhận trong bộ nhớ; tải lại không khôi phục chúng. Không tạo ID mới để thử lại một kết quả chưa rõ.
+- Mở [hướng dẫn sử dụng](technical-report.md), [HTML offline](technical-report.html) hoặc [PDF chuẩn](technical-report.pdf). Số trang HTML tham chiếu PDF đi kèm.
+
+## Đổi mật khẩu và quyền truy cập
+
+Vào **Cấu hình → Đổi mật khẩu quản trị**: nhập mật khẩu hiện tại, mật khẩu mới 12–1024 ký tự khác mật khẩu cũ và xác nhận. Thành công đăng xuất mọi session quản trị; API key client và lệnh in giữ nguyên. Năm lần kiểm sai trong năm phút khóa kiểm tra/đăng nhập năm phút. Form xóa nội dung khi gửi hoặc rời tab; nếu mất phản hồi hãy xác minh bằng đăng nhập, không gửi lại tự động. Quên mật khẩu dùng CLI `print-appliance admin-password` như trong README/hướng dẫn, không sửa trực tiếp SQLite.
+
+Giữ deployment SSH key và authorization cho tới khi chủ thiết bị yêu cầu xóa. SSH key, mật khẩu quản trị web và API key client là ba quyền khác nhau. Không ghi key/password vào URL, ví dụ, Git hoặc log.
 
 ## Before deployment
 

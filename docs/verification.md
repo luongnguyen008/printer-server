@@ -1,5 +1,20 @@
 # Verification history
 
+All IP addresses/hostnames below are illustrative, not the deployed device's authoritative address. `127.0.0.1` is loopback on the machine running a test. Obtain the actual LAN URL from the appliance administrator.
+
+## React, password and task-first Client Guide — 2026-10-06
+
+Functional checkpoint: `9edebaaa0ba76ce1d4ec34491e99529f155fc19f` (product version remains 0.1.5). Historical records below retain their original counts and limitations; they are not the current release status. A subsequent docs-only deployment can have a newer `SOURCE_COMMIT` with identical runtime package bytes.
+
+Local checks passed: 124 pytest tests, Ruff, deterministic `npm run build:check`, wheel/sdist build and six browser suites (`admin-ui`, `admin-safety`, `client-ui`, `client-safety`, `api-guide`, `password-ui`) through a separately installed wheel's real FastAPI asset/CSP routes. One upstream Starlette/TestClient deprecation warning remains.
+
+- Real disposable FastAPI/SQLite with explicit FakeCups and worker disabled: discard an accepted response, explicitly retry the original ID/content, assert exactly one durable queued job and one idempotency row, no CUPS ID/handoff. No automatic retry or file restoration.
+- Password checks: current/new/confirmation validation, atomic change/all-session revocation, no credential echo/storage, old password rejected and new accepted; only disposable credentials/data, never production passwords.
+- Guide checks: six tasks in admin and unauthenticated `/client#api-guide`, required fields and standalone schemas/errors, PDF/ZPL cURL parsed with `bash -n`, 202/200 examples, safe Base URL, copy/HTTP fallback, search, hash/keyboard navigation and 320–1280px layouts. Guide interactions made zero client API calls/mutations/external requests.
+- Switching Client tabs while choosing a file, during an outstanding POST and after a 503/408 preserved the immutable file/options/request ID; guide controls stayed available and examples never received the connected key. 401 purge and BFCache clearing remain covered.
+
+Pi activation verified source/release identifier parity, complete installed/served asset hashes, self-only CSP, unauthenticated API rejection, SQLite integrity and unchanged entity/admin/settings, CUPS/PPD and service configuration fingerprints. Service-account discovery listed five queues and no active CUPS jobs. Live desktop/mobile checks exercised the public Client Guide without credentials; protected admin guide/password rendering used mocked GETs, not real production login. No production password change, print submission, queue mutation or new hardware acceptance was performed. Backups/rollback wheels and deployment SSH authorization were retained.
+
 ## Tab-scoped client session — 0.1.5
 
 Client key now uses sessionStorage, replacing the earlier reset-on-reload behavior. Browser coverage: same-key auto-connect on reload/back-forward lifecycle, no automatic POST/file restoration, disconnect/401 removal, revoked stored key, transient 503 preserving the saved key, corrupt key removal and storage-denied memory-only fallback. Existing immutable same-ID retry, scoped options and admin browser cases still apply. API/server authentication and database schema are unchanged.

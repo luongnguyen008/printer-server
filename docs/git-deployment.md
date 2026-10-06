@@ -17,7 +17,9 @@ A matching source checkout is not enough: verify the installed package assets/mo
 
 The installation currently uses Debian 12 ARM64/Python 3.11 with a system-site-packages venv for the distro's pycups binding. Read-only CUPS listing/discovery works under the non-root service account. Printer creation, physical printing, hold/release/cancel and Canon-specific driver support remain separate acceptance gates.
 
-The staged listener was deliberately configured to `192.168.88.228:8081` on a trusted LAN, with HTTP approved by the user. The repository's service template stays loopback by default. Machine-specific listener settings are deployment configuration, not a reason to change tracked source. A changed DHCP address requires updating the deployed listener; prefer a router reservation. HTTP does not encrypt passwords/API keys and must not be forwarded to the Internet.
+All IP addresses/hostnames in these docs are examples, not authoritative deployment values. Obtain the actual appliance address from its administrator; examples use `http://<APPLIANCE_IP>:8081`. `127.0.0.1` means the machine running the command, not the Pi's LAN address.
+
+The deployed listener is exposed on the approved trusted LAN. The repository's service template stays loopback by default. Machine-specific listener settings are deployment configuration, not a reason to change tracked source. A changed DHCP address requires updating the deployed listener; prefer a router reservation. HTTP does not encrypt passwords/API keys and must not be forwarded to the Internet.
 
 ## Release checklist
 
@@ -29,6 +31,17 @@ The staged listener was deliberately configured to `192.168.88.228:8081` on a tr
 6. Stop only `print-appliance`, install the new wheel with the existing venv using `pip install --no-deps --force-reinstall WHEEL`, restore root-owned/service-readable package permissions and start only that service. Reuse existing dependencies when the lockfile has not changed; otherwise install the hash-pinned runtime export deliberately before activating the release.
 7. Compare installed source/package file hashes to the recorded commit. Write `SOURCE_COMMIT` only after successful activation and checks. Confirm HTTP/admin/read-only discovery, no unintended printer/job changes, CUPS config fingerprints unchanged.
 8. If activation fails, reinstall the preserved previous wheel and restore the recorded previous checkout/release identifier. Report the failed release and any temporary Mac/device mismatch; never claim the new commit is deployed after rollback.
+
+## Verified functional release — 2026-10-06
+
+Functional baseline: `9edebaaa0ba76ce1d4ec34491e99529f155fc19f`, still product version 0.1.5. A later documentation-only commit may be installed without changing runtime package bytes; use the device's `SOURCE_COMMIT` as the authoritative deployed commit rather than this historical checkpoint.
+
+- React admin/client bundles run offline from the complete Python wheel; no Node/CDN on the appliance.
+- Admin has six tabs; **API Guide** also opens publicly at `/client#api-guide` before entering a key. Six task views expose requests/cURL/responses, with schemas/errors on demand. The guide never executes client requests.
+- Changing Client tabs preserves the file/options and unconfirmed immutable request, without automatic submission. Reload still discards files/pending requests.
+- **Cấu hình → Đổi mật khẩu quản trị** requires the current password, new password and confirmation; success revokes all admin sessions, not client keys.
+- Activation verified exact Git/package/served-asset parity, strict CSP, DB integrity and unchanged printer/client/admin/settings, CUPS and service fingerprints. Desktop/mobile checks used the real public Client Guide and mocked admin GETs for protected rendering; no production login, password change or print submission.
+- Preserve protected backup and the previous wheel. Retain deployment SSH keys/authorization until the owner explicitly requests deletion; clean only disposable upload staging after success.
 
 ## Frontend update 0.1.1
 

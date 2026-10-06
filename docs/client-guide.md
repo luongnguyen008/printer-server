@@ -1,7 +1,9 @@
 # Gửi thử bằng trang client
 
+Mọi IP/hostname trong tài liệu chỉ là ví dụ. Lấy địa chỉ thực từ quản trị thiết bị để thay `<APPLIANCE_IP>`; không dùng địa chỉ mẫu như một giá trị triển khai.
+
 1. Quản trị mở **Clients → Thêm client** (modal), chọn máy bằng dropdown checkbox và lưu. Sao chép API key trong modal hiện một lần; key không xuất hiện trong toast.
-2. Client mở `http://EDATEC_IP:8081/client`, nhập key rồi bấm **Kết nối**. Không dùng mật khẩu quản trị hay SSH.
+2. Client mở `http://<APPLIANCE_IP>:8081/client`, nhập key rồi bấm **Kết nối**. Không dùng mật khẩu quản trị hay SSH.
 3. Chọn máy, chọn PDF/ZPL, kiểm tra số bản và tùy chọn thực sự được cấp cho máy rồi bấm **Gửi lệnh in**. Đây là lệnh in thật, không phải xem trước. Các định dạng chỉ theo cấu hình máy; trang không chuyển PDF thành ZPL hay cài driver. Tùy chọn được sinh từ schema CUPS/driver riêng từng máy; “Dùng mặc định” bỏ hẳn ghi đè khỏi yêu cầu.
 4. Theo dõi **Lệnh của client**. Lệnh đang xử lý cập nhật mỗi 4 giây; nếu mất kết nối, bấm **Làm mới**. Lịch sử và máy in chỉ thuộc quyền của client đang dùng key.
 

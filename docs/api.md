@@ -1,6 +1,6 @@
 # API contract (v1)
 
-Base URL local: `http://EDATEC_IP:8081`. Cổng 8081 cho bản mới nhằm tránh đụng `pi-print-gateway` cũ thường chạy 8080; port/host đổi được. Không đổi service cũ trong giai đoạn thử.
+Base URL mẫu: `http://<APPLIANCE_IP>:8081`. Mọi IP/hostname trong tài liệu chỉ là ví dụ; lấy địa chỉ thực từ quản trị thiết bị. Host/port có thể đổi theo cấu hình triển khai. Gateway cũ đã được gỡ có phép; cập nhật app không đổi CUPS/driver/queue.
 
 ## Client authentication
 
@@ -73,7 +73,7 @@ Chỉ lệnh của client. Lệnh đang chờ có thể hủy chắc chắn; đ�
 
 `/` là trang quản trị cùng nguồn với app; OpenAPI/docs routes bị tắt. Admin routes dưới đây dùng session cookie riêng, không dùng API key client. Login nhận JSON `{"password":"…"}`, trả `csrf_token` và cookie `pa_admin` (HttpOnly, SameSite=Strict, 8 giờ). Mọi POST/PUT mutation ngoài login cần `X-CSRF-Token`; nếu Origin có mặt phải cùng origin. `PRINT_APPLIANCE_SECURE_COOKIE=1` bật cờ Secure. Năm lần sai mật khẩu trong cửa sổ 5 phút sẽ khóa login trong 5 phút. Bootstrap/reset bằng CLI, không có mật khẩu mặc định.
 
-Tab **API Guide** có trong trang Client (`/client#api-guide`, không cần nhập key) và trang quản trị. Tài liệu offline trình bày theo sáu tác vụ: chọn máy → đọc tùy chọn → gửi file → theo dõi, cùng lịch sử và hủy. Mỗi tác vụ có trường request, cURL và ví dụ response; mã lỗi/schema đầy đủ mở khi cần. Trên mobile, nhóm tham số bắt đầu thu gọn. Không có “Try it out”, không thực thi API hay in/hủy lệnh. Base URL lấy từ thiết bị hiện tại và có thể sửa cho ví dụ; chỉ dùng API key placeholder. cURL gửi in giữ `REQUEST_ID` đã tạo một lần, không có auto-retry. Trên HTTP không có Clipboard API, nút sao chép chọn code để dùng Ctrl+C/⌘C. Schemas được giữ trong `frontend/src/client-api.json` và kiểm tra với response thật qua FakeCups.
+Tab **API Guide** có trong trang Client (`/client#api-guide`, không cần nhập key) và trang quản trị. Tài liệu offline trình bày theo sáu tác vụ: chọn máy → đọc tùy chọn → gửi file → theo dõi, cùng lịch sử và hủy. Mỗi tác vụ có trường request, cURL và ví dụ response; mã lỗi/schema đầy đủ mở khi cần. Trên mobile, nhóm tham số bắt đầu thu gọn. Không có “Try it out”, không thực thi API hay in/hủy lệnh. Base URL lấy từ thiết bị hiện tại và có thể sửa cho ví dụ; chỉ dùng API key placeholder. cURL gửi in giữ `REQUEST_ID` đã tạo một lần, không có auto-retry. Base URL hiển thị origin của trang đang mở; các địa chỉ được ghi trong tài liệu vẫn chỉ là ví dụ. Sao chép biến môi trường, thay placeholder trên máy client, lấy PRINTER_ID từ bước chọn máy và JOB_ID từ response; không nhập key thật vào guide. Trên HTTP không có Clipboard API, nút sao chép chọn code để dùng Ctrl+C/⌘C. Schemas được giữ trong `frontend/src/client-api.json` và kiểm tra với response thật qua FakeCups.
 
 ### POST /admin/api/password
 
@@ -83,6 +83,7 @@ Sai mật khẩu hiện tại trả 400 nhưng giữ session; lỗi field/confir
 
 Admin routes đã triển khai:
 
+- `POST /admin/api/password` — đổi mật khẩu hiện tại và thu hồi mọi session quản trị theo hợp đồng phía trên.
 - `POST /admin/api/login`, `GET /admin/api/session`, `POST /admin/api/logout`.
 - `GET /admin/api/status` — trạng thái CUPS, dung lượng và số lệnh.
 - `GET /admin/api/discovery` — CUPS devices, drivers, existing queues.
