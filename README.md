@@ -1,6 +1,21 @@
 # Print appliance (v1 implementation)
 
-**Hướng dẫn cài đặt, sử dụng và vận hành (tiếng Việt):** [Markdown](docs/technical-report.md) · [HTML offline](docs/technical-report.html) · [PDF có mục lục/số trang](docs/technical-report.pdf). Phần chính giải thích hệ thống và luồng sử dụng; phụ lục giữ lệnh cài Linux/EDATEC, cấu hình driver, API và bảo trì. Phần lấy source chỉ cần cài Git rồi clone. Phiên bản tài liệu 1.3 (06/10/2026); sản phẩm được mô tả 0.1.5.
+**Hướng dẫn triển khai (tiếng Việt):** [Markdown](docs/technical-report.md) · [HTML offline](docs/technical-report.html) · [PDF](docs/technical-report.pdf) · [Sơ đồ draw.io](docs/diagrams/connection.drawio). Dành cho kỹ thuật viên: kiến trúc, yêu cầu, cài đặt trên Debian 12, cấu hình và in thử, tích hợp API, vận hành cơ bản.
+
+### Cài mới trên Debian 12
+
+```sh
+git clone https://github.com/luongnguyen008/printer-server.git
+cd printer-server
+sudo ./install.sh
+sudo systemctl start print-appliance
+```
+
+Script hỏi IP thiết bị, cài thư viện và đăng ký dịch vụ tự khởi động.
+Mật khẩu web ban đầu: `admin12345678` — đổi ngay tại **Cấu hình → Đổi mật khẩu quản trị**.
+Chỉ dùng HTTP trong LAN tin cậy. Script từ chối bản cài có sẵn; không dùng để cập nhật.
+Driver máy in cài riêng. Xem hướng dẫn triển khai ở trên để biết yêu cầu và kiểm tra.
+
 
 A local, single-node print appliance using FastAPI, SQLite, a durable file spool and the system's **real CUPS service**. It is a new service on port 8081 by default; it does not interact with or replace `pi-print-gateway` on 8080. Odoo and other applications are clients, not dependencies of this service.
 

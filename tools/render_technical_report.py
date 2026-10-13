@@ -31,7 +31,7 @@ table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14px;table-lay
 .report-diagram{margin:28px 0;break-inside:avoid;break-after:avoid}.diagram-viewport{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:white}.diagram-viewport:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.diagram-viewport svg{display:block;width:100%;min-width:720px;max-width:920px;height:auto;margin:auto}.diagram-hint{display:none;margin-top:7px;color:var(--muted);font-size:12px}figure+p:has(>em:only-child){margin-top:-16px;color:var(--muted);font-size:14px}
 @media(max-width:720px){.report-cover h1{font-size:28px}.report-cover>p:first-of-type{font-size:18px}.report-cover ul{padding:14px}.figure-list,.table-list,.index-list{padding:0}.diagram-hint{display:block}.shell{padding:24px 18px 40px}body{font-size:15px}h1{font-size:27px}h2{font-size:22px}.toc>ul{columns:1}th,td{padding:7px;font-size:12px}pre{padding:12px}}
 @page{size:A4;margin:16mm 14mm 18mm}
-@media print{.index-list{font-size:9pt}.index-list li{margin:2pt 0;line-height:1.3}.report-bar{display:none}.report-cover{min-height:230mm;padding:24mm 0 0;break-after:page}.report-cover h1{font-size:30pt}.report-cover>p:first-of-type{font-size:15pt}.report-cover ul{padding:14pt;font-size:11pt}.front-title,h2{break-before:page}.page-reference{font-size:8pt}.table-caption{font-size:9pt}.figure-list,.table-list,.index-list{padding:0}.diagram-viewport{overflow:visible;border:none}.diagram-viewport svg{min-width:0;max-width:100%}.diagram-hint{display:none}figure+p:has(>em:only-child){font-size:9pt}body{background:white;font-size:10pt;line-height:1.45}.shell{padding:0;max-width:none}.report-bar{font-size:8pt}h1{font-size:24pt}h2{font-size:17pt;margin-top:26pt;padding-top:12pt}h3{font-size:13pt}h1,h2,h3,h4{break-after:avoid}p,li{orphans:3;widows:3}pre{font-size:8pt;padding:8pt;overflow:visible;break-inside:auto}pre code{font-size:8pt;white-space:pre-wrap;overflow-wrap:anywhere}table{font-size:8.5pt;table-layout:fixed}thead{display:table-header-group}tr{break-inside:avoid}th,td{padding:5pt}td code,th code{font-size:8pt}a{color:inherit}.toc{background:white}.toc>ul{columns:1}.toc li li{font-size:8pt}.report-end{font-size:8pt}blockquote{background:white}html{scroll-behavior:auto}}
+@media print{.index-list{font-size:9pt}.index-list li{margin:2pt 0;line-height:1.3}.report-bar{display:none}.report-cover{min-height:230mm;padding:24mm 0 0;break-after:page}.report-cover h1{font-size:30pt}.report-cover>p:first-of-type{font-size:15pt}.report-cover ul{padding:14pt;font-size:11pt}.front-title,h2{break-before:auto}.page-reference{font-size:8pt}.table-caption{font-size:9pt}.figure-list,.table-list,.index-list{padding:0}.diagram-viewport{overflow:visible;border:none}.diagram-viewport svg{min-width:0;max-width:100%}.diagram-hint{display:none}figure+p:has(>em:only-child){font-size:9pt}body{background:white;font-size:10pt;line-height:1.45}.shell{padding:0;max-width:none}.report-bar{font-size:8pt}h1{font-size:24pt}h2{font-size:17pt;margin-top:26pt;padding-top:12pt}h3{font-size:13pt}h1,h2,h3,h4{break-after:avoid}p,li{orphans:3;widows:3}pre{font-size:8pt;padding:8pt;overflow:visible;break-inside:avoid}pre code{font-size:8pt;white-space:pre-wrap;overflow-wrap:anywhere}table{font-size:8.5pt;table-layout:fixed;break-inside:avoid}thead{display:table-header-group}tr{break-inside:avoid}th,td{padding:5pt}td code,th code{font-size:8pt}a{color:inherit}.toc{background:white;margin:12pt 0;padding:6pt 12pt}.toc li{margin:2pt 0}.report-diagram{margin:12pt 0;break-after:auto}.toc>ul{columns:1}.toc li li{font-size:8pt}.report-end{font-size:8pt}blockquote{background:white}html{scroll-behavior:auto}}
 """
 
 
@@ -120,7 +120,7 @@ def heading_tokens(source: str) -> list[dict]:
 def refresh_navigation(source: str, path: Path) -> str:
     tokens = heading_tokens(source)
     toc = "\n".join(
-        "    " * (t["level"] - 2) + f"- [{plain(t['name'])}](#{t['id']})" for t in tokens
+        "    " * (t["level"] - 2) + f"- [{plain(t['name'])}](#{t['id']})" for t in tokens if t["level"] == 2
     )
     figures = []
     for number, filename in re.findall(r"\]\(diagrams/(\d+)-([^)]+)\.svg\)", source):
@@ -175,7 +175,7 @@ def refresh_navigation(source: str, path: Path) -> str:
     }
     index = []
     for term in sorted(
-        index_specs,
+        index_specs if "<!-- BEGIN INDEX -->" in source else {},
         key=lambda s: "".join(
             c
             for c in unicodedata.normalize("NFKD", s.replace("Đ", "D"))
@@ -204,8 +204,8 @@ def refresh_navigation(source: str, path: Path) -> str:
             source,
             flags=re.S,
         )
-        if count != 1:
-            raise ValueError(f"Missing navigation block: {name}")
+        if count != 1 and (name == "MAIN TOC" or count != 0):
+            raise ValueError(f"Missing or duplicate navigation block: {name}")
     # Explicit named anchors make the ASCII links work in GitHub's Unicode-heading renderer.
     source = re.sub(r'(?m)^<a name="[^"]+" class="heading-anchor"></a>\n\n', "", source)
     headings = iter(tokens)
@@ -266,10 +266,10 @@ def render_document(source: Path, pages: dict[str, int] | None = None) -> str:
     body = re.sub(r'<a href="#([^"]+)">(.*?)</a>', reference, body, flags=re.S)
     return f"""<!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Hướng dẫn Print Appliance: tổng thể, cài đặt, sử dụng, API và vận hành; tài liệu 1.3, sản phẩm 0.1.5.">
-<title>Hướng dẫn Print Appliance — Tài liệu 1.3</title><style>{CSS}</style></head>
-<body><div class="shell"><header class="report-bar"><span>PRINT APPLIANCE · HƯỚNG DẪN</span><span>Tài liệu 1.3 · Sản phẩm 0.1.5 · Tiếng Việt</span></header>
-<main>{body}</main><footer class="report-end">Nguồn: technical-report.md · Luong Nguyen · Print Appliance. Sơ đồ đã nhúng; không cần tải thư viện ngoài. Số trang tham chiếu PDF chuẩn đi kèm, không cam kết cho mọi thiết lập in HTML.</footer></div></body></html>
+<meta name="description" content="Triển khai Print Appliance trên Debian 12: cài đặt từng bước, cấu hình máy in, tích hợp API và vận hành.">
+<title>Print Appliance — Hướng dẫn triển khai và sử dụng</title><style>{CSS}</style></head>
+<body><div class="shell"><header class="report-bar"><span>PRINT APPLIANCE · HƯỚNG DẪN</span><span>Tài liệu 1.4 · Tiếng Việt</span></header>
+<main>{body}</main><footer class="report-end">Luong Nguyen · Print Appliance. Bản HTML đọc được khi không có Internet; số trang trong mục lục dẫn tới bản PDF đi kèm.</footer></div></body></html>
 """
 
 

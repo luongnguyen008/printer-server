@@ -16,54 +16,65 @@ class Navigation(HTMLParser):
         self.ids = []
         self.links = []
         self.references = []
+        self.files = []
 
     def handle_starttag(self, tag, attrs):
         data = dict(attrs)
         if "id" in data:
             self.ids.append(data["id"])
-        if tag == "a" and data.get("href", "").startswith("#"):
-            self.links.append(data["href"][1:])
+        if tag == "a":
+            href = data.get("href", "")
+            if href.startswith("#"):
+                self.links.append(href[1:])
+            elif href and not href.startswith(("http://", "https://")):
+                self.files.append(href)
         if "data-page-target" in data:
             self.references.append(data["data-page-target"])
 
 
-def test_guide_front_back_matter_and_linked_navigation():
+def test_guide_has_six_practical_sections_and_valid_navigation():
     source = SOURCE.read_text()
-    for marker in ("COVER-END", "FRONT-MATTER-END", "BACK-MATTER-START"):
-        assert f"<!-- {marker} -->" in source
-    for name in ("MAIN TOC", "FIGURE LIST", "TABLE LIST", "INDEX"):
-        assert f"<!-- BEGIN {name} -->" in source
-        assert f"<!-- END {name} -->" in source
+    assert re.findall(r"^## (.+)$", source, re.M) == [
+        "1. Kiến trúc và luồng in",
+        "2. Yêu cầu trước khi triển khai",
+        "3. Cài phần mềm trên thiết bị",
+        "4. Cấu hình máy in và kiểm tra in thử",
+        "5. Chức năng và tích hợp API",
+        "6. Vận hành và xử lý lỗi cơ bản",
+    ]
+    assert "<!-- BEGIN MAIN TOC -->" in source
+    assert "<!-- END MAIN TOC -->" in source
     assert "[TOC]" not in source
-    assert "Luong Nguyen · Print Appliance" in source
-    assert "## Tài liệu tham khảo" in source
-    assert "## Chỉ mục tra cứu" in source
-    # GitHub and our HTML renderer use different automatic Vietnamese heading slugs.
-    # Explicit anchors keep the linked Markdown navigation working on GitHub too.
+    assert "Phụ lục" not in source
+    assert "Chỉ mục tra cứu" not in source
+    assert len(source.splitlines()) < 400
+    # Explicit anchors support GitHub's differing Vietnamese heading slugs.
     anchors = set(re.findall(r'<a (?:id|name)="([^"]+)"', source))
     fragments = set(re.findall(r"\]\(#([^)]+)\)", source))
+    assert len(fragments) == 6
     assert fragments <= anchors
     navigation = Navigation()
     navigation.feed(SOURCE.with_suffix(".html").read_text())
     assert len(navigation.ids) == len(set(navigation.ids))
     assert set(navigation.links) <= set(navigation.ids)
-    assert len(set(navigation.references)) >= 100
-    assert {f"figure-{i}" for i in range(1, 11)} <= set(navigation.references)
-    assert {f"table-{i}" for i in range(1, 14)} <= set(navigation.references)
+    assert set(navigation.references) == fragments
+    assert all((SOURCE.parent / path).is_file() for path in navigation.files)
 
 
-def test_guide_is_operations_focused_and_source_steps_stop_at_clone():
+def test_technical_guide_has_installation_commands_and_safety_checks():
     source = SOURCE.read_text()
-    main = source.split("<!-- FRONT-MATTER-END -->")[1].split("<!-- BACK-MATTER-START -->")[0]
-    assert "```" not in main
-    assert "src/print_appliance" not in main
-    source_steps = source.split("### A.1 Cài Git và clone project")[1].split("### A.2")[0]
-    commands = "\n".join(re.findall(r"```[^\n]*\n(.*?)```", source_steps, re.S))
-    assert "git clone" in commands and "winget install" in commands
-    assert not re.search(r"\b(?:uv|pytest|ruff|pip|python)\b", commands)
-    assert "uv build" not in source
-    assert "uv run pytest" not in source
-    assert "### A.2 Cài mới trên Linux/EDATEC" in source
+    assert len(re.findall(r"^### 3\.\d+ ", source, re.M)) == 4
+    for text in (
+        "sudo apt-get install git", "sudo ./install.sh", "admin12345678",
+        "sudo systemctl start print-appliance", "admin-password",
+        "http://192.168.0.123:8081/", "systemctl is-active",
+        "Kết quả cần đạt", "Chạy trên máy cá nhân", "trong phiên SSH trên Debian",
+        "mã, file, tên file và mọi tham số", "không tự in lại",
+        "Hủy không thu hồi được giấy đã in", "stop-printer",
+    ):
+        assert text in source
+    assert "script dừng để bảo vệ dữ liệu" in source
+    assert "Tiêu đề" in source
 
 
 def test_canonical_pdf_page_references_are_current():
@@ -72,9 +83,10 @@ def test_canonical_pdf_page_references_are_current():
         data["source_sha256"]
         == hashlib.sha256(SOURCE.read_text(encoding="utf-8").encode("utf-8")).hexdigest()
     )
-    assert data["document_version"] == "1.3"
+    assert data["document_version"] == "1.4"
     assert data["product_version"] == "0.1.5"
-    assert 10 < data["page_count"] < 100
+    assert 1 <= data["page_count"] <= 10
+    assert len(data["pages"]) == 6
     assert all(isinstance(n, int) and 1 <= n <= data["page_count"] for n in data["pages"].values())
     html = SOURCE.with_suffix(".html").read_text()
     for target, page in data["pages"].items():
@@ -87,17 +99,34 @@ def test_canonical_pdf_page_references_are_current():
 
 def test_current_guide_features_and_example_addresses():
     source = SOURCE.read_text()
-    assert "### 7.4 API Guide cho ứng dụng tích hợp" in source
-    assert "### 8.5 Đổi mật khẩu quản trị" in source
+    features = source.split("## 5. Chức năng và tích hợp API", 1)[1].split("## 6.", 1)[0]
+    assert "chống gửi trùng" in features
+    assert "Idempotency-Key" in features
+    assert "Authorization: Bearer" in features
+    assert "0.1.5" not in source
+    assert "theo phiên bản" not in source
+    assert "| Phiên bản |" not in source
     assert "/client#api-guide" in source
-    assert "`POST /admin/api/password`" in source
-    assert "9edebaaa0ba76ce1d4ec34491e99529f155fc19f" in source
-    assert "mọi IP/hostname trong tài liệu chỉ là ví dụ" in source
-    assert not re.search(r"\b192\.168\.\d+\.\d+\b", source)
-    assert "Giữ deployment SSH key và authorization" in source
+    assert "Đổi mật khẩu quản trị" in source
+    assert "Mọi địa chỉ ví dụ" in source
+    assert "ssh pi@raspberrypi" in source
+    assert "ssh pi@192.168.0.123" in source
+    assert "http://192.168.0.123:8081/client" in source
+    assert "không phải cấu hình mặc định bắt buộc" in source
+    assert "không được mã hóa" in source
     html = SOURCE.with_suffix(".html").read_text()
-    assert "Tài liệu 1.3" in html
-    assert "Tài liệu 1.2" not in html
+    assert "Tài liệu 1.4" in html
+    assert "Tài liệu 1.3" not in html
+    assert "Sản phẩm 0.1.5" not in html
+
+
+def test_specific_printer_and_driver_details_are_examples_only():
+    lines = SOURCE.read_text().splitlines()
+    for detail in ("Canon", "LBP6230dw", "UFRII LT"):
+        mentions = [line for line in lines if detail in line]
+        assert mentions
+        assert all(line.startswith("> **Ví dụ") for line in mentions)
+    assert "không phải model hay driver bắt buộc" in SOURCE.read_text()
 
 
 def test_pdf_checkout_preserves_binary_bytes():

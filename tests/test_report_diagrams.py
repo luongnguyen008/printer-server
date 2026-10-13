@@ -13,31 +13,51 @@ RENDERER = runpy.run_path(str(ROOT / "tools/render_technical_report.py"))
 GENERATOR = runpy.run_path(str(ROOT / "tools/render_report_diagrams.py"))
 
 
-def test_report_diagrams_are_reproducible_and_referenced():
+def test_existing_technical_diagrams_remain_reproducible():
     diagrams = GENERATOR["diagrams"]()
     assert len(diagrams) == 10
-    report = (ROOT / "docs/technical-report.md").read_text()
     for diagram in diagrams:
         path = ROOT / f"docs/diagrams/{diagram.name}.svg"
         assert path.read_text() == diagram.svg()
-        assert f"(diagrams/{diagram.name}.svg)" in report
         svg = ET.fromstring(path.read_text())
         assert svg.find(f"{SVG}title").text
         assert svg.find(f"{SVG}desc").text
         assert svg.attrib["role"] == "img"
 
 
-def test_generated_html_embeds_all_diagrams_with_unique_ids():
+def test_generated_html_embeds_connection_diagram_with_unique_ids():
     html = (ROOT / "docs/technical-report.html").read_text()
-    assert html.count('<figure class="report-diagram"') == 10
-    assert html.count("<svg ") == 10
+    assert html.count('<figure class="report-diagram"') == 1
+    assert html.count("<svg ") == 1
     assert "<img " not in html
     assert "<script" not in html
     ids = re.findall(r'\bid="([^"]+)"', html)
     assert len(ids) == len(set(ids))
-    for diagram in GENERATOR["diagrams"]():
-        assert f'id="{diagram.name}-title"' in html
-        assert f'id="{diagram.name}-desc"' in html
+    assert 'id="connection-title"' in html
+    assert 'id="connection-desc"' in html
+
+
+def test_connection_drawio_and_svg_show_the_same_devices_and_connections():
+    report = (ROOT / "docs/technical-report.md").read_text()
+    assert "(diagrams/connection.svg)" in report
+    assert "Sơ đồ draw.io có thể chỉnh sửa" not in report
+    drawing = ET.parse(ROOT / "docs/diagrams/connection.drawio").getroot()
+    assert drawing.tag == "mxfile"
+    cells = drawing.findall(".//mxCell")
+    svg = ET.parse(ROOT / "docs/diagrams/connection.svg").getroot()
+    assert svg.attrib["role"] == "img"
+    assert svg.find(f"{SVG}title").text
+    assert svg.find(f"{SVG}desc").text
+    texts = {node.text for node in svg.iter(f"{SVG}tspan")}
+    for cell in cells:
+        if cell.get("vertex") == "1":
+            assert set(cell.get("value", "").splitlines()) <= texts
+    connections = {(c.get("source"), c.get("target")) for c in cells if c.get("edge") == "1"}
+    assert connections == {
+        ("client", "app"), ("admin", "app"), ("app", "cups"),
+        ("cups", "usb"), ("cups", "lan"),
+    }
+    assert len(list(svg.iter(f"{SVG}polyline"))) == len(connections)
 
 
 @pytest.mark.parametrize(
