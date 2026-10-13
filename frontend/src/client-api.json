@@ -21,22 +21,6 @@
             ]
           }
         },
-        "default_options": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "Keyword và enum của schema máy in; không dịch giá trị khi gửi."
-        },
-        "allowed_options": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
         "status": {
           "type": "string",
           "enum": [
@@ -49,16 +33,18 @@
             "string",
             "null"
           ]
+        },
+        "capabilities": {
+          "$ref": "#/$defs/Capabilities"
         }
       },
       "required": [
         "id",
         "name",
         "formats",
-        "default_options",
-        "allowed_options",
         "status",
-        "pause_reason"
+        "pause_reason",
+        "capabilities"
       ]
     },
     "Printers": {
@@ -70,21 +56,8 @@
     "Capabilities": {
       "type": "object",
       "properties": {
-        "schema_version": {
-          "const": 1
-        },
-        "printer_id": {
-          "type": "string"
-        },
         "availability": {
-          "type": "string",
-          "enum": [
-            "available",
-            "partial",
-            "unknown",
-            "stale",
-            "unavailable"
-          ]
+          "type": "string"
         },
         "reason": {
           "type": [
@@ -92,159 +65,82 @@
             "null"
           ]
         },
-        "mapping_fingerprint": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "schema_fingerprint": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "source": {
-          "type": "string",
-          "enum": [
-            "ppd",
-            "ipp",
-            "unknown"
-          ]
-        },
-        "raw": {
-          "type": "boolean"
-        },
-        "groups": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "label": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "label"
-            ]
-          }
-        },
-        "options": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "label": {
-                "type": "string"
-              },
-              "group": {
-                "type": "string"
-              },
-              "group_label": {
-                "type": "string"
-              },
-              "default": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "overridable": {
-                "type": "boolean"
-              },
-              "choices": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "value": {
-                      "type": "string"
-                    },
-                    "label": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "value",
-                    "label"
-                  ]
-                }
-              }
-            },
-            "required": [
-              "name",
-              "choices",
-              "overridable"
-            ]
-          }
-        },
-        "constraints": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "option1": {
-                "type": "string"
-              },
-              "choice1": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "option2": {
-                "type": "string"
-              },
-              "choice2": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              }
-            },
-            "required": [
-              "option1",
-              "choice1",
-              "option2",
-              "choice2"
-            ]
-          }
-        },
-        "ipp_attributes": {
-          "type": "object"
-        },
-        "default_options": {
+        "supported": {
           "type": "object",
-          "additionalProperties": {
-            "type": "string"
+          "properties": {
+            "paper_size": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sides": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "color_mode": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "scaling": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           },
-          "description": "Keyword và enum của schema máy in; không dịch giá trị khi gửi."
+          "required": [
+            "paper_size",
+            "sides",
+            "color_mode",
+            "scaling"
+          ]
         },
-        "allowed_options": {
-          "type": "null"
+        "defaults": {
+          "type": "object",
+          "properties": {
+            "paper_size": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sides": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "color_mode": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scaling": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "paper_size",
+            "sides",
+            "color_mode",
+            "scaling"
+          ]
         }
       },
       "required": [
-        "schema_version",
-        "printer_id",
         "availability",
         "reason",
-        "mapping_fingerprint",
-        "schema_fingerprint",
-        "source",
-        "groups",
-        "options",
-        "constraints",
-        "ipp_attributes",
-        "default_options",
-        "allowed_options"
+        "supported",
+        "defaults"
       ]
     },
     "Submit": {
@@ -275,10 +171,21 @@
           "default": "1",
           "description": "Chuỗi số nguyên 1–100 trong multipart."
         },
-        "options": {
+        "paper_size": {
           "type": "string",
-          "default": "{}",
-          "description": "Chuỗi JSON object: chỉ keyword/enum được quản trị cấp cho máy này."
+          "description": "Tùy chọn PDF; lấy giá trị từ capabilities.supported."
+        },
+        "sides": {
+          "type": "string",
+          "description": "Tùy chọn PDF; lấy giá trị từ capabilities.supported."
+        },
+        "color_mode": {
+          "type": "string",
+          "description": "Tùy chọn PDF; lấy giá trị từ capabilities.supported."
+        },
+        "scaling": {
+          "type": "string",
+          "description": "Tùy chọn PDF; lấy giá trị từ capabilities.supported."
         }
       },
       "required": [
@@ -474,7 +381,7 @@
       "method": "GET",
       "path": "/api/v1/printers",
       "title": "Danh sách máy được cấp",
-      "description": "Chỉ trả máy thuộc quyền của API key. Không tiết lộ URI, driver hay mật khẩu nội bộ. ready/paused là quyền xử lý, không xác nhận giấy đã ra.",
+      "description": "Máy được cấp cùng tùy chọn phổ thông và mặc định. Không cần gọi capabilities riêng. Giá trị null nghĩa là chưa ánh xạ chắc chắn mặc định driver.",
       "parameters": [],
       "responses": [
         {
@@ -488,17 +395,35 @@
               "formats": [
                 "pdf"
               ],
-              "default_options": {
-                "PageSize": "A4"
-              },
-              "allowed_options": {
-                "PageSize": [
-                  "A4",
-                  "Letter"
-                ]
-              },
               "status": "ready",
-              "pause_reason": null
+              "pause_reason": null,
+              "capabilities": {
+                "availability": "available",
+                "reason": null,
+                "supported": {
+                  "paper_size": [
+                    "A4",
+                    "Letter"
+                  ],
+                  "sides": [
+                    "one-sided",
+                    "two-sided-long-edge"
+                  ],
+                  "color_mode": [
+                    "monochrome"
+                  ],
+                  "scaling": [
+                    "auto",
+                    "fit"
+                  ]
+                },
+                "defaults": {
+                  "paper_size": "A4",
+                  "sides": "one-sided",
+                  "color_mode": "monochrome",
+                  "scaling": "auto"
+                }
+              }
             }
           ]
         }
@@ -511,93 +436,11 @@
       ]
     },
     {
-      "id": "capabilities",
-      "method": "GET",
-      "path": "/api/v1/printers/{printer_id}/capabilities",
-      "title": "Schema tùy chọn máy in",
-      "description": "Đọc schema trước khi gửi options. choices chỉ chứa enum được cấp; options=[] có thể nghĩa là không được phép ghi đè. availability khác available/partial cần điều tra, không suy diễn khả năng từ tên model. CUPS không sẵn sàng thường trả 200 với availability=unavailable.",
-      "parameters": [
-        {
-          "name": "printer_id",
-          "in": "path",
-          "required": true,
-          "description": "ID lấy từ GET /api/v1/printers."
-        }
-      ],
-      "responses": [
-        {
-          "status": 200,
-          "description": "Schema máy và quyền ghi đè.",
-          "schema": "Capabilities",
-          "example": {
-            "schema_version": 1,
-            "printer_id": "printer-example",
-            "availability": "available",
-            "reason": null,
-            "mapping_fingerprint": "example-mapping-fingerprint",
-            "schema_fingerprint": "example-schema-fingerprint",
-            "source": "ppd",
-            "raw": false,
-            "groups": [
-              {
-                "id": "common",
-                "label": "Common"
-              },
-              {
-                "id": "advanced",
-                "label": "Advanced"
-              }
-            ],
-            "options": [
-              {
-                "name": "PageSize",
-                "label": "Page size",
-                "group": "common",
-                "group_label": "General",
-                "default": "A4",
-                "overridable": true,
-                "choices": [
-                  {
-                    "value": "A4",
-                    "label": "A4"
-                  },
-                  {
-                    "value": "Letter",
-                    "label": "Letter"
-                  }
-                ]
-              }
-            ],
-            "constraints": [],
-            "ipp_attributes": {},
-            "default_options": {
-              "PageSize": "A4"
-            },
-            "allowed_options": null
-          }
-        }
-      ],
-      "errors": [
-        {
-          "status": 401,
-          "description": "API key thiếu, sai, đã đổi hoặc đã thu hồi."
-        },
-        {
-          "status": 404,
-          "description": "Máy không tồn tại hoặc không được cấp."
-        },
-        {
-          "status": 503,
-          "description": "Không đọc được capability."
-        }
-      ]
-    },
-    {
       "id": "submit",
       "method": "POST",
       "path": "/api/v1/jobs",
       "title": "Gửi yêu cầu in",
-      "description": "multipart/form-data, không phải JSON body. Lệnh mới chỉ trả 202 sau khi được lưu bền vững. Có thể in ra giấy thật. Không gọi chỉ để kiểm tra kết nối.",
+      "description": "multipart/form-data, không phải JSON body. Lệnh mới chỉ trả 202 sau khi được lưu bền vững. Có thể in ra giấy thật. Không gọi chỉ để kiểm tra kết nối. Tùy chọn PDF: paper_size, sides, color_mode, scaling. Bỏ qua để dùng mặc định. Field options cũ bị từ chối 422.",
       "parameters": [
         {
           "name": "Idempotency-Key",
@@ -614,8 +457,7 @@
         "printer_id": "printer-example",
         "format": "pdf",
         "title": "Invoice example",
-        "copies": "1",
-        "options": "{}"
+        "copies": "1"
       },
       "responses": [
         {

@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 from . import db as store
 from .config import Settings
 from .cups import BackendUnavailable, CupsBackend
+from .print_options import InvalidPrintOption, public_capabilities, translate_options
 
 LOG = logging.getLogger("print_appliance")
 TERMINAL = {"completed", "failed", "canceled"}
@@ -241,8 +242,11 @@ class Appliance:
                     "id": row["id"],
                     "name": row["name"],
                     "formats": safe_json(row["formats_json"], []),
-                    "default_options": safe_json(row["defaults_json"], {}),
-                    "allowed_options": safe_json(row["allowed_json"], {}),
+                    "capabilities": public_capabilities(
+                        self.printer_capabilities(row["id"]) or {},
+                        safe_json(row["defaults_json"], {}),
+                        safe_json(row["formats_json"], []),
+                    )[0],
                     "status": "paused" if row["paused"] else "ready",
                     "pause_reason": row["pause_reason"],
                 }
@@ -308,6 +312,7 @@ class Appliance:
         options_raw: str,
         filename: str,
         upload: Any,
+        legacy_options: bool = False,
     ) -> tuple[dict[str, Any], int]:
         if not KEY_RE.fullmatch(idempotency_key):
             raise ValueError("invalid_idempotency_key")
@@ -350,6 +355,8 @@ class Appliance:
             existing = self._existing_idempotency(db, client_id, idempotency_key, request_digest)
             if existing is not None:
                 return existing, 200
+            if legacy_options:
+                raise InvalidPrintOption("options", None, [], "Legacy options removed. Use paper_size, sides, color_mode and scaling for new requests.")
 
             try:
                 parsed_options = json.loads(options_raw)
@@ -390,8 +397,13 @@ class Appliance:
                 raise ValueError("format_not_supported")
             allowed = safe_json(printer["allowed_json"], {})
             defaults = safe_json(printer["defaults_json"], {})
-            options = validate_client_options(parsed_options, allowed)
             schema = self.backend.printer_capabilities(printer["queue"])
+            mapping = self.backend.queue_mapping(printer["queue"])
+            if not mapping or mapping["mapping_signature"] != printer["mapping_signature"]:
+                raise BackendUnavailable("Printer mapping changed; review configuration")
+            if schema.get("availability") not in {"available", "partial"}:
+                raise BackendUnavailable("Printer capabilities unavailable")
+            options = translate_options(parsed_options, schema, defaults, format_name)
             driver_defaults = (
                 {
                     item["name"]: item["default"]
@@ -410,7 +422,13 @@ class Appliance:
                     raise ValueError("unsupported_option_choice")
                 # Raw ZPL carries its own device commands, never PDF driver defaults.
                 effective_options = {}
-            self._validate_capability_options(schema, effective_options, allowed)
+            try:
+                self._validate_capability_options(schema, effective_options, allowed)
+            except ValueError as exc:
+                raise InvalidPrintOption(
+                    "combination", parsed_options, [],
+                    "Options conflict with one another or printer defaults; change the requested combination.",
+                ) from exc
             if (
                 shutil.disk_usage(self.settings.spool_dir).free - size
                 < self.limits(db)["min_free_bytes"]

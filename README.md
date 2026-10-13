@@ -128,11 +128,11 @@ curl -sS "$PRINT_APPLIANCE_URL/api/v1/jobs" \
   -H "Authorization: Bearer $PRINT_APPLIANCE_KEY" \
   -H 'Idempotency-Key: invoice-unique-operation-001' \
   -F "printer_id=$PRINT_APPLIANCE_PRINTER_ID" \
-  -F 'format=pdf' -F 'title=Invoice' -F 'copies=1' -F 'options={}' \
+  -F 'format=pdf' -F 'title=Invoice' -F 'copies=1' \
   -F 'file=@invoice.pdf;type=application/pdf'
 ```
 
-Reuse the same key/form/file for a transport retry; use a new operation ID only for a genuinely new print request. Poll `/api/v1/jobs/JOB_ID` with the same Bearer key. Authentication remains required for duplicate replay. Filename/title/copies are part of request identity; JSON option key order/whitespace is normalized. Do not send a new operation ID to bypass an unknown outcome.
+Reuse the same key/form/file for a transport retry; use a new operation ID only for a genuinely new print request. Poll `/api/v1/jobs/JOB_ID` with the same Bearer key. Authentication remains required for duplicate replay. Filename/title/copies are part of request identity; Public print fields are part of request identity. Do not send a new operation ID to bypass an unknown outcome.
 
 See [docs/verification.md](docs/verification.md) for the measured local checks and outstanding hardware gates.
 
@@ -147,7 +147,7 @@ CHROME_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 UI_BASE_URL=http://127.0.0.1:8081 node tests/browser/admin-ui.cjs
 ```
 
-Run `tests/browser/admin-safety.cjs` with the same environment variables for additional auth/CSRF, unsaved-settings, legacy-option/remapping, job-control and stale-session regressions. `tests/browser/client-safety.cjs` covers immutable 503/408 retries, submission-time 401, BFCache request clearing and keeping files/pending requests intact when switching to the guide. Both intercept every API and never print. `tests/browser/api-guide.cjs` tests all six task views, request fields, offline schemas/errors, cURL syntax/copy fallback, safe base URLs, search and admin/client tab navigation at 320–1280px, refusing all client calls/mutations. For shared React component changes, run these five scripts plus the isolated password test below, `npm run build:check` and the Python tests. Optional `UI_ARTIFACT_DIR` captures desktop/mobile screenshots in the main admin/client suites.
+Run `tests/browser/admin-safety.cjs` with the same environment variables for additional auth/CSRF, unsaved-settings, legacy-option/remapping, job-control and stale-session regressions. `tests/browser/client-safety.cjs` covers immutable 503/408 retries, submission-time 401, BFCache request clearing and keeping files/pending requests intact when switching to the guide. Both intercept every API and never print. `tests/browser/api-guide.cjs` tests all five task views, request fields, offline schemas/errors, cURL syntax/copy fallback, safe base URLs, search and admin/client tab navigation at 320–1280px, refusing all client calls/mutations. For shared React component changes, run these five scripts plus the isolated password test below, `npm run build:check` and the Python tests. Optional `UI_ARTIFACT_DIR` captures desktop/mobile screenshots in the main admin/client suites.
 
 For the password form's real FastAPI/SQLite browser test, start a disposable loopback server from the repo root:
 
@@ -161,7 +161,7 @@ In another terminal, set `UI_TEST_FIXTURE` to the printed `/tmp/print-password-t
 
 Use **Cấu hình → Đổi mật khẩu quản trị** with the current password, a new password of at least 12 characters and confirmation. Success signs out all admin sessions; client keys and print jobs remain intact. Five incorrect current-password checks in five minutes temporarily lock both login and password changes for five minutes. If the response is lost, verify by logging in rather than automatically resending. The existing CLI remains available for a forgotten password.
 
-Open **Client → API Guide** (`/client#api-guide`) without an API key, or use the same guide in the admin tab. Choose one of six tasks to see required fields, copyable cURL and example responses; full schemas/errors expand on demand. On mobile, request fields start collapsed. It is offline/read-only: no API execution or real-key entry. Switching between printing and the guide keeps the selected file and any unconfirmed request in memory; reloading still discards them. See [the API contract](docs/api.md) for authentication, idempotency and safety boundaries.
+Open **Client → API Guide** (`/client#api-guide`) without an API key, or use the same guide in the admin tab. Choose one of five tasks to see required fields, copyable cURL and example responses; full schemas/errors expand on demand. On mobile, request fields start collapsed. It is offline/read-only: no API execution or real-key entry. Switching between printing and the guide keeps the selected file and any unconfirmed request in memory; reloading still discards them. See [the API contract](docs/api.md) for authentication, idempotency and safety boundaries.
 
 The production Mac checkout and EDATEC source must be at the same deployed Git commit. See [docs/git-deployment.md](docs/git-deployment.md). Credentials, backups and runtime data remain outside Git even though the repository is public.
 
@@ -180,3 +180,5 @@ Open `/client` on the appliance, enter the API key issued from the admin Clients
 A lost/5xx submission response freezes the original request and offers explicit same-ID replay. It never automatically resubmits. Unique IDs use `crypto.getRandomValues`, including on LAN HTTP. History updates every four seconds while jobs are active; unknown outcomes need operator investigation. See [client guide](docs/client-guide.md).
 
 Run `tests/browser/client-ui.cjs` with the same `PLAYWRIGHT_MODULE`, `CHROME_EXECUTABLE`, `UI_BASE_URL` and `UI_ARTIFACT_DIR` environment variables as the admin regression. All client APIs are mocked and loopback-only; no physical printing occurs.
+
+Client API hiện có 5 endpoint; GET printers kèm capabilities. Gửi tùy chọn bằng field multipart paper_size/sides/color_mode/scaling; xem docs/api.md để chuyển đổi client cũ.

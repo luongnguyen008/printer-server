@@ -1,7 +1,7 @@
 {
   "document_version": "1.4",
   "product_version": "0.1.5",
-  "source_sha256": "ac86573ba4c7aa84a21e36b37034554afd85f3b5561720d2174ca1a900311791",
+  "source_sha256": "70658d295856761b993dea1756ccf65666dcf3013c1343f571e16064beffdcd0",
   "print_profile": "A4; margins 16/14/18mm; bundled CSS; system fonts; Chrome",
   "browser_version": "155.0.8059.40",
   "page_count": 13,
@@ -11,6 +11,6 @@
     "3-cai-phan-mem-tren-thiet-bi": 3,
     "4-cau-hinh-may-in-va-kiem-tra-in-thu": 5,
     "5-chuc-nang-va-tich-hop-api": 7,
-    "6-van-hanh-va-xu-ly-loi-co-ban": 13
+    "6-van-hanh-va-xu-ly-loi-co-ban": 12
   }
 }

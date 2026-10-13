@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BusyContext, Button, Input, Notice, Select, useToasts } from './shared.jsx';
-import { PrintOptions, initialOptions, optionsError, optionsPayload, usableSchema } from './print-options.jsx';
+import { PrintOptions, initialOptions, optionsError, optionsPayload } from './client-print-options.jsx';
 import { ApiGuide } from './api-guide.jsx';
 
 const KEY_STORAGE = 'print-appliance.client.api-key';
@@ -58,7 +58,7 @@ function ClientApp() {
       const data = await response.json().catch(() => null);
       if (epoch !== s.epoch || !s.alive) throw new Error('Kết nối đã thay đổi.');
       if (!response.ok) {
-        const message = response.status === 401 ? 'API key không hợp lệ hoặc đã bị thu hồi.' : typeof data?.detail === 'string' ? data.detail : `API trả lỗi ${response.status}`;
+        const message = response.status === 401 ? 'API key không hợp lệ hoặc đã bị thu hồi.' : typeof data?.detail === 'string' ? data.detail : data?.detail?.message ? `${data.detail.field}: ${data.detail.message}` : `API trả lỗi ${response.status}`;
         if (response.status === 401 && key === s.key) { reset(); toasts.show(message, 'error'); }
         const error = new Error(message); error.status = response.status; throw error;
       }
@@ -70,14 +70,14 @@ function ClientApp() {
   const loadSchema = async (id, nextFormat = selection.current.format, key = session.current.key) => {
     const s = session.current, loadId = ++s.schemaEpoch, epoch = s.epoch;
     selection.current.printerId = id; selection.current.format = nextFormat; selection.current.schema = null;
-    setSchema(null); setOptions(initialOptions({}, {}, true)); setOptionState({ text: id ? 'Đang tải schema capability được cấp…' : '', error: false });
+    setSchema(null); setOptions(initialOptions({}, {}, true)); setOptionState({ text: id ? 'Đang đọc tùy chọn từ danh sách máy…' : '', error: false });
     if (!id) return;
     try {
-      const value = await request(`/api/v1/printers/${encodeURIComponent(id)}/capabilities`, {}, key);
+      const value = selection.current.printers.find(item => item.id === id)?.capabilities;
       if (epoch !== s.epoch || loadId !== s.schemaEpoch || selection.current.printerId !== id) return;
-      if (!usableSchema(value)) throw new Error(value.reason || `Schema không khả dụng (${value.availability}).`);
+      if (!value) throw new Error('Thiếu thông tin tùy chọn trong danh sách máy.');
       selection.current.schema = value; setSchema(value);
-      setOptionState({ text: selection.current.format === 'zpl' ? 'ZPL gửi nguyên bản; tùy chọn driver PDF không áp dụng.' : 'Chỉ các lựa chọn được quản trị cấp mới xuất hiện. “Dùng mặc định” không gửi ghi đè.', error: false });
+      setOptionState({ text: selection.current.format === 'zpl' ? 'ZPL gửi nguyên bản; tùy chọn driver PDF không áp dụng.' : 'Chọn tùy chọn phổ thông hoặc dùng mặc định của máy.', error: false });
     } catch (error) { if (epoch === s.epoch && loadId === s.schemaEpoch) { selection.current.schema = null; setSchema(null); setOptionState({ text: `Không thể tải tùy chọn máy in: ${error.message}`, error: true }); } }
   };
   const loadPrinters = async (key = session.current.key) => {
@@ -118,7 +118,8 @@ function ClientApp() {
     const s = session.current, captured = s.pending, epoch = s.epoch;
     if (!captured) return;
     const body = new FormData();
-    for (const key of ['printer_id', 'format', 'title', 'copies', 'options']) body.append(key, captured[key]);
+    for (const key of ['printer_id', 'format', 'title', 'copies']) body.append(key, captured[key]);
+    for (const [name, value] of Object.entries(captured.options)) body.append(name, value);
     body.append('file', captured.file, captured.file.name);
     try {
       const result = await request('/api/v1/jobs', { method: 'POST', headers: { 'Idempotency-Key': captured.id }, body });
@@ -138,17 +139,17 @@ function ClientApp() {
     action(async () => {
       if (session.current.pending) return;
       const file = fileInput.current.files[0]; if (!file) throw new Error('Hãy chọn file PDF hoặc ZPL.');
-      const schema = selection.current.schema; if (!schema) throw new Error('Schema tùy chọn chưa sẵn sàng; chưa gửi lệnh.');
+      const schema = selection.current.schema || {};
       const config = { defaults: schema.default_options || {}, client: true, format: selection.current.format };
       const invalid = optionsError(schema, options, config); if (invalid) throw new Error(invalid);
       // Snapshot before disabling controls; retries never reread editable fields or files.
-      const captured = Object.freeze({ id: requestId(), file, printer_id: selection.current.printerId, format: selection.current.format, title: title.trim(), copies, options: JSON.stringify(optionsPayload(schema, options, config).options) });
+      const captured = Object.freeze({ id: requestId(), file, printer_id: selection.current.printerId, format: selection.current.format, title: title.trim(), copies, options: Object.freeze(optionsPayload(schema, options, config).options) });
       session.current.pending = captured; setPending(captured); await send();
     });
   };
   const changeFormat = value => {
     setFormat(value); selection.current.format = value; setOptions(initialOptions({}, {}, true));
-    if (selection.current.schema) setOptionState({ text: value === 'zpl' ? 'ZPL gửi nguyên bản; tùy chọn driver PDF không áp dụng.' : 'Chọn “Dùng mặc định” hoặc một giá trị được cấp.', error: false });
+    if (selection.current.schema) setOptionState({ text: value === 'zpl' ? 'ZPL gửi nguyên bản; tùy chọn driver PDF không áp dụng.' : 'Chọn “Dùng mặc định” hoặc một giá trị máy hỗ trợ.', error: false });
   };
   useEffect(() => {
     const s = session.current;
@@ -200,7 +201,7 @@ function ClientApp() {
               <div className="settings-grid"><div><label htmlFor="client-format">Định dạng</label><Select id="client-format" required value={format} onChange={event => changeFormat(event.target.value)}>{(selectedPrinter?.formats || ['pdf', 'zpl']).map(value => <option key={value} value={value}>{value.toUpperCase()}</option>)}</Select></div>
                 <div><label htmlFor="client-copies">Số bản</label><Input id="client-copies" type="number" min="1" max="100" required value={copies} onChange={event => setCopies(event.target.value)} /></div></div>
               <label htmlFor="client-title">Tiêu đề</label><Input id="client-title" maxLength={200} required value={title} onChange={event => setTitle(event.target.value)} />
-              <section id="client-options-panel" aria-live="polite"><p id="options-state" className={optionState.error ? 'bad' : 'muted'}>{optionState.text || 'Chọn máy in để tải tùy chọn được cấp.'}</p><div id="client-options">{schema && <PrintOptions schema={schema} model={options} onChange={setOptions} defaults={schema.default_options || {}} client format={format} />}</div></section>
+              <section id="client-options-panel" aria-live="polite"><p id="options-state" className={optionState.error ? 'bad' : 'muted'}>{optionState.text || 'Chọn máy in để xem tùy chọn.'}</p><div id="client-options">{schema && <PrintOptions schema={schema} model={options} onChange={setOptions} defaults={schema.default_options || {}} client format={format} />}</div></section>
               <Button id="send-print" type="submit">{busy && pending ? 'Đang gửi…' : 'Gửi lệnh in'}</Button>
             </form>
           </BusyContext.Provider>

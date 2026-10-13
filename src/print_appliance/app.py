@@ -29,6 +29,7 @@ from .auth import (
 )
 from .config import Settings
 from .cups import BackendUnavailable, CupsBackend, PyCupsBackend
+from .print_options import InvalidPrintOption
 from .service import Appliance, hash_api_key
 
 LOG = logging.getLogger("print_appliance")
@@ -296,29 +297,34 @@ def create_app(
     def client_printers(client: dict[str, str] = Depends(api_client)) -> list[dict[str, Any]]:
         return appliance.list_client_printers(client["id"])
 
-    @app.get("/api/v1/printers/{printer_id}/capabilities")
-    def client_printer_capabilities(
-        printer_id: str, client: dict[str, str] = Depends(api_client)
-    ) -> dict[str, Any]:
-        try:
-            result = appliance.printer_capabilities(printer_id, client["id"])
-        except BackendUnavailable as exc:
-            raise HTTPException(503, "Printer capabilities are unavailable") from exc
-        if result is None:
-            raise HTTPException(404, "Printer not found")
-        return result
+    async def validate_print_form(request: Request) -> None:
+        form = await request.form()
+        known = {"file", "printer_id", "format", "title", "copies", "options",
+                 "paper_size", "sides", "color_mode", "scaling"}
+        for name in form:
+            if name not in known or len(form.getlist(name)) != 1 or (
+                name in {"paper_size", "sides", "color_mode", "scaling"} and form[name] == ""
+            ):
+                raise HTTPException(422, {"code": "invalid_print_field", "field": name,
+                                          "message": "Unknown, repeated or empty print field."})
 
-    @app.post("/api/v1/jobs")
+    @app.post("/api/v1/jobs", dependencies=[Depends(validate_print_form)])
     def submit_job(
         file: UploadFile = File(...),
         printer_id: str = Form(...),
         format: str = Form(...),
         title: str = Form(...),
         copies: str = Form("1"),
-        options: str = Form("{}"),
+        options: str | None = Form(None),
+        paper_size: str | None = Form(None),
+        sides: str | None = Form(None),
+        color_mode: str | None = Form(None),
+        scaling: str | None = Form(None),
         idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
         client: dict[str, str] = Depends(api_client),
     ) -> JSONResponse:
+        if options is not None and any(v is not None for v in (paper_size, sides, color_mode, scaling)):
+            raise HTTPException(422, {"field": "options", "message": "Do not mix legacy and public fields."})
         if not idempotency_key:
             raise HTTPException(422, "Idempotency-Key is required")
         try:
@@ -329,11 +335,17 @@ def create_app(
                 format_name=format,
                 title=title,
                 copies_raw=copies,
-                options_raw=options,
+                legacy_options=options is not None,
+                options_raw=options if options is not None else json.dumps({k: v for k, v in {
+                    "paper_size": paper_size, "sides": sides,
+                    "color_mode": color_mode, "scaling": scaling,
+                }.items() if v is not None}),
                 filename=file.filename or "",
                 upload=file,
             )
             return JSONResponse(result, status_code=code)
+        except InvalidPrintOption as exc:
+            raise HTTPException(422, exc.detail) from exc
         except BackendUnavailable as exc:
             raise HTTPException(503, "Printer capabilities are unavailable") from exc
         except PermissionError as exc:

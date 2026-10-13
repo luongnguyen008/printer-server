@@ -53,7 +53,7 @@ export function PrintOptions({ schema, model, onChange, defaults = {}, allowed =
     if (!client && value) rights[name] = [...new Set([...(rights[name] || []), value])];
     onChange({ ...model, values: { ...model.values, [name]: value }, rights });
   };
-  let message = client ? (format === 'zpl' ? 'ZPL gửi nguyên bản. Không áp dụng tùy chọn PDF.' : options.length ? 'Chỉ có thể đổi những giá trị quản trị đã cấp.' : 'Dùng cấu hình mặc định; quản trị chưa cấp tùy chọn để thay đổi.') : 'Chọn mặc định và các giá trị client được phép đổi. Không chọn quyền nào nếu muốn giữ mặc định của driver.';
+  let message = client ? (format === 'zpl' ? 'ZPL gửi nguyên bản. Không áp dụng tùy chọn PDF.' : options.length ? 'Chỉ có thể đổi những giá trị quản trị đã cấp.' : 'Dùng cấu hình mặc định; quản trị chưa cấp tùy chọn để thay đổi.') : 'Chọn mặc định driver. Client được chọn mọi tùy chọn phổ thông đã ánh xạ chắc chắn; danh sách quyền cũ bên dưới không còn giới hạn API.';
   if (schema.availability === 'partial') message += ' CUPS chỉ báo một phần khả năng; không xác nhận các ràng buộc riêng của driver.';
   return <div className="option-editor"><p className="muted">{message}</p>
     {!client && (Object.keys(legacy.unknownDefaults).length > 0 || Object.keys(legacy.unknownAllowed).length > 0) && <>
@@ -70,13 +70,13 @@ export function PrintOptions({ schema, model, onChange, defaults = {}, allowed =
             <option value="">{client ? `Dùng mặc định${current ? ` (${choiceLabel(item, current)})` : ''}` : `Dùng mặc định driver${item.default ? ` (${choiceLabel(item, item.default)})` : ''}`}</option>
             {item.choices.map(choice => <option key={choice.value} value={choice.value}>{choiceLabel(item, choice.value)}</option>)}
           </Select>}
-          {!client && <><details className="option-rights"><summary>Giá trị client được phép chọn</summary><div className="option-choices">
+          {!client && <><details className="option-rights"><summary>Cấu hình quyền cũ (không áp dụng API mới)</summary><div className="option-choices">
             {item.choices.map(choice => <label className="check option-choice" key={choice.value}><Input type="checkbox" value={choice.value} checked={(model.rights[item.name] || []).includes(choice.value)} onChange={event => {
               let rights = event.target.checked ? [...new Set([...(model.rights[item.name] || []), choice.value])] : (model.rights[item.name] || []).filter(value => value !== choice.value);
               if (model.values[item.name]) rights = [...new Set([...rights, model.values[item.name]])];
               onChange({ ...model, rights: { ...model.rights, [item.name]: rights } });
             }} />{choiceLabel(item, choice.value)}</label>)}
-          </div></details><small>Mặc định cố định luôn nằm trong quyền được phép. Chỉ một giá trị giống mặc định thì client không đổi được.</small></>}
+          </div></details><small>Chỉ giữ để đọc cấu hình cũ. API mới không dùng danh sách này để giới hạn tùy chọn phổ thông.</small></>}
         </fieldset>;
       });
       return group === 'advanced' ? <AdvancedOptions key={group} error={error}>{fields}</AdvancedOptions> : <section key={group} className="option-common"><h3>Tùy chọn thường dùng</h3>{fields}</section>;

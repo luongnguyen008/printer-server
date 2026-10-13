@@ -5,7 +5,7 @@ const { spawnSync } = require('node:child_process');
 const contract = require('../../frontend/src/client-api.json');
 const base = process.env.UI_BASE_URL || 'http://127.0.0.1:18081';
 assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname));
-const taskNames = { printers: 'Chọn máy in', capabilities: 'Xem tùy chọn in', submit: 'Gửi file', job: 'Theo dõi lệnh', jobs: 'Xem lịch sử', cancel: 'Hủy lệnh' };
+const taskNames = { printers: 'Chọn máy in', submit: 'Gửi file', job: 'Theo dõi lệnh', jobs: 'Xem lịch sử', cancel: 'Hủy lệnh' };
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_EXECUTABLE ? { executablePath: process.env.CHROME_EXECUTABLE } : {}) });
   try {
@@ -31,11 +31,11 @@ const taskNames = { printers: 'Chọn máy in', capabilities: 'Xem tùy chọn i
     const before = reads;
     await page.getByRole('tab', { name: 'API Guide', exact: true }).click();
     assert.equal(new URL(page.url()).hash, '#tab=api-guide');
-    assert.equal(await page.locator('.api-task').count(), 6); assert.equal(await page.locator('.api-endpoint').count(), 1);
+    assert.equal(await page.locator('.api-task').count(), 5); assert.equal(await page.locator('.api-endpoint').count(), 1);
     assert.equal(await page.locator('.api-endpoint h3').textContent(), taskNames.printers);
     assert.equal(await page.locator('.api-disclosure[open]').count(), 0, 'Advanced content starts collapsed');
     assert.equal(await page.locator('.api-setup').getAttribute('open'), null);
-    // All six operations remain documented, including full standalone schemas/errors.
+    // All five operations remain documented, including full standalone schemas/errors.
     for (const endpoint of contract.endpoints) {
       await page.locator('.api-task').filter({ hasText: taskNames[endpoint.id] }).click();
       const panel = page.locator('.api-endpoint');
@@ -66,8 +66,8 @@ const taskNames = { printers: 'Chọn máy in', capabilities: 'Xem tùy chọn i
     }
     await page.locator('.api-task').filter({ hasText: taskNames.submit }).click();
     const submit = page.locator('.api-endpoint'), curl = submit.locator('pre[aria-label="cURL POST /api/v1/jobs"]');
-    assert.equal(await submit.locator('.api-field').count(), 7);
-    for (const name of ['file', 'printer_id', 'format', 'title', 'copies', 'options', 'Idempotency-Key']) assert.ok((await submit.locator('.api-field-list').textContent()).includes(name));
+    assert.equal(await submit.locator('.api-field').count(), 10);
+    for (const name of ['file', 'printer_id', 'format', 'title', 'copies', 'paper_size', 'sides', 'color_mode', 'scaling', 'Idempotency-Key']) assert.ok((await submit.locator('.api-field-list').textContent()).includes(name));
     assert.match(await submit.textContent(), /multipart\/form-data/); assert.match(await submit.textContent(), /có thể in thật/);
     await submit.getByLabel('Định dạng ví dụ').selectOption('zpl'); assert.match(await curl.textContent(), /format=zpl/); assert.match(await curl.textContent(), /label.zpl/);
     assert.equal(spawnSync('bash', ['-n'], { input: await curl.textContent(), encoding: 'utf8' }).status, 0);
@@ -102,14 +102,14 @@ const taskNames = { printers: 'Chọn máy in', capabilities: 'Xem tùy chọn i
     await page.getByLabel('Tìm API', { exact: true }).fill('huy'); assert.equal(await page.locator('.api-task').count(), 1); assert.match(await page.locator('.api-route code').textContent(), /\/cancel$/);
     await page.getByLabel('Tìm API', { exact: true }).fill('no-match'); assert.equal(await page.locator('.api-task').count(), 0); assert.equal(await page.locator('.api-endpoint').count(), 0); await page.getByRole('status').filter({ hasText: 'Không có API phù hợp' }).waitFor();
     assert.equal(reads, before, 'Admin guide interactions do not fetch');
-    await page.reload(); await page.locator('#busy-status').waitFor({ state: 'hidden' }); assert.equal(await page.locator('#tab-api-guide').getAttribute('aria-selected'), 'true'); assert.equal(await page.locator('.api-task').count(), 6);
+    await page.reload(); await page.locator('#busy-status').waitFor({ state: 'hidden' }); assert.equal(await page.locator('#tab-api-guide').getAttribute('aria-selected'), 'true'); assert.equal(await page.locator('.api-task').count(), 5);
     // Client reference is accessible without credentials or any admin/client calls.
     const client = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     client.on('pageerror', error => errors.push(error.message)); await client.route('**/*', handler);
     const clientBefore = reads;
     await client.goto(base + '/client'); assert.equal(await client.locator('#key-panel').isVisible(), true);
     await client.getByRole('tab', { name: 'API Guide', exact: true }).click(); assert.equal(new URL(client.url()).hash, '#api-guide');
-    assert.equal(await client.locator('#key-panel').isVisible(), false); assert.equal(await client.locator('.api-task').count(), 6);
+    assert.equal(await client.locator('#key-panel').isVisible(), false); assert.equal(await client.locator('.api-task').count(), 5);
     assert.deepEqual(await client.evaluate(() => ({ local: Object.keys(localStorage), tab: Object.keys(sessionStorage) })), { local: [], tab: [] });
     await client.locator('.api-task').filter({ hasText: taskNames.submit }).click();
     await save(client, 'client-api-guide-desktop.png');
@@ -123,16 +123,16 @@ const taskNames = { printers: 'Chọn máy in', capabilities: 'Xem tùy chọn i
     mobile.on('pageerror', error => errors.push(error.message)); await mobile.route('**/*', handler);
     await mobile.goto(base + '/client#api-guide'); await mobile.locator('.api-task').filter({ hasText: taskNames.submit }).click();
     assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-    assert.equal(await mobile.getByRole('button', { name: 'Tham số request · 7', exact: false }).getAttribute('aria-expanded'), 'false');
+    assert.equal(await mobile.getByRole('button', { name: 'Tham số request · 10', exact: false }).getAttribute('aria-expanded'), 'false');
     assert.ok((await mobile.locator('.api-content').boundingBox()).y < 100, 'Mobile task selection scrolls to the request');
     await save(mobile, 'api-guide-mobile.png');
-    await mobile.getByRole('button', { name: 'Tham số request · 7', exact: false }).click();
-    assert.equal(await mobile.locator('.api-field:visible').count(), 7);
-    await mobile.getByRole('button', { name: 'Tham số request · 7', exact: false }).click();
+    await mobile.getByRole('button', { name: 'Tham số request · 10', exact: false }).click();
+    assert.equal(await mobile.locator('.api-field:visible').count(), 10);
+    await mobile.getByRole('button', { name: 'Tham số request · 10', exact: false }).click();
     await mobile.locator('.api-setup > summary').click(); await mobile.locator('.api-endpoint').getByText('Schema & chi tiết kỹ thuật', { exact: true }).click();
     await mobile.locator('.api-endpoint').getByText('Mã lỗi ·', { exact: false }).click(); assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     assert.equal(reads, clientBefore, 'Client guide never calls admin APIs');
     assert.deepEqual(errors, []); assert.deepEqual(clientRequests, []); assert.deepEqual(writes, []); assert.deepEqual(external, []);
-    console.log('PASS: task-first API Guide; all six operations/fields/schemas/errors/responses; PDF/ZPL cURL syntax; immutable request ID; clipboard/fallback; safe base URL; search; admin/client hash/keyboard navigation; 320–1280px; zero client calls/writes/external requests.');
+    console.log('PASS: task-first API Guide; all five operations/fields/schemas/errors/responses; PDF/ZPL cURL syntax; immutable request ID; clipboard/fallback; safe base URL; search; admin/client hash/keyboard navigation; 320–1280px; zero client calls/writes/external requests.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exit(1); });

@@ -221,7 +221,7 @@ Lần đầu, nên thử một PDF ngắn, chọn một bản và kiểm tra đ�
 
 ## 5. Chức năng và tích hợp API
 
-Print Appliance quản lý máy in, cấp quyền theo client, nhận file PDF/ZPL, chống gửi trùng và theo dõi/hủy lệnh. Mục này minh họa đủ 6 API dành cho ứng dụng gửi in; API quản trị dùng cơ chế xác thực riêng, xem [đặc tả đầy đủ](api.md).
+Print Appliance quản lý máy in, cấp quyền theo client, nhận file PDF/ZPL, chống gửi trùng và theo dõi/hủy lệnh. Mục này minh họa đủ 5 API dành cho ứng dụng gửi in; API quản trị dùng cơ chế xác thực riêng, xem [đặc tả đầy đủ](api.md).
 
 <a name="51-chuan-bi-goi-api" class="heading-anchor"></a>
 
@@ -247,7 +247,7 @@ Mọi request bên dưới gửi header `Authorization: Bearer ...`. Không chia
 
 **GET `/api/v1/printers`**
 
-Lấy `id` của máy muốn in để dùng làm `PRINTER_ID` ở bước sau. Mảng rỗng `[]` nghĩa là client chưa thấy máy nào được cấp. `ready` là trạng thái cho phép xử lý, không chứng minh máy đang có giấy hoặc đang online.
+Lấy `id` của máy muốn in và gán `PRINTER_ID=printer-example` (thay bằng ID thật). Mỗi máy có `capabilities.supported` và `capabilities.defaults`. Gửi giá trị từ supported bằng field cùng tên: `paper_size`, `sides`, `color_mode`, `scaling`. Bỏ qua field thì dùng mặc định; null nghĩa là chưa ánh xạ chắc chắn mặc định driver. Không cần gọi API capabilities riêng. Các lựa chọn riêng lẻ vẫn có thể xung đột khi kết hợp; server kiểm tra khi nhận lệnh. Mảng rỗng `[]` nghĩa là client chưa thấy máy nào được cấp. `ready` là trạng thái cho phép xử lý, không chứng minh máy đang có giấy hoặc đang online.
 
 **Request:**
 
@@ -266,101 +266,63 @@ curl -i "$BASE_URL/api/v1/printers" \
     "formats": [
       "pdf"
     ],
-    "default_options": {
-      "PageSize": "A4"
-    },
-    "allowed_options": {
-      "PageSize": [
-        "A4",
-        "Letter"
-      ]
-    },
     "status": "ready",
-    "pause_reason": null
+    "pause_reason": null,
+    "capabilities": {
+      "availability": "available",
+      "reason": null,
+      "supported": {
+        "paper_size": [
+          "A4",
+          "Letter"
+        ],
+        "sides": [
+          "one-sided",
+          "two-sided-long-edge"
+        ],
+        "color_mode": [
+          "monochrome"
+        ],
+        "scaling": [
+          "auto",
+          "fit"
+        ]
+      },
+      "defaults": {
+        "paper_size": "A4",
+        "sides": "one-sided",
+        "color_mode": "monochrome",
+        "scaling": "auto"
+      }
+    }
   }
 ]
 ```
 
 **Lỗi cần xử lý:** `401`: API key thiếu, sai, đã đổi hoặc đã thu hồi.
 
-<a name="53-schema-tuy-chon-may-in" class="heading-anchor"></a>
+<a name="53-gui-yeu-cau-in" class="heading-anchor"></a>
 
-### 5.3 Schema tùy chọn máy in
-
-**GET `/api/v1/printers/{printer_id}/capabilities`**
-
-Chỉ gửi tùy chọn có trong `options[].choices` và được phép ghi đè. Ví dụ này cho phép `PageSize=A4` hoặc `Letter`. `availability="unavailable"` vẫn có thể đi cùng HTTP 200: cần kiểm tra kết nối CUPS, không kết luận máy không hỗ trợ tính năng.
-
-**Request:**
-
-```sh
-PRINTER_ID='printer-example' # Thay bằng id thật từ danh sách máy
-curl -i "$BASE_URL/api/v1/printers/$PRINTER_ID/capabilities" \
-  -H "Authorization: Bearer $API_KEY"
-```
-
-**Response HTTP 200 — Schema máy và quyền ghi đè.**
-
-```json
-{
-  "schema_version": 1,
-  "printer_id": "printer-example",
-  "availability": "available",
-  "reason": null,
-  "mapping_fingerprint": "example-mapping-fingerprint",
-  "schema_fingerprint": "example-schema-fingerprint",
-  "source": "ppd",
-  "raw": false,
-  "groups": [
-    {
-      "id": "common",
-      "label": "Common"
-    },
-    {
-      "id": "advanced",
-      "label": "Advanced"
-    }
-  ],
-  "options": [
-    {
-      "name": "PageSize",
-      "label": "Page size",
-      "group": "common",
-      "group_label": "General",
-      "default": "A4",
-      "overridable": true,
-      "choices": [
-        {
-          "value": "A4",
-          "label": "A4"
-        },
-        {
-          "value": "Letter",
-          "label": "Letter"
-        }
-      ]
-    }
-  ],
-  "constraints": [],
-  "ipp_attributes": {},
-  "default_options": {
-    "PageSize": "A4"
-  },
-  "allowed_options": null
-}
-```
-
-**Lỗi cần xử lý:** `401`: API key thiếu, sai, đã đổi hoặc đã thu hồi.; `404`: Máy không tồn tại hoặc không được cấp.; `503`: Không đọc được capability.
-
-<a name="54-gui-yeu-cau-in" class="heading-anchor"></a>
-
-### 5.4 Gửi yêu cầu in
+### 5.3 Gửi yêu cầu in
 
 **POST `/api/v1/jobs`**
 
-**Lệnh này có thể in ra giấy thật.** Chuẩn bị `invoice.pdf` trong thư mục hiện tại. `PRINTER_ID` lấy từ bước 5.3; nếu chưa có `uuidgen`, tạo một mã duy nhất 1–128 ký tự gồm chữ, số hoặc `._~-` rồi gán cho `REQUEST_ID`.
+**Lệnh này có thể in ra giấy thật.** Chuẩn bị `invoice.pdf` trong thư mục hiện tại. `PRINTER_ID` lấy từ bước 5.2; nếu chưa có `uuidgen`, tạo một mã duy nhất 1–128 ký tự gồm chữ, số hoặc `._~-` rồi gán cho `REQUEST_ID`.
 
-Body là `multipart/form-data`, không phải JSON. Cần `file`, `printer_id`, `format` và `title`; ví dụ truyền rõ `copies=1` và `options={}` để dùng mặc định của máy. Số bản trong khoảng 1–100, có thể bị giới hạn thêm theo máy. Muốn đổi khổ giấy sau khi đọc capability, thay bằng `-F 'options={"PageSize":"A4"}'`. Không tự đặt header Content-Type; curl tạo multipart boundary.
+Body là `multipart/form-data`, không phải JSON. Cần `file`, `printer_id`, `format` và `title`; ví dụ truyền rõ `copies=1` để dùng mặc định của máy. Số bản trong khoảng 1–100, có thể bị giới hạn thêm theo máy. Muốn đổi khổ giấy từ capabilities trong danh sách máy, thêm `-F 'paper_size=A4'`. Không tự đặt header Content-Type; curl tạo multipart boundary.
+
+Các field tùy chọn PDF:
+
+| Field | Giá trị minh họa | Ý nghĩa |
+| --- | --- | --- |
+| `paper_size` | `A4` | Khổ giấy |
+| `sides` | `one-sided`, `two-sided-long-edge`, `two-sided-short-edge` | Một mặt / hai mặt cạnh dài / cạnh ngắn |
+| `color_mode` | `monochrome`, `color` | Trắng đen / màu |
+| `scaling` | `auto`, `auto-fit`, `fit`, `fill`, `none` | Tỷ lệ PDF; fill có thể cắt mép |
+
+Chỉ dùng giá trị máy công bố trong `capabilities.supported`. ZPL không nhận các field này. Yêu cầu sai trả 422 với `detail.field`, `detail.allowed`, `detail.message`; tổ hợp sai trả `field=combination`. Không đọc được CUPS hoặc mapping thay đổi trả 503, không tự chọn phương án khác.
+
+**Thay đổi không tương thích:** endpoint capabilities riêng đã bỏ. Field JSON `options` không được dùng cho lệnh mới. Ngoại lệ duy nhất là gửi lại nguyên trạng yêu cầu cũ đã được nhận trước khi cập nhật: hệ thống chỉ trả kết quả chống trùng, không tạo lệnh mới. Không đổi mã yêu cầu để vượt lỗi khi chưa biết bản cũ đã in hay chưa.
 
 HTTP 202 chỉ xác nhận đã lưu lệnh, **không xác nhận giấy đã ra**. Lưu `job_id` để theo dõi.
 
@@ -378,8 +340,7 @@ curl -i "$BASE_URL/api/v1/jobs" \
   -F 'file=@./invoice.pdf;type=application/pdf' \
   -F 'format=pdf' \
   -F 'title=Invoice example' \
-  -F 'copies=1' \
-  -F 'options={}'
+  -F 'copies=1'
 ```
 
 **Response HTTP 202 — Yêu cầu mới được lưu; chưa chứng minh đã in.**
@@ -405,9 +366,9 @@ curl -i "$BASE_URL/api/v1/jobs" \
 
 **Lỗi cần xử lý:** `401`: API key thiếu, sai, đã đổi hoặc đã thu hồi.; `403`: Máy không được cấp.; `409`: Key đã dùng với nội dung khác; không đổi key để vượt qua.; `413`: Vượt giới hạn tệp/body.; `422`: Thiếu/sai field, chữ ký PDF/ZPL, format, copies, options hoặc request ID.; `429`: Hàng đợi đầy.; `503`: Không xác minh được capability máy.; `507`: Không đủ đĩa hoặc không lưu được yêu cầu.
 
-<a name="55-lich-su-cua-client" class="heading-anchor"></a>
+<a name="54-lich-su-cua-client" class="heading-anchor"></a>
 
-### 5.5 Lịch sử của client
+### 5.4 Lịch sử của client
 
 **GET `/api/v1/jobs`**
 
@@ -440,9 +401,9 @@ curl -i "$BASE_URL/api/v1/jobs?limit=50" \
 
 **Lỗi cần xử lý:** `401`: API key thiếu, sai, đã đổi hoặc đã thu hồi.
 
-<a name="56-chi-tiet-va-su-kien-lenh" class="heading-anchor"></a>
+<a name="55-chi-tiet-va-su-kien-lenh" class="heading-anchor"></a>
 
-### 5.6 Chi tiết và sự kiện lệnh
+### 5.5 Chi tiết và sự kiện lệnh
 
 **GET `/api/v1/jobs/{job_id}`**
 
@@ -482,9 +443,9 @@ curl -i "$BASE_URL/api/v1/jobs/$JOB_ID" \
 
 **Lỗi cần xử lý:** `401`: API key thiếu, sai, đã đổi hoặc đã thu hồi.; `404`: Lệnh không tồn tại, không thuộc client hoặc lịch sử đã bị dọn.
 
-<a name="57-yeu-cau-huy-lenh" class="heading-anchor"></a>
+<a name="56-yeu-cau-huy-lenh" class="heading-anchor"></a>
 
-### 5.7 Yêu cầu hủy lệnh
+### 5.6 Yêu cầu hủy lệnh
 
 **POST `/api/v1/jobs/{job_id}/cancel`**
 

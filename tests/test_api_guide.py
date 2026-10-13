@@ -83,16 +83,12 @@ def test_api_guide_schemas_match_real_client_responses(harness: Harness):
     headers = {"Authorization": f"Bearer {harness.key}"}
     validate(harness.api.get("/api/v1/printers", headers=headers).json(), "Printers")
     validate(
-        harness.api.get(
-            f"/api/v1/printers/{harness.printer['id']}/capabilities", headers=headers
-        ).json(),
+        harness.api.get("/api/v1/printers", headers=headers).json()[0]["capabilities"],
         "Capabilities",
     )
     harness.backend.available = False
     validate(
-        harness.api.get(
-            f"/api/v1/printers/{harness.printer['id']}/capabilities", headers=headers
-        ).json(),
+        harness.api.get("/api/v1/printers", headers=headers).json()[0]["capabilities"],
         "Capabilities",
     )
     harness.backend.available = True
@@ -101,7 +97,6 @@ def test_api_guide_schemas_match_real_client_responses(harness: Harness):
         "format": "pdf",
         "title": "Invoice example",
         "copies": "1",
-        "options": "{}",
     }
     submit_headers = {**headers, "Idempotency-Key": "guide-test-once"}
     files = {"file": ("invoice.pdf", b"%PDF-1.7\nFake content", "application/pdf")}

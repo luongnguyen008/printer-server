@@ -15,8 +15,7 @@ const credential = crypto.randomBytes(32).toString('hex');
       const request = route.request(), path = new URL(request.url()).pathname;
       assert.equal(request.headers().authorization, 'Bearer ' + credential);
       if (request.method() === 'GET') reads.push(path);
-      if (path === '/api/v1/printers') return route.fulfill({ json: [{ id: 'p-one', name: 'Isolated printer', formats: ['pdf'], status: 'ready' }] });
-      if (path.endsWith('/capabilities')) return route.fulfill({ json: { availability: 'available', options: [], default_options: {}, constraints: [] } });
+      if (path === '/api/v1/printers') return route.fulfill({ json: [{ id: 'p-one', name: 'Isolated printer', formats: ['pdf'], status: 'ready', capabilities: {availability:'available',supported:{},defaults:{}} }] });
       if (request.method() === 'GET') return route.fulfill({ json: [] });
       assert.equal(path, '/api/v1/jobs');
       writes.push({ id: request.headers()['idempotency-key'], body: request.postDataBuffer().toString() });
@@ -26,13 +25,13 @@ const credential = crypto.randomBytes(32).toString('hex');
     const idle = () => page.waitForFunction(() => !document.querySelector('#disconnect').disabled);
     const connect = async () => {
       await page.locator('#api-key').fill(credential); await page.locator('#key-form button[type="submit"]').click(); await idle();
-      await page.locator('#options-state').getByText(/Chỉ các lựa chọn/).waitFor();
+      await page.locator('#options-state').getByText(/Chọn tùy chọn phổ thông/).waitFor();
     };
     const chooseFile = () => page.locator('#client-file').setInputFiles({ name: 'isolated.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\nOriginal immutable content') });
     await page.goto(base + '/client'); await connect(); await chooseFile(); await page.locator('#client-title').fill('Immutable title'); await page.locator('#client-copies').fill('2');
     const beforeGuide = reads.length;
     await page.getByRole('tab', { name: 'API Guide', exact: true }).click();
-    assert.equal(await page.locator('.api-task').count(), 6); assert.equal(writes.length, 0); assert.equal(reads.length, beforeGuide);
+    assert.equal(await page.locator('.api-task').count(), 5); assert.equal(writes.length, 0); assert.equal(reads.length, beforeGuide);
     assert.ok(!(await page.locator('.api-reference').textContent()).includes(credential), 'Connected key never enters reference examples');
     await page.getByRole('tab', { name: 'In tài liệu', exact: true }).click();
     assert.equal(await page.locator('#client-file').evaluate(element => element.files[0].name), 'isolated.pdf');
@@ -61,7 +60,7 @@ const credential = crypto.randomBytes(32).toString('hex');
     await connect(); await chooseFile(); status = 503; await page.locator('#send-print').click(); await idle(); assert.notEqual(writes[3].id, id);
     // BFCache restoration keeps only the tab credential, never the pending file/request.
     await page.evaluate(() => { dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })); dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })); });
-    await idle(); await page.locator('#options-state').getByText(/Chỉ các lựa chọn/).waitFor(); assert.equal(writes.length, 4); assert.equal(await page.locator('#client-file').inputValue(), ''); assert.equal(await page.locator('#uncertain-request').isVisible(), false); assert.equal(await page.locator('#client-workspace').isVisible(), true);
+    await idle(); await page.locator('#options-state').getByText(/Chọn tùy chọn phổ thông/).waitFor(); assert.equal(writes.length, 4); assert.equal(await page.locator('#client-file').inputValue(), ''); assert.equal(await page.locator('#uncertain-request').isVisible(), false); assert.equal(await page.locator('#client-workspace').isVisible(), true);
     assert.deepEqual(errors, []); assert.deepEqual(external, []);
     console.log('PASS: client guide preserves chosen file/options/pending ID without reads, writes or key leakage; 503/408 immutable same-ID explicit retries; no auto resend; submission 401 clears credential/file/pending; BFCache restores credential only. APIs mocked; no printing.');
   } finally { await browser.close(); }
