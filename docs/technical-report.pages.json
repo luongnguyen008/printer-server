@@ -1,16 +1,16 @@
 {
   "document_version": "1.4",
   "product_version": "0.1.5",
-  "source_sha256": "d88ee3f4ae52dc020c3bf281884b7e80e219fc19900bb9f31565081f3712d808",
+  "source_sha256": "ac86573ba4c7aa84a21e36b37034554afd85f3b5561720d2174ca1a900311791",
   "print_profile": "A4; margins 16/14/18mm; bundled CSS; system fonts; Chrome",
   "browser_version": "155.0.8059.40",
-  "page_count": 8,
+  "page_count": 13,
   "pages": {
     "1-kien-truc-va-luong-in": 1,
     "2-yeu-cau-truoc-khi-trien-khai": 2,
     "3-cai-phan-mem-tren-thiet-bi": 3,
     "4-cau-hinh-may-in-va-kiem-tra-in-thu": 5,
     "5-chuc-nang-va-tich-hop-api": 7,
-    "6-van-hanh-va-xu-ly-loi-co-ban": 8
+    "6-van-hanh-va-xu-ly-loi-co-ban": 13
   }
 }

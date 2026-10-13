@@ -47,7 +47,7 @@ def test_guide_has_six_practical_sections_and_valid_navigation():
     assert "[TOC]" not in source
     assert "Phụ lục" not in source
     assert "Chỉ mục tra cứu" not in source
-    assert len(source.splitlines()) < 400
+    assert len(source.splitlines()) < 750
     # Explicit anchors support GitHub's differing Vietnamese heading slugs.
     anchors = set(re.findall(r'<a (?:id|name)="([^"]+)"', source))
     fragments = set(re.findall(r"\]\(#([^)]+)\)", source))
@@ -85,7 +85,7 @@ def test_canonical_pdf_page_references_are_current():
     )
     assert data["document_version"] == "1.4"
     assert data["product_version"] == "0.1.5"
-    assert 1 <= data["page_count"] <= 10
+    assert 1 <= data["page_count"] <= 16
     assert len(data["pages"]) == 6
     assert all(isinstance(n, int) and 1 <= n <= data["page_count"] for n in data["pages"].values())
     html = SOURCE.with_suffix(".html").read_text()
@@ -132,3 +132,20 @@ def test_specific_printer_and_driver_details_are_examples_only():
 def test_pdf_checkout_preserves_binary_bytes():
     attributes = (ROOT / ".gitattributes").read_text()
     assert "*.pdf binary" in attributes.splitlines()
+
+
+def test_api_examples_match_contract_and_shell_syntax():
+    import subprocess
+
+    source = SOURCE.read_text()
+    api = source.split("## 5.", 1)[1].split("## 6.", 1)[0]
+    contract = json.loads((SOURCE.parent.parent / "frontend/src/client-api.json").read_text())
+    examples = [json.loads(block) for block in re.findall(r"```json\n(.*?)\n```", api, re.S)]
+    for endpoint in contract["endpoints"]:
+        assert f"**{endpoint['method']} `{endpoint['path']}`**" in api
+        for response in endpoint["responses"]:
+            assert response["example"] in examples
+    for block in re.findall(r"```sh\n(.*?)\n```", source, re.S):
+        subprocess.run(["bash", "-n"], input=block, text=True, check=True)
+    assert "không chạy lại dòng tạo REQUEST_ID" in api
+    assert "có thể in ra giấy thật" in api

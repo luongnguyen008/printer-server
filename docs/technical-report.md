@@ -221,48 +221,302 @@ Lần đầu, nên thử một PDF ngắn, chọn một bản và kiểm tra đ�
 
 ## 5. Chức năng và tích hợp API
 
-Print Appliance cung cấp các chức năng chính:
+Print Appliance quản lý máy in, cấp quyền theo client, nhận file PDF/ZPL, chống gửi trùng và theo dõi/hủy lệnh. Mục này minh họa đủ 6 API dành cho ứng dụng gửi in; API quản trị dùng cơ chế xác thực riêng, xem [đặc tả đầy đủ](api.md).
 
-- Quản lý máy in, driver được chọn và các tùy chọn mặc định.
-- Cấp API key và giới hạn máy in cho từng client.
-- Nhận PDF/ZPL qua web hoặc API, lưu lệnh và chống gửi trùng.
-- Theo dõi trạng thái, yêu cầu hủy, tạm dừng và tiếp tục xử lý.
+<a name="51-chuan-bi-goi-api" class="heading-anchor"></a>
 
-Tùy chọn như in hai mặt, khổ giấy và tỷ lệ PDF phụ thuộc driver, máy in và quyền được cấp; không phải máy nào cũng có đủ lựa chọn.
+### 5.1 Chuẩn bị gọi API
 
-<a name="51-xac-thuc-va-pham-vi-quyen" class="heading-anchor"></a>
+Chạy các ví dụ bằng **Bash trên máy có file cần in** (Linux, macOS hoặc WSL), không bắt buộc SSH vào EDATEC. Cần có `curl`. Ví dụ dùng IP `192.168.0.123`; thay nếu thiết bị dùng địa chỉ khác.
 
-### 5.1 Xác thực và phạm vi quyền
+Trong trang quản trị, tạo client và cấp máy in tại **Clients**. Dùng API key của client, không dùng mật khẩu quản trị. Nhập key qua lời nhắc để không ghi key trực tiếp vào lịch sử lệnh:
 
-Người lập trình cần địa chỉ hệ thống, một API key và quyền sử dụng máy in. Trong màn hình quản trị, một ứng dụng được cấp quyền được gọi là **client**. Các lệnh gửi bằng cùng một khóa được tính là lệnh của client đó.
+```sh
+BASE_URL='http://192.168.0.123:8081'
+read -r -s -p 'API key: ' API_KEY
+printf '\n'
+```
 
-API key được gửi trong phần thông tin kèm yêu cầu, gọi là **header**, theo dạng `Authorization: Bearer <API_KEY>`. Đây là cách xác thực của ứng dụng, không phải nội dung cần nhập vào thanh địa chỉ trình duyệt.
+Mọi request bên dưới gửi header `Authorization: Bearer ...`. Không chia sẻ key hoặc đưa vào URL. HTTP không được mã hóa; chỉ dùng LAN tin cậy hoặc HTTPS. Các ID và JSON phản hồi bên dưới đều là ví dụ, không phải dữ liệu thật của EDATEC.
 
-<a name="52-gui-va-theo-doi-lenh" class="heading-anchor"></a>
+`curl -i` hiển thị cả mã HTTP và JSON. Các lệnh GET không có body. Chỉ POST gửi file và POST hủy làm thay đổi lệnh in.
 
-### 5.2 Gửi và theo dõi lệnh
+<a name="52-danh-sach-may-uoc-cap" class="heading-anchor"></a>
 
-1. Ứng dụng lấy danh sách máy được phép dùng và chọn máy cần in.
-2. Ứng dụng gửi file cùng số bản và các tùy chọn được phép.
-3. Hệ thống trả về mã lệnh (`job_id`). Ứng dụng lưu mã này để hỏi lại trạng thái mỗi 3–5 giây.
+### 5.2 Danh sách máy được cấp
 
-| Yêu cầu API | Mục đích |
-| --- | --- |
-| `GET /api/v1/printers` | Lấy danh sách máy được cấp |
-| `GET /api/v1/printers/{id}/capabilities` | Lấy các tùy chọn được phép của một máy |
-| `POST /api/v1/jobs` | Gửi file để tạo lệnh in |
-| `GET /api/v1/jobs` | Xem các lệnh của client |
-| `GET /api/v1/jobs/{job_id}` | Xem trạng thái một lệnh |
-| `POST /api/v1/jobs/{job_id}/cancel` | Yêu cầu hủy một lệnh |
+**GET `/api/v1/printers`**
 
-`GET` dùng để đọc thông tin; `POST` dùng để gửi yêu cầu thao tác. `{id}` và `{job_id}` là chỗ người lập trình thay bằng mã máy hoặc mã lệnh thực tế.
+Lấy `id` của máy muốn in để dùng làm `PRINTER_ID` ở bước sau. Mảng rỗng `[]` nghĩa là client chưa thấy máy nào được cấp. `ready` là trạng thái cho phép xử lý, không chứng minh máy đang có giấy hoặc đang online.
 
-**Đã nhận chưa có nghĩa là đã in.** Phản hồi `202` khi gửi file chỉ xác nhận hệ thống đã lưu lệnh. Ứng dụng vẫn cần theo dõi trạng thái sau đó.
+**Request:**
 
-Mỗi lần in mới cần một mã yêu cầu riêng, gửi qua header `Idempotency-Key`. Mã này giúp chống in trùng khi mất phản hồi: nếu gửi lại, ứng dụng phải giữ nguyên **mã, file, tên file và mọi tham số**, không tạo mã mới để thử lại.
+```sh
+curl -i "$BASE_URL/api/v1/printers" \
+  -H "Authorization: Bearer $API_KEY"
+```
 
-Người lập trình xem mẫu yêu cầu, dữ liệu file và phản hồi trong **API Guide**, bằng cách thêm `/client#api-guide` vào địa chỉ hệ thống. Trang này chỉ là hướng dẫn, không tự gửi lệnh in. Hợp đồng API đầy đủ nằm trong [api.md](api.md).
+**Response HTTP 200 — Danh sách (có thể rỗng).**
 
+```json
+[
+  {
+    "id": "printer-example",
+    "name": "Máy in được cấp",
+    "formats": [
+      "pdf"
+    ],
+    "default_options": {
+      "PageSize": "A4"
+    },
+    "allowed_options": {
+      "PageSize": [
+        "A4",
+        "Letter"
+      ]
+    },
+    "status": "ready",
+    "pause_reason": null
+  }
+]
+```
+
+**Lỗi cần xử lý:** `401`: API key thiếu, sai, đã đổi hoặc đã thu hồi.
+
+<a name="53-schema-tuy-chon-may-in" class="heading-anchor"></a>
+
+### 5.3 Schema tùy chọn máy in
+
+**GET `/api/v1/printers/{printer_id}/capabilities`**
+
+Chỉ gửi tùy chọn có trong `options[].choices` và được phép ghi đè. Ví dụ này cho phép `PageSize=A4` hoặc `Letter`. `availability="unavailable"` vẫn có thể đi cùng HTTP 200: cần kiểm tra kết nối CUPS, không kết luận máy không hỗ trợ tính năng.
+
+**Request:**
+
+```sh
+PRINTER_ID='printer-example' # Thay bằng id thật từ danh sách máy
+curl -i "$BASE_URL/api/v1/printers/$PRINTER_ID/capabilities" \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+**Response HTTP 200 — Schema máy và quyền ghi đè.**
+
+```json
+{
+  "schema_version": 1,
+  "printer_id": "printer-example",
+  "availability": "available",
+  "reason": null,
+  "mapping_fingerprint": "example-mapping-fingerprint",
+  "schema_fingerprint": "example-schema-fingerprint",
+  "source": "ppd",
+  "raw": false,
+  "groups": [
+    {
+      "id": "common",
+      "label": "Common"
+    },
+    {
+      "id": "advanced",
+      "label": "Advanced"
+    }
+  ],
+  "options": [
+    {
+      "name": "PageSize",
+      "label": "Page size",
+      "group": "common",
+      "group_label": "General",
+      "default": "A4",
+      "overridable": true,
+      "choices": [
+        {
+          "value": "A4",
+          "label": "A4"
+        },
+        {
+          "value": "Letter",
+          "label": "Letter"
+        }
+      ]
+    }
+  ],
+  "constraints": [],
+  "ipp_attributes": {},
+  "default_options": {
+    "PageSize": "A4"
+  },
+  "allowed_options": null
+}
+```
+
+**Lỗi cần xử lý:** `401`: API key thiếu, sai, đã đổi hoặc đã thu hồi.; `404`: Máy không tồn tại hoặc không được cấp.; `503`: Không đọc được capability.
+
+<a name="54-gui-yeu-cau-in" class="heading-anchor"></a>
+
+### 5.4 Gửi yêu cầu in
+
+**POST `/api/v1/jobs`**
+
+**Lệnh này có thể in ra giấy thật.** Chuẩn bị `invoice.pdf` trong thư mục hiện tại. `PRINTER_ID` lấy từ bước 5.3; nếu chưa có `uuidgen`, tạo một mã duy nhất 1–128 ký tự gồm chữ, số hoặc `._~-` rồi gán cho `REQUEST_ID`.
+
+Body là `multipart/form-data`, không phải JSON. Cần `file`, `printer_id`, `format` và `title`; ví dụ truyền rõ `copies=1` và `options={}` để dùng mặc định của máy. Số bản trong khoảng 1–100, có thể bị giới hạn thêm theo máy. Muốn đổi khổ giấy sau khi đọc capability, thay bằng `-F 'options={"PageSize":"A4"}'`. Không tự đặt header Content-Type; curl tạo multipart boundary.
+
+HTTP 202 chỉ xác nhận đã lưu lệnh, **không xác nhận giấy đã ra**. Lưu `job_id` để theo dõi.
+
+Nếu mất phản hồi, giữ nguyên mã, file, tên file và mọi tham số; chỉ chạy lại lệnh `curl`, **không chạy lại dòng tạo REQUEST_ID**. Cùng yêu cầu đã nhận trả HTTP 200 với `deduplicated=true`. Không đổi mã để vượt lỗi 409. Nếu `history_expired=true`, lịch sử đã bị dọn nhưng hệ thống vẫn không tạo bản in mới.
+
+**Request:**
+
+```sh
+# Tạo mã một lần cho thao tác in mới; giữ lại nếu phải gửi lại.
+REQUEST_ID="$(uuidgen)"
+curl -i "$BASE_URL/api/v1/jobs" \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Idempotency-Key: $REQUEST_ID" \
+  -F "printer_id=$PRINTER_ID" \
+  -F 'file=@./invoice.pdf;type=application/pdf' \
+  -F 'format=pdf' \
+  -F 'title=Invoice example' \
+  -F 'copies=1' \
+  -F 'options={}'
+```
+
+**Response HTTP 202 — Yêu cầu mới được lưu; chưa chứng minh đã in.**
+
+```json
+{
+  "job_id": "job-example",
+  "status": "queued",
+  "deduplicated": false
+}
+```
+
+**Response HTTP 200 — Phát lại cùng key/nội dung; không tạo job mới.**
+
+```json
+{
+  "job_id": "job-example",
+  "status": "queued",
+  "deduplicated": true,
+  "history_expired": false
+}
+```
+
+**Lỗi cần xử lý:** `401`: API key thiếu, sai, đã đổi hoặc đã thu hồi.; `403`: Máy không được cấp.; `409`: Key đã dùng với nội dung khác; không đổi key để vượt qua.; `413`: Vượt giới hạn tệp/body.; `422`: Thiếu/sai field, chữ ký PDF/ZPL, format, copies, options hoặc request ID.; `429`: Hàng đợi đầy.; `503`: Không xác minh được capability máy.; `507`: Không đủ đĩa hoặc không lưu được yêu cầu.
+
+<a name="55-lich-su-cua-client" class="heading-anchor"></a>
+
+### 5.5 Lịch sử của client
+
+**GET `/api/v1/jobs`**
+
+`limit` không bắt buộc, mặc định 50 và được giới hạn trong 1–100. Kết quả mới nhất trước, chỉ gồm lệnh của client hiện tại, không trả nội dung file. Mảng rỗng `[]` là chưa có lịch sử hiển thị.
+
+**Request:**
+
+```sh
+curl -i "$BASE_URL/api/v1/jobs?limit=50" \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+**Response HTTP 200 — Danh sách metadata, không trả file đã lưu.**
+
+```json
+[
+  {
+    "job_id": "job-example",
+    "printer_id": "printer-example",
+    "status": "queued",
+    "accepted_at": "2026-10-06T09:00:00+00:00",
+    "updated_at": "2026-10-06T09:00:00+00:00",
+    "title": "Invoice example",
+    "format": "pdf",
+    "copies": 1,
+    "reason": null
+  }
+]
+```
+
+**Lỗi cần xử lý:** `401`: API key thiếu, sai, đã đổi hoặc đã thu hồi.
+
+<a name="56-chi-tiet-va-su-kien-lenh" class="heading-anchor"></a>
+
+### 5.6 Chi tiết và sự kiện lệnh
+
+**GET `/api/v1/jobs/{job_id}`**
+
+Dùng `job_id` từ kết quả gửi hoặc lịch sử. Gọi lại mỗi 3–5 giây khi cần theo dõi; dừng khi `completed`, `failed` hoặc `canceled`. `completed` là CUPS báo hoàn thành, không bảo đảm giấy đã ra. Với `unknown`, nhờ quản trị xác minh, không tự in lại. `reason` và `events` giúp giải thích trạng thái.
+
+**Request:**
+
+```sh
+JOB_ID='job-example' # Thay bằng job_id thật đã nhận
+curl -i "$BASE_URL/api/v1/jobs/$JOB_ID" \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+**Response HTTP 200 — Metadata và events.**
+
+```json
+{
+  "job_id": "job-example",
+  "printer_id": "printer-example",
+  "status": "queued",
+  "accepted_at": "2026-10-06T09:00:00+00:00",
+  "updated_at": "2026-10-06T09:00:00+00:00",
+  "title": "Invoice example",
+  "format": "pdf",
+  "copies": 1,
+  "reason": null,
+  "events": [
+    {
+      "at": "2026-10-06T09:00:00+00:00",
+      "actor": "client",
+      "status": "queued",
+      "message": "Accepted durable request"
+    }
+  ]
+}
+```
+
+**Lỗi cần xử lý:** `401`: API key thiếu, sai, đã đổi hoặc đã thu hồi.; `404`: Lệnh không tồn tại, không thuộc client hoặc lịch sử đã bị dọn.
+
+<a name="57-yeu-cau-huy-lenh" class="heading-anchor"></a>
+
+### 5.7 Yêu cầu hủy lệnh
+
+**POST `/api/v1/jobs/{job_id}/cancel`**
+
+Không gửi body. HTTP 200 trả trạng thái sau yêu cầu, không bảo đảm luôn là `canceled`. Đọc `status`, `reason`, `events`; nếu cần, gọi lại API chi tiết. Hủy không thu hồi được giấy đã in và không xóa lịch sử.
+
+**Request:**
+
+```sh
+curl -i -X POST "$BASE_URL/api/v1/jobs/$JOB_ID/cancel" \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+**Response HTTP 200 — Trạng thái thực tế sau yêu cầu, không luôn là canceled.**
+
+```json
+{
+  "job_id": "job-example",
+  "printer_id": "printer-example",
+  "status": "canceled",
+  "accepted_at": "2026-10-06T09:00:00+00:00",
+  "updated_at": "2026-10-06T09:00:00+00:00",
+  "title": "Invoice example",
+  "format": "pdf",
+  "copies": 1,
+  "reason": "Canceled before CUPS handoff",
+  "events": []
+}
+```
+
+**Lỗi cần xử lý:** `401`: API key thiếu, sai, đã đổi hoặc đã thu hồi.; `404`: Lệnh không tồn tại hoặc không thuộc client.; `503`: Không xác minh được trạng thái CUPS; chưa báo canceled.
+
+Tài liệu API cũng có sẵn khi không có Internet tại `/client#api-guide`; trang hướng dẫn không tự gửi request hoặc in thử.
 
 <a name="6-van-hanh-va-xu-ly-loi-co-ban" class="heading-anchor"></a>
 

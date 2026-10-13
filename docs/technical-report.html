@@ -32,7 +32,7 @@ table{border-collapse:collapse;width:100%;margin:20px 0;font-size:14px;table-lay
 <li><a href="#3-cai-phan-mem-tren-thiet-bi"><span>3. Cài phần mềm trên thiết bị</span><span class="page-reference" data-page-target="3-cai-phan-mem-tren-thiet-bi" title="Trang trong bản PDF chuẩn">3</span></a></li>
 <li><a href="#4-cau-hinh-may-in-va-kiem-tra-in-thu"><span>4. Cấu hình máy in và kiểm tra in thử</span><span class="page-reference" data-page-target="4-cau-hinh-may-in-va-kiem-tra-in-thu" title="Trang trong bản PDF chuẩn">5</span></a></li>
 <li><a href="#5-chuc-nang-va-tich-hop-api"><span>5. Chức năng và tích hợp API</span><span class="page-reference" data-page-target="5-chuc-nang-va-tich-hop-api" title="Trang trong bản PDF chuẩn">7</span></a></li>
-<li><a href="#6-van-hanh-va-xu-ly-loi-co-ban"><span>6. Vận hành và xử lý lỗi cơ bản</span><span class="page-reference" data-page-target="6-van-hanh-va-xu-ly-loi-co-ban" title="Trang trong bản PDF chuẩn">8</span></a></li>
+<li><a href="#6-van-hanh-va-xu-ly-loi-co-ban"><span>6. Vận hành và xử lý lỗi cơ bản</span><span class="page-reference" data-page-target="6-van-hanh-va-xu-ly-loi-co-ban" title="Trang trong bản PDF chuẩn">13</span></a></li>
 </ul>
 </nav>
 
@@ -228,61 +228,214 @@ sudo journalctl -u print-appliance -n 50 --no-pager
 <p><strong>Nếu cần hủy:</strong> nhờ quản trị mở lệnh trong mục <strong>Lệnh in</strong> và yêu cầu hủy. Hủy không thu hồi được giấy đã in; khi tài liệu đã được chuyển tới CUPS, cần chờ hệ thống xác nhận kết quả.</p>
 <p><strong>Điều kiện bàn giao:</strong> in một bản đúng nội dung, đúng máy; kiểm tra tùy chọn cần dùng và quyền client. Trên máy/hàng đợi thử được phép, kiểm tra thêm tạm dừng, tiếp tục và hủy từ web. Có nhóm <code>lpadmin</code> hoặc tạo máy thành công chưa chứng minh mọi thao tác CUPS đều hoạt động.</p>
 <h2 id="5-chuc-nang-va-tich-hop-api">5. Chức năng và tích hợp API</h2>
-<p>Print Appliance cung cấp các chức năng chính:</p>
-<ul>
-<li>Quản lý máy in, driver được chọn và các tùy chọn mặc định.</li>
-<li>Cấp API key và giới hạn máy in cho từng client.</li>
-<li>Nhận PDF/ZPL qua web hoặc API, lưu lệnh và chống gửi trùng.</li>
-<li>Theo dõi trạng thái, yêu cầu hủy, tạm dừng và tiếp tục xử lý.</li>
-</ul>
-<p>Tùy chọn như in hai mặt, khổ giấy và tỷ lệ PDF phụ thuộc driver, máy in và quyền được cấp; không phải máy nào cũng có đủ lựa chọn.</p>
-<h3 id="51-xac-thuc-va-pham-vi-quyen">5.1 Xác thực và phạm vi quyền</h3>
-<p>Người lập trình cần địa chỉ hệ thống, một API key và quyền sử dụng máy in. Trong màn hình quản trị, một ứng dụng được cấp quyền được gọi là <strong>client</strong>. Các lệnh gửi bằng cùng một khóa được tính là lệnh của client đó.</p>
-<p>API key được gửi trong phần thông tin kèm yêu cầu, gọi là <strong>header</strong>, theo dạng <code>Authorization: Bearer &lt;API_KEY&gt;</code>. Đây là cách xác thực của ứng dụng, không phải nội dung cần nhập vào thanh địa chỉ trình duyệt.</p>
-<h3 id="52-gui-va-theo-doi-lenh">5.2 Gửi và theo dõi lệnh</h3>
-<ol>
-<li>Ứng dụng lấy danh sách máy được phép dùng và chọn máy cần in.</li>
-<li>Ứng dụng gửi file cùng số bản và các tùy chọn được phép.</li>
-<li>Hệ thống trả về mã lệnh (<code>job_id</code>). Ứng dụng lưu mã này để hỏi lại trạng thái mỗi 3–5 giây.</li>
-</ol>
-<table>
-<thead>
-<tr>
-<th>Yêu cầu API</th>
-<th>Mục đích</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>GET /api/v1/printers</code></td>
-<td>Lấy danh sách máy được cấp</td>
-</tr>
-<tr>
-<td><code>GET /api/v1/printers/{id}/capabilities</code></td>
-<td>Lấy các tùy chọn được phép của một máy</td>
-</tr>
-<tr>
-<td><code>POST /api/v1/jobs</code></td>
-<td>Gửi file để tạo lệnh in</td>
-</tr>
-<tr>
-<td><code>GET /api/v1/jobs</code></td>
-<td>Xem các lệnh của client</td>
-</tr>
-<tr>
-<td><code>GET /api/v1/jobs/{job_id}</code></td>
-<td>Xem trạng thái một lệnh</td>
-</tr>
-<tr>
-<td><code>POST /api/v1/jobs/{job_id}/cancel</code></td>
-<td>Yêu cầu hủy một lệnh</td>
-</tr>
-</tbody>
-</table>
-<p><code>GET</code> dùng để đọc thông tin; <code>POST</code> dùng để gửi yêu cầu thao tác. <code>{id}</code> và <code>{job_id}</code> là chỗ người lập trình thay bằng mã máy hoặc mã lệnh thực tế.</p>
-<p><strong>Đã nhận chưa có nghĩa là đã in.</strong> Phản hồi <code>202</code> khi gửi file chỉ xác nhận hệ thống đã lưu lệnh. Ứng dụng vẫn cần theo dõi trạng thái sau đó.</p>
-<p>Mỗi lần in mới cần một mã yêu cầu riêng, gửi qua header <code>Idempotency-Key</code>. Mã này giúp chống in trùng khi mất phản hồi: nếu gửi lại, ứng dụng phải giữ nguyên <strong>mã, file, tên file và mọi tham số</strong>, không tạo mã mới để thử lại.</p>
-<p>Người lập trình xem mẫu yêu cầu, dữ liệu file và phản hồi trong <strong>API Guide</strong>, bằng cách thêm <code>/client#api-guide</code> vào địa chỉ hệ thống. Trang này chỉ là hướng dẫn, không tự gửi lệnh in. Hợp đồng API đầy đủ nằm trong <a href="api.md">api.md</a>.</p>
+<p>Print Appliance quản lý máy in, cấp quyền theo client, nhận file PDF/ZPL, chống gửi trùng và theo dõi/hủy lệnh. Mục này minh họa đủ 6 API dành cho ứng dụng gửi in; API quản trị dùng cơ chế xác thực riêng, xem <a href="api.md">đặc tả đầy đủ</a>.</p>
+<h3 id="51-chuan-bi-goi-api">5.1 Chuẩn bị gọi API</h3>
+<p>Chạy các ví dụ bằng <strong>Bash trên máy có file cần in</strong> (Linux, macOS hoặc WSL), không bắt buộc SSH vào EDATEC. Cần có <code>curl</code>. Ví dụ dùng IP <code>192.168.0.123</code>; thay nếu thiết bị dùng địa chỉ khác.</p>
+<p>Trong trang quản trị, tạo client và cấp máy in tại <strong>Clients</strong>. Dùng API key của client, không dùng mật khẩu quản trị. Nhập key qua lời nhắc để không ghi key trực tiếp vào lịch sử lệnh:</p>
+<pre><code class="language-sh">BASE_URL='http://192.168.0.123:8081'
+read -r -s -p 'API key: ' API_KEY
+printf '\n'
+</code></pre>
+<p>Mọi request bên dưới gửi header <code>Authorization: Bearer ...</code>. Không chia sẻ key hoặc đưa vào URL. HTTP không được mã hóa; chỉ dùng LAN tin cậy hoặc HTTPS. Các ID và JSON phản hồi bên dưới đều là ví dụ, không phải dữ liệu thật của EDATEC.</p>
+<p><code>curl -i</code> hiển thị cả mã HTTP và JSON. Các lệnh GET không có body. Chỉ POST gửi file và POST hủy làm thay đổi lệnh in.</p>
+<h3 id="52-danh-sach-may-uoc-cap">5.2 Danh sách máy được cấp</h3>
+<p><strong>GET <code>/api/v1/printers</code></strong></p>
+<p>Lấy <code>id</code> của máy muốn in để dùng làm <code>PRINTER_ID</code> ở bước sau. Mảng rỗng <code>[]</code> nghĩa là client chưa thấy máy nào được cấp. <code>ready</code> là trạng thái cho phép xử lý, không chứng minh máy đang có giấy hoặc đang online.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-sh">curl -i &quot;$BASE_URL/api/v1/printers&quot; \
+  -H &quot;Authorization: Bearer $API_KEY&quot;
+</code></pre>
+<p><strong>Response HTTP 200 — Danh sách (có thể rỗng).</strong></p>
+<pre><code class="language-json">[
+  {
+    &quot;id&quot;: &quot;printer-example&quot;,
+    &quot;name&quot;: &quot;Máy in được cấp&quot;,
+    &quot;formats&quot;: [
+      &quot;pdf&quot;
+    ],
+    &quot;default_options&quot;: {
+      &quot;PageSize&quot;: &quot;A4&quot;
+    },
+    &quot;allowed_options&quot;: {
+      &quot;PageSize&quot;: [
+        &quot;A4&quot;,
+        &quot;Letter&quot;
+      ]
+    },
+    &quot;status&quot;: &quot;ready&quot;,
+    &quot;pause_reason&quot;: null
+  }
+]
+</code></pre>
+<p><strong>Lỗi cần xử lý:</strong> <code>401</code>: API key thiếu, sai, đã đổi hoặc đã thu hồi.</p>
+<h3 id="53-schema-tuy-chon-may-in">5.3 Schema tùy chọn máy in</h3>
+<p><strong>GET <code>/api/v1/printers/{printer_id}/capabilities</code></strong></p>
+<p>Chỉ gửi tùy chọn có trong <code>options[].choices</code> và được phép ghi đè. Ví dụ này cho phép <code>PageSize=A4</code> hoặc <code>Letter</code>. <code>availability="unavailable"</code> vẫn có thể đi cùng HTTP 200: cần kiểm tra kết nối CUPS, không kết luận máy không hỗ trợ tính năng.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-sh">PRINTER_ID='printer-example' # Thay bằng id thật từ danh sách máy
+curl -i &quot;$BASE_URL/api/v1/printers/$PRINTER_ID/capabilities&quot; \
+  -H &quot;Authorization: Bearer $API_KEY&quot;
+</code></pre>
+<p><strong>Response HTTP 200 — Schema máy và quyền ghi đè.</strong></p>
+<pre><code class="language-json">{
+  &quot;schema_version&quot;: 1,
+  &quot;printer_id&quot;: &quot;printer-example&quot;,
+  &quot;availability&quot;: &quot;available&quot;,
+  &quot;reason&quot;: null,
+  &quot;mapping_fingerprint&quot;: &quot;example-mapping-fingerprint&quot;,
+  &quot;schema_fingerprint&quot;: &quot;example-schema-fingerprint&quot;,
+  &quot;source&quot;: &quot;ppd&quot;,
+  &quot;raw&quot;: false,
+  &quot;groups&quot;: [
+    {
+      &quot;id&quot;: &quot;common&quot;,
+      &quot;label&quot;: &quot;Common&quot;
+    },
+    {
+      &quot;id&quot;: &quot;advanced&quot;,
+      &quot;label&quot;: &quot;Advanced&quot;
+    }
+  ],
+  &quot;options&quot;: [
+    {
+      &quot;name&quot;: &quot;PageSize&quot;,
+      &quot;label&quot;: &quot;Page size&quot;,
+      &quot;group&quot;: &quot;common&quot;,
+      &quot;group_label&quot;: &quot;General&quot;,
+      &quot;default&quot;: &quot;A4&quot;,
+      &quot;overridable&quot;: true,
+      &quot;choices&quot;: [
+        {
+          &quot;value&quot;: &quot;A4&quot;,
+          &quot;label&quot;: &quot;A4&quot;
+        },
+        {
+          &quot;value&quot;: &quot;Letter&quot;,
+          &quot;label&quot;: &quot;Letter&quot;
+        }
+      ]
+    }
+  ],
+  &quot;constraints&quot;: [],
+  &quot;ipp_attributes&quot;: {},
+  &quot;default_options&quot;: {
+    &quot;PageSize&quot;: &quot;A4&quot;
+  },
+  &quot;allowed_options&quot;: null
+}
+</code></pre>
+<p><strong>Lỗi cần xử lý:</strong> <code>401</code>: API key thiếu, sai, đã đổi hoặc đã thu hồi.; <code>404</code>: Máy không tồn tại hoặc không được cấp.; <code>503</code>: Không đọc được capability.</p>
+<h3 id="54-gui-yeu-cau-in">5.4 Gửi yêu cầu in</h3>
+<p><strong>POST <code>/api/v1/jobs</code></strong></p>
+<p><strong>Lệnh này có thể in ra giấy thật.</strong> Chuẩn bị <code>invoice.pdf</code> trong thư mục hiện tại. <code>PRINTER_ID</code> lấy từ bước 5.3; nếu chưa có <code>uuidgen</code>, tạo một mã duy nhất 1–128 ký tự gồm chữ, số hoặc <code>._~-</code> rồi gán cho <code>REQUEST_ID</code>.</p>
+<p>Body là <code>multipart/form-data</code>, không phải JSON. Cần <code>file</code>, <code>printer_id</code>, <code>format</code> và <code>title</code>; ví dụ truyền rõ <code>copies=1</code> và <code>options={}</code> để dùng mặc định của máy. Số bản trong khoảng 1–100, có thể bị giới hạn thêm theo máy. Muốn đổi khổ giấy sau khi đọc capability, thay bằng <code>-F 'options={"PageSize":"A4"}'</code>. Không tự đặt header Content-Type; curl tạo multipart boundary.</p>
+<p>HTTP 202 chỉ xác nhận đã lưu lệnh, <strong>không xác nhận giấy đã ra</strong>. Lưu <code>job_id</code> để theo dõi.</p>
+<p>Nếu mất phản hồi, giữ nguyên mã, file, tên file và mọi tham số; chỉ chạy lại lệnh <code>curl</code>, <strong>không chạy lại dòng tạo REQUEST_ID</strong>. Cùng yêu cầu đã nhận trả HTTP 200 với <code>deduplicated=true</code>. Không đổi mã để vượt lỗi 409. Nếu <code>history_expired=true</code>, lịch sử đã bị dọn nhưng hệ thống vẫn không tạo bản in mới.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-sh"># Tạo mã một lần cho thao tác in mới; giữ lại nếu phải gửi lại.
+REQUEST_ID=&quot;$(uuidgen)&quot;
+curl -i &quot;$BASE_URL/api/v1/jobs&quot; \
+  -H &quot;Authorization: Bearer $API_KEY&quot; \
+  -H &quot;Idempotency-Key: $REQUEST_ID&quot; \
+  -F &quot;printer_id=$PRINTER_ID&quot; \
+  -F 'file=@./invoice.pdf;type=application/pdf' \
+  -F 'format=pdf' \
+  -F 'title=Invoice example' \
+  -F 'copies=1' \
+  -F 'options={}'
+</code></pre>
+<p><strong>Response HTTP 202 — Yêu cầu mới được lưu; chưa chứng minh đã in.</strong></p>
+<pre><code class="language-json">{
+  &quot;job_id&quot;: &quot;job-example&quot;,
+  &quot;status&quot;: &quot;queued&quot;,
+  &quot;deduplicated&quot;: false
+}
+</code></pre>
+<p><strong>Response HTTP 200 — Phát lại cùng key/nội dung; không tạo job mới.</strong></p>
+<pre><code class="language-json">{
+  &quot;job_id&quot;: &quot;job-example&quot;,
+  &quot;status&quot;: &quot;queued&quot;,
+  &quot;deduplicated&quot;: true,
+  &quot;history_expired&quot;: false
+}
+</code></pre>
+<p><strong>Lỗi cần xử lý:</strong> <code>401</code>: API key thiếu, sai, đã đổi hoặc đã thu hồi.; <code>403</code>: Máy không được cấp.; <code>409</code>: Key đã dùng với nội dung khác; không đổi key để vượt qua.; <code>413</code>: Vượt giới hạn tệp/body.; <code>422</code>: Thiếu/sai field, chữ ký PDF/ZPL, format, copies, options hoặc request ID.; <code>429</code>: Hàng đợi đầy.; <code>503</code>: Không xác minh được capability máy.; <code>507</code>: Không đủ đĩa hoặc không lưu được yêu cầu.</p>
+<h3 id="55-lich-su-cua-client">5.5 Lịch sử của client</h3>
+<p><strong>GET <code>/api/v1/jobs</code></strong></p>
+<p><code>limit</code> không bắt buộc, mặc định 50 và được giới hạn trong 1–100. Kết quả mới nhất trước, chỉ gồm lệnh của client hiện tại, không trả nội dung file. Mảng rỗng <code>[]</code> là chưa có lịch sử hiển thị.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-sh">curl -i &quot;$BASE_URL/api/v1/jobs?limit=50&quot; \
+  -H &quot;Authorization: Bearer $API_KEY&quot;
+</code></pre>
+<p><strong>Response HTTP 200 — Danh sách metadata, không trả file đã lưu.</strong></p>
+<pre><code class="language-json">[
+  {
+    &quot;job_id&quot;: &quot;job-example&quot;,
+    &quot;printer_id&quot;: &quot;printer-example&quot;,
+    &quot;status&quot;: &quot;queued&quot;,
+    &quot;accepted_at&quot;: &quot;2026-10-06T09:00:00+00:00&quot;,
+    &quot;updated_at&quot;: &quot;2026-10-06T09:00:00+00:00&quot;,
+    &quot;title&quot;: &quot;Invoice example&quot;,
+    &quot;format&quot;: &quot;pdf&quot;,
+    &quot;copies&quot;: 1,
+    &quot;reason&quot;: null
+  }
+]
+</code></pre>
+<p><strong>Lỗi cần xử lý:</strong> <code>401</code>: API key thiếu, sai, đã đổi hoặc đã thu hồi.</p>
+<h3 id="56-chi-tiet-va-su-kien-lenh">5.6 Chi tiết và sự kiện lệnh</h3>
+<p><strong>GET <code>/api/v1/jobs/{job_id}</code></strong></p>
+<p>Dùng <code>job_id</code> từ kết quả gửi hoặc lịch sử. Gọi lại mỗi 3–5 giây khi cần theo dõi; dừng khi <code>completed</code>, <code>failed</code> hoặc <code>canceled</code>. <code>completed</code> là CUPS báo hoàn thành, không bảo đảm giấy đã ra. Với <code>unknown</code>, nhờ quản trị xác minh, không tự in lại. <code>reason</code> và <code>events</code> giúp giải thích trạng thái.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-sh">JOB_ID='job-example' # Thay bằng job_id thật đã nhận
+curl -i &quot;$BASE_URL/api/v1/jobs/$JOB_ID&quot; \
+  -H &quot;Authorization: Bearer $API_KEY&quot;
+</code></pre>
+<p><strong>Response HTTP 200 — Metadata và events.</strong></p>
+<pre><code class="language-json">{
+  &quot;job_id&quot;: &quot;job-example&quot;,
+  &quot;printer_id&quot;: &quot;printer-example&quot;,
+  &quot;status&quot;: &quot;queued&quot;,
+  &quot;accepted_at&quot;: &quot;2026-10-06T09:00:00+00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-06T09:00:00+00:00&quot;,
+  &quot;title&quot;: &quot;Invoice example&quot;,
+  &quot;format&quot;: &quot;pdf&quot;,
+  &quot;copies&quot;: 1,
+  &quot;reason&quot;: null,
+  &quot;events&quot;: [
+    {
+      &quot;at&quot;: &quot;2026-10-06T09:00:00+00:00&quot;,
+      &quot;actor&quot;: &quot;client&quot;,
+      &quot;status&quot;: &quot;queued&quot;,
+      &quot;message&quot;: &quot;Accepted durable request&quot;
+    }
+  ]
+}
+</code></pre>
+<p><strong>Lỗi cần xử lý:</strong> <code>401</code>: API key thiếu, sai, đã đổi hoặc đã thu hồi.; <code>404</code>: Lệnh không tồn tại, không thuộc client hoặc lịch sử đã bị dọn.</p>
+<h3 id="57-yeu-cau-huy-lenh">5.7 Yêu cầu hủy lệnh</h3>
+<p><strong>POST <code>/api/v1/jobs/{job_id}/cancel</code></strong></p>
+<p>Không gửi body. HTTP 200 trả trạng thái sau yêu cầu, không bảo đảm luôn là <code>canceled</code>. Đọc <code>status</code>, <code>reason</code>, <code>events</code>; nếu cần, gọi lại API chi tiết. Hủy không thu hồi được giấy đã in và không xóa lịch sử.</p>
+<p><strong>Request:</strong></p>
+<pre><code class="language-sh">curl -i -X POST &quot;$BASE_URL/api/v1/jobs/$JOB_ID/cancel&quot; \
+  -H &quot;Authorization: Bearer $API_KEY&quot;
+</code></pre>
+<p><strong>Response HTTP 200 — Trạng thái thực tế sau yêu cầu, không luôn là canceled.</strong></p>
+<pre><code class="language-json">{
+  &quot;job_id&quot;: &quot;job-example&quot;,
+  &quot;printer_id&quot;: &quot;printer-example&quot;,
+  &quot;status&quot;: &quot;canceled&quot;,
+  &quot;accepted_at&quot;: &quot;2026-10-06T09:00:00+00:00&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-06T09:00:00+00:00&quot;,
+  &quot;title&quot;: &quot;Invoice example&quot;,
+  &quot;format&quot;: &quot;pdf&quot;,
+  &quot;copies&quot;: 1,
+  &quot;reason&quot;: &quot;Canceled before CUPS handoff&quot;,
+  &quot;events&quot;: []
+}
+</code></pre>
+<p><strong>Lỗi cần xử lý:</strong> <code>401</code>: API key thiếu, sai, đã đổi hoặc đã thu hồi.; <code>404</code>: Lệnh không tồn tại hoặc không thuộc client.; <code>503</code>: Không xác minh được trạng thái CUPS; chưa báo canceled.</p>
+<p>Tài liệu API cũng có sẵn khi không có Internet tại <code>/client#api-guide</code>; trang hướng dẫn không tự gửi request hoặc in thử.</p>
 <h2 id="6-van-hanh-va-xu-ly-loi-co-ban">6. Vận hành và xử lý lỗi cơ bản</h2>
 <h3 id="61-kiem-tra-khi-khong-mo-uoc-web">6.1 Kiểm tra khi không mở được web</h3>
 <p>Chạy <strong>trên thiết bị qua SSH</strong>:</p>
